@@ -1,0 +1,28 @@
+run = "cleanup"
+
+[[nodes]]
+id = "C1"
+title = "Remove the second note left by the dependency-edge wave"
+executor = "docs"
+instructions = """
+Delete the file docs/spikes/dag-wave/step-two.md.
+
+It is a leftover from an earlier test of this framework. Change nothing else, and create no
+new files.
+"""
+
+[[nodes]]
+id = "C2"
+title = "Remove the first note, once the second is already gone"
+executor = "docs"
+depends_on = ["C1"]
+instructions = """
+Confirm that docs/spikes/dag-wave/step-two.md is already absent, then delete
+docs/spikes/dag-wave/step-one.md, which leaves the docs/spikes/dag-wave directory empty and
+therefore gone.
+
+If step-two.md is still present, stop and change nothing: its presence means this node started
+before the work it depends on had landed, which is the thing this test exists to catch.
+
+Change nothing else, and create no new files.
+"""

@@ -1,0 +1,30 @@
+run = "wave"
+
+[[nodes]]
+id = "W1"
+title = "Add the first note of the dependency-edge wave"
+executor = "docs"
+instructions = """
+Create the file docs/spikes/dag-wave/step-one.md containing exactly one markdown heading,
+`# Step one`, and one sentence below it saying that this file was written by the first node
+of a two-node wave.
+
+This is the framework's dependency-edge test. Change nothing else, and create no other files.
+"""
+
+[[nodes]]
+id = "W2"
+title = "Add the second note, which must see the first"
+executor = "docs"
+depends_on = ["W1"]
+instructions = """
+Read docs/spikes/dag-wave/step-one.md, which the previous node in this wave already merged,
+then create docs/spikes/dag-wave/step-two.md containing the heading `# Step two`, one sentence
+saying it was written by the second node, and a line quoting the sentence it read from
+step-one.md.
+
+If step-one.md is not present, stop and change nothing: its absence means this node started
+before the work it depends on had landed, which is the thing this test exists to catch.
+
+Change nothing else, and create no other files.
+"""

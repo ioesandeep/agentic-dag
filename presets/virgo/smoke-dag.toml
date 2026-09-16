@@ -1,0 +1,12 @@
+run = "smoke"
+
+[[nodes]]
+id = "S1"
+title = "Delete the retained DAG wake-probe document"
+executor = "docs"
+instructions = """
+Delete the file docs/spikes/dag-wake-probe.md.
+
+This is the framework's first live smoke test: a single-file deletion that is safe to merge
+and trivial to review. Change nothing else, and create no new files.
+"""

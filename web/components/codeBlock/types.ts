@@ -1,0 +1,15 @@
+export enum HighlightLanguage {
+  BASH = 'bash',
+  CSS = 'css',
+  JAVASCRIPT = 'javascript',
+  JSON = 'json',
+  JSX = 'jsx',
+  MARKDOWN = 'markdown',
+  PYTHON = 'python',
+  SQL = 'sql',
+  TOML = 'toml',
+  TSX = 'tsx',
+  TYPESCRIPT = 'typescript',
+  YAML = 'yaml',
+  PLAIN = 'text',
+}

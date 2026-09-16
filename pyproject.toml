@@ -1,0 +1,70 @@
+[project]
+name = "virgo-agentic-dag"
+version = "0.1.0"
+description = "Deterministic DAG controller that drives coding agents to produce focused, human-reviewed pull requests"
+readme = "README.md"
+authors = [
+    { name = "asander", email = "asander@virgo.fyi" },
+    { name = "sandeep", email = "sandeep@virgo.fyi" }
+]
+requires-python = ">=3.13.12, <3.14"
+dependencies = [
+    "sqlalchemy[asyncio]>=2.0.36",
+    "alembic>=1.16.5",
+    "aiosqlite>=0.20",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+web = [
+    "fastapi>=0.118.1",
+    "uvicorn>=0.34",
+]
+
+[project.scripts]
+dagctl = "virgo_agentic_dag.api.cli.dagctl:main"
+dag-webhook-sse = "virgo_agentic_dag.server.webhook_sse_server:main"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28",
+    "mypy>=1.19.1",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "pytest-mock>=3.14",
+    "ruff>=0.12.12",
+]
+
+[build-system]
+requires = ["uv_build>=0.5.0,<0.12"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "--strict-markers -m 'not slow' --import-mode=importlib"
+markers = [
+    "unit: a class or function in isolation",
+    "behavior: a feature through its service entry point",
+    "integration: an adapter against a real store or external process",
+    "e2e: a user journey through public entry points",
+    "slow: calls a live external provider",
+]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+extend-select = ["TID252"]
+
+[tool.mypy]
+strict = true
+explicit_package_bases = true
+mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
+
+[[tool.mypy.overrides]]
+module = ["fastapi.*", "pydantic.*", "uvicorn.*"]
+ignore_missing_imports = true

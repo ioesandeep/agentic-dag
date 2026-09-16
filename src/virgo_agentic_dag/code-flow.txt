@@ -1,0 +1,23 @@
+command -> 
+    parse
+        command is tick -> use a command handler
+            TickCommandHandler.handle(TickCommand)
+
+command handler
+   handle(tick_command):
+
+TickCommandHandler
+    constructor():
+       validator = DagValidator()
+       graph_builder = GraphBuilder()
+    
+    handle(tick_command)
+       # Build graph
+       graph = graph_builder.build_from_path(dag_path)
+       
+       # validate
+       validation_result = validator.validate()
+
+       # business logic ie tick specific logic
+       What needs to happen here?
+    
