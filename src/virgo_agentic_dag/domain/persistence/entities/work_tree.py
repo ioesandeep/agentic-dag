@@ -27,6 +27,7 @@ class WorkTree(EntityBase):
     absolute_path: Mapped[str] = mapped_column(String, nullable=False)
     branch: Mapped[str] = mapped_column(String, nullable=False, default="")
     pr_number: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    pr_url: Mapped[str] = mapped_column(String, nullable=False, default="")
     # The pull request head SHA at the start of a worktree session.
     head_sha: Mapped[str | None] = mapped_column(String, nullable=True)
     marks: Mapped[str] = mapped_column(String, nullable=False, default="{}")

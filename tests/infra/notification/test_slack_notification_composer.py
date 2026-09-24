@@ -41,7 +41,11 @@ NOW = datetime(2026, 8, 9, tzinfo=UTC)
 NODE_ID = "SIGNATURE"
 TITLE = "Summarise a text"
 AGENT_NAME = "Iris"
-READING = PrDetails(number=42, head_sha="8bddf07abcdef")
+READING = PrDetails(
+    number=42,
+    head_sha="8bddf07abcdef",
+    url="https://git.example.com/acme/thing/pull/42",
+)
 
 
 def test_work_started_returns_the_agent_name_and_title_when_the_title_is_nonempty() -> (
@@ -56,7 +60,7 @@ def test_work_started_returns_the_agent_name_and_title_when_the_title_is_nonempt
         agent_name=AGENT_NAME,
     )
 
-    composer = SlackNotificationComposer("acme/thing")
+    composer = SlackNotificationComposer()
 
     message = composer.work_started(event)
 
@@ -75,7 +79,7 @@ def test_work_started_returns_the_node_id_when_the_title_is_empty() -> None:
         agent_name=AGENT_NAME,
     )
 
-    composer = SlackNotificationComposer("acme/thing")
+    composer = SlackNotificationComposer()
 
     message = composer.work_started(event)
 
@@ -92,10 +96,12 @@ def test_pull_request_adopted_returns_the_merge_conflicts_and_the_pull_request_l
         updated_at=NOW,
         title=TITLE,
         agent_name=AGENT_NAME,
-        pr_details=replace(READING, number=41),
+        pr_details=replace(
+            READING, number=41, url="https://git.example.com/acme/thing/pull/41"
+        ),
     )
 
-    composer = SlackNotificationComposer("acme/thing")
+    composer = SlackNotificationComposer()
 
     message = composer.pull_request_adopted(event)
 
@@ -104,7 +110,7 @@ def test_pull_request_adopted_returns_the_merge_conflicts_and_the_pull_request_l
     assert "/pull/41|pr#41>" in message
 
 
-def test_pull_request_adopted_returns_the_pull_request_number_when_the_composer_lacks_a_repository() -> (
+def test_pull_request_adopted_includes_the_pull_request_number_in_the_message_when_the_pull_request_url_is_empty() -> (
     None
 ):
     event = PullRequestAdoptedEvent(
@@ -114,7 +120,7 @@ def test_pull_request_adopted_returns_the_pull_request_number_when_the_composer_
         updated_at=NOW,
         title=TITLE,
         agent_name=AGENT_NAME,
-        pr_details=replace(READING, number=41),
+        pr_details=replace(READING, number=41, url=""),
     )
 
     message = SlackNotificationComposer().pull_request_adopted(event)
@@ -135,13 +141,13 @@ def test_pull_request_opened_returns_slack_notification_text_when_the_event_incl
         pr_details=replace(READING, title="Add a digest helper"),
     )
 
-    composer = SlackNotificationComposer("acme/thing")
+    composer = SlackNotificationComposer()
 
     message = composer.pull_request_opened(event)
 
     assert message == (
         "Agent *Iris* started working on `Summarise a text`\n"
-        "<https://github.com/acme/thing/pull/42>"
+        "<https://git.example.com/acme/thing/pull/42>"
     )
 
 
@@ -164,7 +170,7 @@ def test_comments_added_counts_the_comments_when_they_arrive(
         comment_count=comment_count,
     )
 
-    composer = SlackNotificationComposer("acme/thing")
+    composer = SlackNotificationComposer()
 
     message = composer.comments_added(event)
 
@@ -185,7 +191,7 @@ def test_comments_addressed_states_the_head_commit_when_the_pull_request_has_one
         comment_count=2,
     )
 
-    composer = SlackNotificationComposer("acme/thing")
+    composer = SlackNotificationComposer()
 
     message = composer.comments_addressed(event)
 
@@ -220,7 +226,7 @@ def test_checks_completed_returns_the_pull_request_check_results(
         pr_details=pr_details,
     )
 
-    composer = SlackNotificationComposer("acme/thing")
+    composer = SlackNotificationComposer()
 
     message = composer.checks_completed(event)
 
@@ -248,7 +254,7 @@ def test_mergeability_changed_returns_the_branch_mergeability(
         pr_details=pr_details,
     )
 
-    composer = SlackNotificationComposer("acme/thing")
+    composer = SlackNotificationComposer()
 
     message = composer.mergeability_changed(event)
 
@@ -291,7 +297,7 @@ def test_pull_request_approved_returns_the_approver(
         pr_details=pr_details,
     )
 
-    composer = SlackNotificationComposer("acme/thing")
+    composer = SlackNotificationComposer()
 
     message = composer.pull_request_approved(event)
 
@@ -309,7 +315,7 @@ def test_pull_request_merged_returns_the_merger_and_agent_names() -> None:
         pr_details=replace(READING, is_merged=True, merged_by="skgiricorp"),
     )
 
-    composer = SlackNotificationComposer("acme/thing")
+    composer = SlackNotificationComposer()
 
     message = composer.pull_request_merged(event)
 
@@ -333,12 +339,12 @@ def test_agent_stopped_returns_the_node_id_the_reason_the_link_and_the_last_log_
         log_tail="Pushed the branch\n\nError: Reached max turns (120)\n",
     )
 
-    composer = SlackNotificationComposer("acme/thing")
+    composer = SlackNotificationComposer()
 
     message = composer.agent_stopped(event)
 
     assert message == (
-        "`SIGNATURE` stopped on <https://github.com/acme/thing/pull/42|pr#42> — "
+        "`SIGNATURE` stopped on <https://git.example.com/acme/thing/pull/42|pr#42> — "
         "its session ran past its deadline and was killed\n"
         "```\nError: Reached max turns (120)\n```"
     )
@@ -356,12 +362,12 @@ def test_agent_stopped_returns_no_quote_when_the_event_has_no_log_tail() -> None
         pr_details=READING,
     )
 
-    composer = SlackNotificationComposer("acme/thing")
+    composer = SlackNotificationComposer()
 
     message = composer.agent_stopped(event)
 
     assert message == (
-        "`SIGNATURE` stopped on <https://github.com/acme/thing/pull/42|pr#42> — "
+        "`SIGNATURE` stopped on <https://git.example.com/acme/thing/pull/42|pr#42> — "
         "its pull request was closed without merging"
     )
 
@@ -378,7 +384,7 @@ def test_agent_stopped_escapes_the_slack_markup_characters_of_the_log_line() -> 
         log_tail="post to <https://slack.com|slack> & `run` > out failed",
     )
 
-    composer = SlackNotificationComposer("acme/thing")
+    composer = SlackNotificationComposer()
 
     message = composer.agent_stopped(event)
 
@@ -397,7 +403,7 @@ def test_node_retried_returns_the_node_title() -> None:
         agent_name=AGENT_NAME,
     )
 
-    composer = SlackNotificationComposer("acme/thing")
+    composer = SlackNotificationComposer()
 
     message = composer.node_retried(event)
 
@@ -415,7 +421,7 @@ def test_node_skipped_returns_the_node_title() -> None:
         agent_name=AGENT_NAME,
     )
 
-    composer = SlackNotificationComposer("acme/thing")
+    composer = SlackNotificationComposer()
 
     message = composer.node_skipped(event)
 

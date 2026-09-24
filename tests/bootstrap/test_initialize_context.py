@@ -9,9 +9,6 @@ from virgo_agentic_dag.bootstrap.context_initializer import initialize_context
 from virgo_agentic_dag.domain.command.abort_command import AbortCommand
 from virgo_agentic_dag.domain.command.serve_command import ServeCommand
 from virgo_agentic_dag.domain.command.tick_command import TickCommand
-from virgo_agentic_dag.domain.events.mergeability_changed_event import (
-    MergeabilityChangedEvent,
-)
 from virgo_agentic_dag.domain.events.node_event import NodeEvent
 from virgo_agentic_dag.domain.events.work_started_event import WorkStartedEvent
 from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
@@ -26,10 +23,6 @@ from virgo_agentic_dag.domain.service.notification_publisher import (
     NotificationPublisher,
 )
 from virgo_agentic_dag.infra.code.github_code_repo import GitHubCodeRepo
-from virgo_agentic_dag.domain.notifications.notification_composer import (
-    NotificationComposer,
-)
-from virgo_agentic_dag.domain.run.pr_details import PrDetails
 
 pytestmark = pytest.mark.behavior
 
@@ -85,19 +78,6 @@ def event() -> NodeEvent:
         updated_at=NOW,
         title="Summarise a text",
         agent_name="Iris",
-    )
-
-
-@pytest.fixture
-def conflicted_event() -> MergeabilityChangedEvent:
-    return MergeabilityChangedEvent(
-        node_id="A",
-        type=NotificationType.CONFLICTS_FOUND,
-        created_at=NOW,
-        updated_at=NOW,
-        title="Summarise a text",
-        agent_name="Iris",
-        pr_details=PrDetails(number=41, head_sha="9f2c1ab", is_conflicted=True),
     )
 
 
@@ -216,8 +196,8 @@ async def test_frees_the_run_for_the_next_pass_when_the_context_exits(
         assert context.command is command
 
 
-async def test_the_composer_links_the_pull_request_to_the_repository_when_the_checkout_resolves_a_repository_slug(
-    tmp_path: Path, mocker: MockerFixture, conflicted_event: MergeabilityChangedEvent
+async def test_initialize_context_sets_the_repository_slug_to_the_value_returned_by_github_code_repo_get_repo_slug_when_the_dag_specifies_an_empty_repository_slug(
+    tmp_path: Path, mocker: MockerFixture
 ) -> None:
     mocker.patch.object(GitHubCodeRepo, "get_repo_slug", return_value="acme/virgo")
     dag_path = tmp_path / "dag.toml"
@@ -231,15 +211,13 @@ async def test_the_composer_links_the_pull_request_to_the_repository_when_the_ch
     async with initialize_context(
         TickCommand(dag_path=dag_path), io.StringIO()
     ) as context:
-        message = context.get(NotificationComposer).mergeability_changed(
-            conflicted_event
-        )
+        repo_slug = context.repo_slug
 
-    assert "https://github.com/acme/virgo/pull/41" in message
+    assert repo_slug == "acme/virgo"
 
 
-async def test_the_composer_links_the_pull_request_to_the_repository_when_the_dag_specifies_a_repository_slug(
-    tmp_path: Path, conflicted_event: MergeabilityChangedEvent
+async def test_initialize_context_sets_the_repository_slug_from_the_dag_when_the_dag_specifies_a_repository_slug(
+    tmp_path: Path,
 ) -> None:
     dag_path = tmp_path / "dag.toml"
     dag_path.write_text(
@@ -252,15 +230,13 @@ async def test_the_composer_links_the_pull_request_to_the_repository_when_the_da
     async with initialize_context(
         TickCommand(dag_path=dag_path), io.StringIO()
     ) as context:
-        message = context.get(NotificationComposer).mergeability_changed(
-            conflicted_event
-        )
+        repo_slug = context.repo_slug
 
-    assert "https://github.com/acme/fork/pull/41" in message
+    assert repo_slug == "acme/fork"
 
 
-async def test_the_composer_omits_the_pull_request_link_when_repository_slug_resolution_raises_an_observation_error(
-    tmp_path: Path, mocker: MockerFixture, conflicted_event: MergeabilityChangedEvent
+async def test_initialize_context_keeps_the_repository_slug_empty_when_github_code_repo_get_repo_slug_raises_an_observation_error(
+    tmp_path: Path, mocker: MockerFixture
 ) -> None:
     mocker.patch.object(
         GitHubCodeRepo,
@@ -278,8 +254,6 @@ async def test_the_composer_omits_the_pull_request_link_when_repository_slug_res
     async with initialize_context(
         TickCommand(dag_path=dag_path), io.StringIO()
     ) as context:
-        message = context.get(NotificationComposer).mergeability_changed(
-            conflicted_event
-        )
+        repo_slug = context.repo_slug
 
-    assert "https://github.com" not in message
+    assert repo_slug == ""

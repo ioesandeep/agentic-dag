@@ -69,7 +69,7 @@ class DagWebService:
         self._database_registry = database_registry
         self._code_repo = code_repo
         self._transcript_locators = transcript_locators
-        self._repo_slugs: dict[Path, str] = {}
+        self._repo_urls: dict[Path, str] = {}
 
     async def list_dags(self) -> list[DagSummaryResponse]:
         """Return one entry per dag on this host."""
@@ -128,11 +128,11 @@ class DagWebService:
 
             return dag_mapper.to_unreadable_detail_response(dag_spec)
 
-        repo_slug = await self._get_repo_slug(dag_spec)
+        repo_url = await self._get_repo_url(dag_spec)
         audit_tail = self._find_audit_tail(audit_entries)
 
         return dag_mapper.to_detail_response(
-            dag_spec, rows, scheduled_job, watcher, audit_tail, repo_slug
+            dag_spec, rows, scheduled_job, watcher, audit_tail, repo_url
         )
 
     def _find_audit_tail(self, audit_entries: list[AuditEntry]) -> list[AuditEntry]:
@@ -286,23 +286,23 @@ class DagWebService:
 
         return self._find_audit_tail(node_audit_entries)
 
-    async def _get_repo_slug(self, dag_spec: DagSpec) -> str:
-        """Return the owner/repo of a dag's repository, or empty where unreadable."""
+    async def _get_repo_url(self, dag_spec: DagSpec) -> str:
+        """Return the web url of a dag's repository, or empty where unreadable."""
         project_root = dag_spec.project_root
         if project_root is None:
             return ""
 
-        cached = self._repo_slugs.get(project_root)
+        cached = self._repo_urls.get(project_root)
         if cached is not None:
             return cached
 
         try:
-            repo_slug = await self._code_repo.get_repo_slug(project_root)
+            repo_url = await self._code_repo.get_repo_url(project_root)
         except (ObservationError, OSError) as error:
             logger.warning("%s names no repository: %s", dag_spec.name, error)
 
             return ""
 
-        self._repo_slugs[project_root] = repo_slug
+        self._repo_urls[project_root] = repo_url
 
-        return repo_slug
+        return repo_url

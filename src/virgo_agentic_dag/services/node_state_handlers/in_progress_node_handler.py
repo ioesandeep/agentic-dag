@@ -273,6 +273,7 @@ class InProgressNodeHandler(NodeStateHandler):
             absolute_path=worktree.absolute_path,
             branch=branch,
             pr_number=pr_number,
+            pr_url=pr_details.url,
             head_sha=pr_details.head_sha,
             marks=worktree.marks,
             created_at=worktree.created_at,

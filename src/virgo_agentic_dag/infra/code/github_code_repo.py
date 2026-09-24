@@ -67,7 +67,7 @@ class GitHubCodeRepo(CodeRepo):
     async def get_pull_request(
         self, graph_node: GraphNode, number: int
     ) -> PullRequestSnapshot:
-        fields = ",".join((*REQUIRED_FIELDS, "mergeCommit", "mergedBy", "title"))
+        fields = ",".join((*REQUIRED_FIELDS, "mergeCommit", "mergedBy", "title", "url"))
         argv = ("gh", "pr", "view", str(number), "--json", fields)
 
         result = await self._run(graph_node, argv)
@@ -122,6 +122,15 @@ class GitHubCodeRepo(CodeRepo):
         result = await asyncio.to_thread(self._command_runner.run, argv, project_root)
         if result.returncode != 0:
             raise ObservationError(f"gh repo view failed in {project_root}")
+
+        return result.stdout.strip()
+
+    async def get_repo_url(self, project_root: Path) -> str:
+        argv = ("gh", "repo", "view", "--json", "url", "--jq", ".url")
+
+        result = await asyncio.to_thread(self._command_runner.run, argv, project_root)
+        if result.returncode != 0:
+            raise ObservationError(f"gh repo view --json url failed in {project_root}")
 
         return result.stdout.strip()
 

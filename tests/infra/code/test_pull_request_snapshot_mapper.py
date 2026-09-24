@@ -14,6 +14,7 @@ COMPLETE_PAYLOAD = {
     "reviewDecision": "APPROVED",
     "statusCheckRollup": [{"name": "build", "conclusion": "SUCCESS"}],
     "mergeCommit": None,
+    "url": "https://git.example.com/acme/virgo/pull/12",
 }
 
 
@@ -23,6 +24,7 @@ def test_reads_an_open_pull_request():
     assert snapshot.state is PullRequestState.OPEN
     assert snapshot.head_sha == "abc123"
     assert snapshot.base_branch == "develop"
+    assert snapshot.url == "https://git.example.com/acme/virgo/pull/12"
     assert snapshot.is_complete is True
 
 

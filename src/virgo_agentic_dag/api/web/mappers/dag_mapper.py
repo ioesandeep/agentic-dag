@@ -52,8 +52,6 @@ from virgo_agentic_dag.domain.specs.dag_spec import DagSpec
 from virgo_agentic_dag.domain.specs.node_spec import NodeSpec
 
 WAKE_TRIGGER = "wake"
-# TODO: remove this template; the url should come from the dag, not be built here.
-PULL_REQUEST_URL = "https://github.com/{repo_slug}/pull/{pr_number}"
 
 
 def to_response(
@@ -109,11 +107,11 @@ def to_detail_response(
     scheduled_job: ScheduledJob | None,
     watcher: Watcher | None,
     audit_entries: list[AuditEntry],
-    repo_slug: str,
+    repo_url: str,
 ) -> DagDetailResponse:
     """Convert a dag to its detail API response."""
     previews = to_node_responses(dag_spec, rows)
-    nodes = _to_node_detail_responses(dag_spec, rows, previews, repo_slug)
+    nodes = _to_node_detail_responses(dag_spec, rows, previews, repo_url)
     audit = [_to_audit_response(audit_entry) for audit_entry in audit_entries]
 
     return DagDetailResponse(
@@ -215,7 +213,7 @@ def _to_node_detail_responses(
     dag_spec: DagSpec,
     rows: list[Node],
     previews: list[NodePreviewResponse],
-    repo_slug: str,
+    repo_url: str,
 ) -> list[NodeDetailResponse]:
     """Convert every node of a dag to its detail API response."""
     rows_by_id = {row.id: row for row in rows}
@@ -225,7 +223,7 @@ def _to_node_detail_responses(
             preview,
             rows_by_id.get(preview.id),
             dag_spec.find_node(preview.id),
-            repo_slug,
+            repo_url,
         )
         for preview in previews
     ]
@@ -235,7 +233,7 @@ def _to_node_detail_response(
     preview: NodePreviewResponse,
     row: Node | None,
     node_spec: NodeSpec | None,
-    repo_slug: str,
+    repo_url: str,
 ) -> NodeDetailResponse:
     """Convert one node to its detail API response."""
     agent = row.agent if row is not None else None
@@ -250,7 +248,7 @@ def _to_node_detail_response(
         updated_at=preview.updated_at,
         wakes=_count_wakes(agent),
         session_id=agent.resume_token if agent is not None else "",
-        pr_url=_get_pr_url(node_spec, worktree, repo_slug),
+        pr_url=_get_pr_url(node_spec, worktree, repo_url),
         pr_number=_get_pr_number(node_spec, worktree),
         worktree_name=worktree.name if worktree is not None else "",
         branch=worktree.branch if worktree is not None else "",
@@ -347,16 +345,23 @@ def _count_wakes(agent: NodeAgent | None) -> int:
 
 
 def _get_pr_url(
-    node_spec: NodeSpec | None, worktree: WorkTree | None, repo_slug: str
+    node_spec: NodeSpec | None, worktree: WorkTree | None, repo_url: str
 ) -> str:
     """Return the url of a node's pull request, or empty where it has none."""
     if node_spec is not None and node_spec.pr:
         return node_spec.pr
 
-    if worktree is None or worktree.pr_number == 0 or not repo_slug:
+    if worktree is None:
         return ""
 
-    return PULL_REQUEST_URL.format(repo_slug=repo_slug, pr_number=worktree.pr_number)
+    if worktree.pr_url:
+        return worktree.pr_url
+
+    if worktree.pr_number == 0 or not repo_url:
+        return ""
+
+    # TODO: return an empty url here once no worktree row predates the pr_url column.
+    return f"{repo_url}/pull/{worktree.pr_number}"
 
 
 def _get_pr_number(node_spec: NodeSpec | None, worktree: WorkTree | None) -> int:

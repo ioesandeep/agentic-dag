@@ -20,6 +20,7 @@ class PrDetails:
     is_conflicted: bool = False
     is_approved: bool = False
     title: str = ""
+    url: str = ""
     merged_by: str = ""
     failures: tuple[CheckFailure, ...] = ()
     checks_settled: bool = True

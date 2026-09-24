@@ -70,6 +70,7 @@ class AdoptedNodeImporter(NodeImporter):
             absolute_path=provisioned.absolute_path,
             branch=pr_details.head_branch,
             pr_number=pr_details.number,
+            pr_url=pr_details.url,
             created_at=provisioned.created_at,
         )
 
@@ -123,7 +124,10 @@ class AdoptedNodeImporter(NodeImporter):
         await self._audit_entry_repo.save(audit_entry)
 
         reading = PrDetails(
-            number=pr_details.number, head_sha="", title=pr_details.title
+            number=pr_details.number,
+            head_sha="",
+            title=pr_details.title,
+            url=pr_details.url,
         )
         node_event = PullRequestAdoptedEvent(
             node_id=graph_node.id,

@@ -43,7 +43,7 @@ pytestmark = pytest.mark.e2e
 READ_ONLY_METHODS = {"GET", "HEAD"}
 STARTED_AT = datetime(2026, 8, 15, 9, 0, tzinfo=UTC)
 WAKE_AT = datetime(2026, 8, 15, 9, 58, tzinfo=UTC)
-REPO_SLUG = "acme/virgo"
+REPO_URL = "https://git.example.com/acme/virgo"
 
 
 @pytest.fixture
@@ -157,6 +157,7 @@ async def test_dag_detail_returns_what_a_dag_records_where_its_database_opens(
         absolute_path="/ws/alpha/seed",
         branch="feat/seed",
         pr_number=412,
+        pr_url="https://git.example.com/acme/virgo/pull/412",
         created_at=STARTED_AT,
     )
     sessions = [build_session("launch"), build_session("wake")]
@@ -178,7 +179,6 @@ async def test_dag_detail_returns_what_a_dag_records_where_its_database_opens(
     )
 
     code_repo = mocker.MagicMock(spec=CodeRepo)
-    code_repo.get_repo_slug.return_value = REPO_SLUG
 
     response = TestClient(build_application(code_repo)).get("/api/dags/alpha")
 
@@ -198,7 +198,7 @@ async def test_dag_detail_returns_what_a_dag_records_where_its_database_opens(
                 "updatedAt": "2026-08-15T09:58:00Z",
                 "wakes": 1,
                 "sessionId": "token-seed",
-                "prUrl": "https://github.com/acme/virgo/pull/412",
+                "prUrl": "https://git.example.com/acme/virgo/pull/412",
                 "prNumber": 412,
                 "worktreeName": "alpha-seed",
                 "branch": "feat/seed",
@@ -251,7 +251,6 @@ async def test_dag_detail_returns_what_a_dag_records_where_its_database_opens(
             },
         ],
     }
-    code_repo.get_repo_slug.assert_awaited_once_with(dag_home / "checkout")
 
 
 def test_dag_detail_responds_404_where_no_dag_has_the_name(
@@ -287,6 +286,38 @@ async def test_dag_detail_counts_only_wake_sessions_where_the_launch_is_recorded
     response = TestClient(build_application(code_repo)).get("/api/dags/alpha")
 
     assert response.json()["nodes"][0]["wakes"] == 2
+
+
+async def test_dag_detail_formats_the_pull_request_url_from_the_repository_url_when_the_work_tree_has_no_pull_request_url(
+    mocker: MockerFixture,
+    dag_home: Path,
+    build_application: Callable[[CodeRepo], FastAPI],
+    write_graph: Callable[[str, str], None],
+    open_database: Callable[[str], Awaitable[SqliteDatabase]],
+    build_agent: Callable[[str, WorkTree | None, list[AgentSession]], NodeAgent],
+) -> None:
+    write_graph(
+        "alpha",
+        f"name = 'alpha'\nproject_root = '{dag_home / 'checkout'}'\n"
+        "[[nodes]]\nid = 'seed'\n",
+    )
+    database = await open_database("alpha")
+    await SqliteNodeRepo(database).ensure_rows([GraphNode(id="seed")], STARTED_AT)
+    worktree = WorkTree(
+        name="alpha-seed",
+        absolute_path="/ws/alpha/seed",
+        pr_number=412,
+        created_at=STARTED_AT,
+    )
+    agent = build_agent("token-seed", worktree, [])
+    await SqliteNodeAgentRepo(database).save(agent)
+
+    code_repo = mocker.MagicMock(spec=CodeRepo)
+    code_repo.get_repo_url.return_value = REPO_URL
+
+    response = TestClient(build_application(code_repo)).get("/api/dags/alpha")
+
+    assert response.json()["nodes"][0]["prUrl"] == f"{REPO_URL}/pull/412"
 
 
 async def test_dag_detail_returns_is_readable_false_where_the_database_does_not_open(

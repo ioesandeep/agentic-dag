@@ -259,6 +259,7 @@ async def test_adopt_launches_the_agent_in_a_worktree_cut_from_the_pull_request(
     )
     assert agent.worktree is not None
     assert agent.worktree.pr_number == PR_NUMBER
+    assert agent.worktree.pr_url == PR_URL
     assert agent.worktree.branch == HEAD_BRANCH
     assert len(agent.sessions) == 1
     assert agent_launcher.launch.await_args.args[2].resume_token == agent.resume_token
@@ -269,6 +270,7 @@ async def test_adopt_launches_the_agent_in_a_worktree_cut_from_the_pull_request(
     assert node_event.type is NotificationType.PR_ADOPTED
     assert node_event.pr_details is not None
     assert node_event.pr_details.number == PR_NUMBER
+    assert node_event.pr_details.url == PR_URL
 
 
 async def test_adopt_uses_project_root_from_command(

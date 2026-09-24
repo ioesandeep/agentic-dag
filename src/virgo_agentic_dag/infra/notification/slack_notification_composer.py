@@ -35,14 +35,12 @@ from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.notifications.notification_composer import (
     NotificationComposer,
 )
+from virgo_agentic_dag.domain.run.pr_details import PrDetails
 from virgo_agentic_dag.utils.format_duration import format_duration
 
 
 class SlackNotificationComposer(NotificationComposer):
     """Composes every notification with Slack's link and bold markup."""
-
-    def __init__(self, repo: str = "") -> None:
-        self._repo = repo
 
     def work_started(self, event: WorkStartedEvent) -> str:
         return self._render_started(event.agent_name, event.title or event.node_id)
@@ -50,14 +48,14 @@ class SlackNotificationComposer(NotificationComposer):
     def pull_request_adopted(self, event: PullRequestAdoptedEvent) -> str:
         return (
             f"Agent *{event.agent_name}* was handed "
-            f"{self._render_link(event.pr_details.number)}. "
+            f"{self._render_link(event.pr_details)}. "
             "It will respond to whatever happens there next — new comments, "
             "merge conflicts, failing checks, or the pull request becoming ready."
         )
 
     def pull_request_opened(self, event: PullRequestOpenedEvent) -> str:
         started = self._render_started(event.agent_name, event.title or event.node_id)
-        url = self._render_url(event.pr_details.number)
+        url = self._render_url(event.pr_details)
 
         return f"{started}\n{url}"
 
@@ -69,7 +67,7 @@ class SlackNotificationComposer(NotificationComposer):
 
         return (
             f"Agent *{event.agent_name}* pushed {event.commit_count} {commits} to "
-            f"{self._render_link(event.pr_details.number)}"
+            f"{self._render_link(event.pr_details)}"
         )
 
     def comments_added(self, event: CommentsAddedEvent) -> str:
@@ -77,7 +75,7 @@ class SlackNotificationComposer(NotificationComposer):
 
         return (
             f"{event.comment_count} {comments} added to "
-            f"{self._render_link(event.pr_details.number)}. Addressing them now"
+            f"{self._render_link(event.pr_details)}. Addressing them now"
         )
 
     def comments_addressed(self, event: CommentsAddressedEvent) -> str:
@@ -87,11 +85,11 @@ class SlackNotificationComposer(NotificationComposer):
 
         return (
             f"Addressed {event.comment_count} {comments} on "
-            f"{self._render_link(event.pr_details.number)}{where}"
+            f"{self._render_link(event.pr_details)}{where}"
         )
 
     def checks_completed(self, event: ChecksCompletedEvent) -> str:
-        link = self._render_link(event.pr_details.number)
+        link = self._render_link(event.pr_details)
         if not event.pr_details.failures:
             return f"The checks on {link} are green again"
 
@@ -100,7 +98,7 @@ class SlackNotificationComposer(NotificationComposer):
         return f"{link} has failing checks: {named}. Looking into it"
 
     def mergeability_changed(self, event: MergeabilityChangedEvent) -> str:
-        link = self._render_link(event.pr_details.number)
+        link = self._render_link(event.pr_details)
         if not event.pr_details.is_conflicted:
             return f"{link} merges cleanly again"
 
@@ -114,7 +112,7 @@ class SlackNotificationComposer(NotificationComposer):
         who = f"*{approver}*" if approver else "A reviewer"
 
         return (
-            f"{who} approved {self._render_link(event.pr_details.number)}. "
+            f"{who} approved {self._render_link(event.pr_details)}. "
             "Waiting for it to be merged"
         )
 
@@ -122,14 +120,14 @@ class SlackNotificationComposer(NotificationComposer):
         who = f"*{event.pr_details.merged_by}*" if event.pr_details.merged_by else "It"
 
         return (
-            f"{who} merged {self._render_link(event.pr_details.number)}. "
+            f"{who} merged {self._render_link(event.pr_details)}. "
             f"Agent *{event.agent_name}* will wind down. Thank you!"
         )
 
     def agent_stopped(self, event: AgentStoppedEvent) -> str:
         where = ""
         if event.pr_details is not None:
-            where = f" on {self._render_link(event.pr_details.number)}"
+            where = f" on {self._render_link(event.pr_details)}"
 
         stopped = f"`{event.node_id}` stopped{where} — {event.reason}"
         log_line = self._get_log_line(event.log_tail)
@@ -189,14 +187,14 @@ class SlackNotificationComposer(NotificationComposer):
     def _render_started(self, agent_name: str, title: str) -> str:
         return f"Agent *{agent_name}* started working on `{title}`"
 
-    def _render_url(self, pr_number: int) -> str:
-        if not self._repo:
-            return f"pr#{pr_number}"
+    def _render_url(self, pr_details: PrDetails) -> str:
+        if not pr_details.url:
+            return f"pr#{pr_details.number}"
 
-        return f"<https://github.com/{self._repo}/pull/{pr_number}>"
+        return f"<{pr_details.url}>"
 
-    def _render_link(self, pr_number: int) -> str:
-        if not self._repo:
-            return f"pr#{pr_number}"
+    def _render_link(self, pr_details: PrDetails) -> str:
+        if not pr_details.url:
+            return f"pr#{pr_details.number}"
 
-        return f"<https://github.com/{self._repo}/pull/{pr_number}|pr#{pr_number}>"
+        return f"<{pr_details.url}|pr#{pr_details.number}>"

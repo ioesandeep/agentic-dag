@@ -279,7 +279,7 @@ def register_beans(context: ApplicationContext) -> None:
     context.register(NotificationPublisher, _build_notification_publisher)
     context.register(
         NotificationComposer,
-        lambda _context: SlackNotificationComposer(_context.repo_slug),
+        lambda _context: SlackNotificationComposer(),
     )
     context.register(Workspace, _build_workspace)
     context.register(CodeRepo, _build_code_repo)

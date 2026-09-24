@@ -155,6 +155,7 @@ async def test_rests_the_node_when_the_session_reached_a_pull_request(
         head_sha="8bddf07abcdef",
         base_branch="main",
         title="Add a digest helper",
+        url="https://git.example.com/acme/virgo/pull/12",
     )
 
     node_repo = mocker.MagicMock(spec=NodeRepo)
@@ -188,8 +189,15 @@ async def test_rests_the_node_when_the_session_reached_a_pull_request(
         published.id,
         published.branch,
         published.pr_number,
+        published.pr_url,
         published.head_sha,
-    ) == (1, "virgo/a", 12, "8bddf07abcdef")
+    ) == (
+        1,
+        "virgo/a",
+        12,
+        "https://git.example.com/acme/virgo/pull/12",
+        "8bddf07abcdef",
+    )
     agent_session_repo.close.assert_awaited_once()
     closed = agent_session_repo.close.await_args.args[0]
     assert (closed.id, closed.end_state) == (1, "finished")

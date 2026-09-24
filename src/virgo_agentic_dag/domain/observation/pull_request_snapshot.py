@@ -20,6 +20,7 @@ class PullRequestSnapshot:
     is_approved: bool = False
     merged_by: str = ""
     title: str = ""
+    url: str = ""
     failures: tuple[CheckFailure, ...] = ()
     checks_settled: bool = True
     is_complete: bool = True
@@ -35,6 +36,7 @@ class PullRequestSnapshot:
             is_conflicted=not self.is_mergeable,
             is_approved=self.is_approved,
             title=self.title,
+            url=self.url,
             merged_by=self.merged_by,
             failures=self.failures,
             checks_settled=self.checks_settled,

@@ -56,7 +56,7 @@ pytestmark = pytest.mark.e2e
 STARTED_AT = datetime(2026, 8, 15, 9, 0, tzinfo=UTC)
 WAKE_AT = datetime(2026, 8, 15, 9, 58, tzinfo=UTC)
 RECOVER_AT = datetime(2026, 8, 15, 10, 30, tzinfo=UTC)
-REPO_SLUG = "acme/virgo"
+REPO_URL = "https://git.example.com/acme/virgo"
 
 
 @pytest.fixture
@@ -205,7 +205,7 @@ async def test_node_detail_returns_what_the_dag_records_where_its_database_opens
     )
 
     code_repo = mocker.MagicMock(spec=CodeRepo)
-    code_repo.get_repo_slug.return_value = REPO_SLUG
+    code_repo.get_repo_url.return_value = REPO_URL
 
     response = TestClient(build_application(code_repo)).get("/api/dags/alpha/seed")
 

@@ -22,6 +22,7 @@ class SqliteWorkTreeRepo(WorkTreeRepo):
                 .values(
                     branch=worktree.branch,
                     pr_number=worktree.pr_number,
+                    pr_url=worktree.pr_url,
                     head_sha=worktree.head_sha,
                 )
             )

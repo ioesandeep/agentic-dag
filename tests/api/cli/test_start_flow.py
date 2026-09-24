@@ -33,7 +33,7 @@ pytestmark = [pytest.mark.e2e, pytest.mark.slow]
 CHANNEL_VARIABLE = "SLACK_E2E_CHANNEL"
 TOKEN_VARIABLE = "SLACK_BOT_TOKEN"
 SLACK_API_URL = "https://slack.com/api"
-PULL_REQUEST_URL = "https://github.com/SK-Giri-Corp/virgo/pull"
+PULL_REQUEST_URL = "https://git.example.com/SK-Giri-Corp/virgo/pull"
 PASS_COUNT = 8
 READ_TIMEOUT_SECONDS = 30
 READ_INTERVAL_SECONDS = 0.5
@@ -119,20 +119,23 @@ def project_root(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def build_snapshot() -> Callable[[PullRequestState, str, str], PullRequestSnapshot]:
-    return lambda state, head_sha, title: PullRequestSnapshot(
+def build_snapshot() -> Callable[
+    [PullRequestState, str, str, str], PullRequestSnapshot
+]:
+    return lambda state, head_sha, title, url: PullRequestSnapshot(
         state=state,
         head_sha=head_sha,
         base_branch="develop",
         merged_by="skgiricorp",
         title=title,
+        url=url,
     )
 
 
 async def test_start_posts_messages_to_the_channel_when_the_pull_requests_for_two_nodes_change_from_open_to_merged(
     tmp_path: Path,
     project_root: Path,
-    build_snapshot: Callable[[PullRequestState, str, str], PullRequestSnapshot],
+    build_snapshot: Callable[[PullRequestState, str, str, str], PullRequestSnapshot],
     mocker: MockerFixture,
 ) -> None:
     channel = os.environ[CHANNEL_VARIABLE]
@@ -165,11 +168,21 @@ async def test_start_posts_messages_to_the_channel_when_the_pull_requests_for_tw
         os.environ, {"PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
     )
 
-    open_a = build_snapshot(PullRequestState.OPEN, "a1", "Change the greeting")
-    merged_a = build_snapshot(PullRequestState.MERGED, "a1", "Change the greeting")
-    open_b = build_snapshot(PullRequestState.OPEN, "b1", "Translate the greeting")
-    pushed_b = build_snapshot(PullRequestState.OPEN, "b2", "Translate the greeting")
-    merged_b = build_snapshot(PullRequestState.MERGED, "b2", "Translate the greeting")
+    a_url = f"{PULL_REQUEST_URL}/42"
+    b_url = f"{PULL_REQUEST_URL}/43"
+    open_a = build_snapshot(PullRequestState.OPEN, "a1", "Change the greeting", a_url)
+    merged_a = build_snapshot(
+        PullRequestState.MERGED, "a1", "Change the greeting", a_url
+    )
+    open_b = build_snapshot(
+        PullRequestState.OPEN, "b1", "Translate the greeting", b_url
+    )
+    pushed_b = build_snapshot(
+        PullRequestState.OPEN, "b2", "Translate the greeting", b_url
+    )
+    merged_b = build_snapshot(
+        PullRequestState.MERGED, "b2", "Translate the greeting", b_url
+    )
     # TODO: drop the extra open reading between each settle and the observation after it, and the per-node review artifact iterators, once NotificationPublisher delivers a node's events in publish order.
     pull_request_snapshots = {
         "A": iter([open_a, open_a, open_a, open_a, merged_a]),

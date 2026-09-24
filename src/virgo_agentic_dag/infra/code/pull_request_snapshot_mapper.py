@@ -42,6 +42,7 @@ class PullRequestSnapshotMapper:
             has_changes_requested=payload.get("reviewDecision") == "CHANGES_REQUESTED",
             is_approved=payload.get("reviewDecision") == "APPROVED",
             title=str(payload.get("title") or ""),
+            url=str(payload.get("url") or ""),
             merged_by=self._get_merged_by(payload),
             failures=self._checks.get_failures(rollup),
             checks_settled=self._checks.get_settled(rollup),

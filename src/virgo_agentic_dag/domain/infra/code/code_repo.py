@@ -45,6 +45,10 @@ class CodeRepo(ABC):
         """Return the owner/repo name of the repository this checkout belongs to."""
 
     @abstractmethod
+    async def get_repo_url(self, project_root: Path) -> str:
+        """Return the web url of the repository this checkout belongs to."""
+
+    @abstractmethod
     async def get_pr_details_from_url(self, pr_url: str) -> PullRequestDetails:
         """Return the pull request's number, repository, and head branch, from its url alone."""
 
