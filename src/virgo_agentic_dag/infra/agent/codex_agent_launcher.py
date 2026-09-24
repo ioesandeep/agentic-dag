@@ -40,6 +40,8 @@ class CodexAgentLauncher(AgentLauncher):
         'approval_policy="on-request"',
         "-c",
         'approvals_reviewer="auto_review"',
+        "-c",
+        'model_reasoning_effort="high"',
     )
     _SESSION_RUNNER = Path(__file__).with_name("codex_session_runner.py")
 
