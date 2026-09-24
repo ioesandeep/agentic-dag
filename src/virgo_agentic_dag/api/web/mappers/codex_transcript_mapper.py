@@ -10,6 +10,7 @@ from virgo_agentic_dag.api.web.api_responses.conversation_message_response impor
     ConversationMessageResponse,
     ConversationRoleEnum,
 )
+from virgo_agentic_dag.domain.agent.transcript_line import TranscriptLine
 
 
 def to_conversation_message_responses(
@@ -36,6 +37,100 @@ def to_conversation_message_responses(
             messages[message.uuid] = message
 
     return list(messages.values())
+
+
+def to_conversation_page_messages(
+    page_lines: list[TranscriptLine], look_ahead_lines: list[TranscriptLine]
+) -> list[ConversationMessageResponse]:
+    """Return messages that start in the page lines, or an empty list when no message starts in those lines."""
+    page_messages = _get_page_messages_by_uuid(page_lines)
+    look_ahead_messages = _get_newest_messages_by_uuid(look_ahead_lines)
+
+    newest_first: list[ConversationMessageResponse] = []
+    for page_message in reversed(page_messages.values()):
+        newest_message = look_ahead_messages.get(page_message.uuid, page_message)
+        completed_message = newest_message.model_copy(update={"id": page_message.id})
+        newest_first.append(completed_message)
+
+    return newest_first
+
+
+def _get_page_messages_by_uuid(
+    page_lines: list[TranscriptLine],
+) -> dict[str, ConversationMessageResponse]:
+    """Return a dictionary from UUIDs to messages that start in the page lines, or an empty dictionary when no message starts in those lines."""
+    page_messages: dict[str, ConversationMessageResponse] = {}
+    for page_line in page_lines:
+        record = _get_record(page_line.text)
+        if record is None:
+            continue
+
+        message = _to_record_message(record)
+        if message is None:
+            continue
+
+        earlier_message = page_messages.get(message.uuid)
+        is_message_start = _is_message_start(record, message)
+        if earlier_message is None and not is_message_start:
+            continue
+
+        message_id = f"{page_line.offset}:0"
+        if earlier_message is not None:
+            message_id = earlier_message.id
+
+        page_messages[message.uuid] = message.model_copy(update={"id": message_id})
+
+    return page_messages
+
+
+def _get_newest_messages_by_uuid(
+    transcript_lines: list[TranscriptLine],
+) -> dict[str, ConversationMessageResponse]:
+    """Return the newest message for each UUID in the transcript lines, or an empty dictionary when no transcript line converts to a message."""
+    newest_messages: dict[str, ConversationMessageResponse] = {}
+    for transcript_line in transcript_lines:
+        record = _get_record(transcript_line.text)
+        if record is None:
+            continue
+
+        message = _to_record_message(record)
+        if message is not None:
+            newest_messages[message.uuid] = message
+
+    return newest_messages
+
+
+def _get_record(line: str) -> dict[str, Any] | None:
+    """Return a JSON object with a timestamp, or None when the line does not decode to such an object."""
+    try:
+        record = json.loads(line)
+    except json.JSONDecodeError:
+        return None
+
+    is_record = isinstance(record, dict)
+    if not is_record or "timestamp" not in record:
+        return None
+
+    timestamped_record: dict[str, Any] = record
+
+    return timestamped_record
+
+
+def _to_record_message(record: dict[str, Any]) -> ConversationMessageResponse | None:
+    """Return the record's conversation message, or None when conversion fails."""
+    try:
+        return _to_message(record)
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _is_message_start(
+    record: dict[str, Any], message: ConversationMessageResponse
+) -> bool:
+    """Return whether the record starts the message."""
+    is_tool_message = message.role == ConversationRoleEnum.TOOL_USE
+
+    return not is_tool_message or record["type"] == "item.started"
 
 
 def _to_message(record: dict[str, Any]) -> ConversationMessageResponse | None:

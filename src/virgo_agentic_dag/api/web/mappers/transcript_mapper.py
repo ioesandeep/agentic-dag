@@ -10,6 +10,7 @@ from virgo_agentic_dag.api.web.api_responses.conversation_message_response impor
     ConversationMessageResponse,
     ConversationRoleEnum,
 )
+from virgo_agentic_dag.domain.agent.transcript_line import TranscriptLine
 
 
 def to_conversation_message_responses(
@@ -30,6 +31,56 @@ def to_conversation_message_responses(
         conversation_messages.extend(record_messages)
 
     return conversation_messages
+
+
+def to_conversation_page_messages(
+    page_lines: list[TranscriptLine], look_ahead_lines: list[TranscriptLine]
+) -> list[ConversationMessageResponse]:
+    """Return conversation messages for the page lines, or an empty list when no page line decodes to a message record."""
+    page_records = _get_message_records_by_offset(page_lines)
+    look_ahead_texts = [look_ahead_line.text for look_ahead_line in look_ahead_lines]
+    look_ahead_records = _list_json_records(look_ahead_texts)
+    look_ahead_message_records = [
+        record for record in look_ahead_records if _is_message_record(record)
+    ]
+    tool_results = _find_tool_results(
+        [*page_records.values(), *look_ahead_message_records]
+    )
+
+    page_messages: list[ConversationMessageResponse] = []
+    for record_offset, message_record in page_records.items():
+        record_messages = _to_conversation_messages(message_record, tool_results)
+        for message_index, record_message in enumerate(record_messages):
+            message_id = f"{record_offset}:{message_index}"
+            page_message = record_message.model_copy(update={"id": message_id})
+            page_messages.append(page_message)
+
+    page_messages.reverse()
+
+    return page_messages
+
+
+def _get_message_records_by_offset(
+    page_lines: list[TranscriptLine],
+) -> dict[int, dict[str, Any]]:
+    """Return message records by line offset, or an empty dictionary when no page line decodes to a message record."""
+    message_records: dict[int, dict[str, Any]] = {}
+    for page_line in page_lines:
+        try:
+            record = json.loads(page_line.text)
+        except json.JSONDecodeError:
+            continue
+
+        is_message = _is_message_record(record)
+        if is_message:
+            message_records[page_line.offset] = record
+
+    return message_records
+
+
+def _is_message_record(record: dict[str, Any]) -> bool:
+    """Return whether the record is a user or assistant message."""
+    return record["type"] in (ConversationRoleEnum.USER, ConversationRoleEnum.ASSISTANT)
 
 
 def _list_json_records(transcript_lines: list[str]) -> list[dict[str, Any]]:

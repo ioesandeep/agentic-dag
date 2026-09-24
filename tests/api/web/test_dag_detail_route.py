@@ -9,6 +9,7 @@ from pytest_mock import MockerFixture
 from sqlalchemy.ext.asyncio import create_async_engine
 from virgo_agentic_dag.api.web.controllers.dag_controller import DagController
 from virgo_agentic_dag.api.web.controllers.health_controller import HealthController
+from virgo_agentic_dag.api.web.routes.conversation_route import ConversationRoute
 from virgo_agentic_dag.api.web.routes.dag_route import DagRoute
 from virgo_agentic_dag.api.web.routes.health_route import HealthRoute
 from virgo_agentic_dag.api.web.routes.memory_route import MemoryRoute
@@ -24,6 +25,7 @@ from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSes
 from virgo_agentic_dag.domain.persistence.entities.audit_entry import AuditEntry
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
+from virgo_agentic_dag.infra.agent.transcript_page_reader import TranscriptPageReader
 from virgo_agentic_dag.infra.persistence.sqlite.dag_database_registry import (
     DagDatabaseRegistry,
 )
@@ -95,7 +97,11 @@ def build_application() -> Callable[[CodeRepo], FastAPI]:
     def build(code_repo: CodeRepo) -> FastAPI:
         dag_controller = DagController(
             DagWebService(
-                DagService(TomlDagLoader()), DagDatabaseRegistry(), code_repo, {}
+                DagService(TomlDagLoader()),
+                DagDatabaseRegistry(),
+                code_repo,
+                {},
+                TranscriptPageReader(),
             )
         )
 
@@ -103,6 +109,7 @@ def build_application() -> Callable[[CodeRepo], FastAPI]:
             dag_route=DagRoute(dag_controller),
             health_route=HealthRoute(HealthController()),
             memory_route=MemoryRoute(dag_controller),
+            conversation_route=ConversationRoute(dag_controller),
         ).build()
 
     return build

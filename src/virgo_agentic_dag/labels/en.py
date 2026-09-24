@@ -90,6 +90,9 @@ LABELS: dict[str, str] = {
     "runNotScheduled": "no host is running {dag}; there is nothing to abort\n",
     "dagUnknown": "no dag named {dag} lives on this host",
     "nodeUnknown": "no node named {node} is in dag {dag} on this host",
+    "transcriptCursorPastEnd": (
+        "cursor {cursor} is past the end of the transcript of node {node} in dag {dag}"
+    ),
     "commandCarriesNoGraph": "{command} does not carry a graph file",
     "unknownDependency": "{node_id} depends on {dep_id}, which is not in the graph",
     "duplicateNode": "{node_id} is declared more than once",

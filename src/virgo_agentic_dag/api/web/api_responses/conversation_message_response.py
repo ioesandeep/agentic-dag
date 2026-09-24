@@ -21,6 +21,10 @@ class ConversationRoleEnum(StrEnum):
 class ConversationMessageResponse(ApiBaseModel):
     """A single message of a node's agent transcript."""
 
+    id: str = Field(
+        default="",
+        description="The message identifier in the conversation page.",
+    )
     uuid: str = Field(description="The id of the message in the transcript.")
     role: ConversationRoleEnum = Field(description="The author role of the message.")
     timestamp: datetime = Field(description="When the message is recorded.")

@@ -120,6 +120,7 @@ from virgo_agentic_dag.infra.agent.codex_agent_launcher import CodexAgentLaunche
 from virgo_agentic_dag.infra.agent.codex_transcript_locator import (
     CodexTranscriptLocator,
 )
+from virgo_agentic_dag.infra.agent.transcript_page_reader import TranscriptPageReader
 from virgo_agentic_dag.infra.code.github_code_repo import GitHubCodeRepo
 from virgo_agentic_dag.infra.host.subprocess_command_runner import (
     SubprocessCommandRunner,
@@ -361,6 +362,9 @@ def _register_web_beans(context: ApplicationContext) -> None:
         from virgo_agentic_dag.api.web.controllers.health_controller import (
             HealthController,
         )
+        from virgo_agentic_dag.api.web.routes.conversation_route import (
+            ConversationRoute,
+        )
         from virgo_agentic_dag.api.web.routes.dag_route import DagRoute
         from virgo_agentic_dag.api.web.routes.health_route import HealthRoute
         from virgo_agentic_dag.api.web.routes.memory_route import MemoryRoute
@@ -381,6 +385,7 @@ def _register_web_beans(context: ApplicationContext) -> None:
             database_registry=_context.get(DagDatabaseRegistry),
             code_repo=_context.get(CodeRepo),
             transcript_locators=_build_transcript_locators(),
+            transcript_reader=TranscriptPageReader(),
         ),
     )
     context.register(
@@ -394,11 +399,16 @@ def _register_web_beans(context: ApplicationContext) -> None:
         MemoryRoute, lambda _context: MemoryRoute(_context.get(DagController))
     )
     context.register(
+        ConversationRoute,
+        lambda _context: ConversationRoute(_context.get(DagController)),
+    )
+    context.register(
         WebApplicationFactory,
         lambda _context: WebApplicationFactory(
             dag_route=_context.get(DagRoute),
             health_route=_context.get(HealthRoute),
             memory_route=_context.get(MemoryRoute),
+            conversation_route=_context.get(ConversationRoute),
         ),
     )
     context.register(

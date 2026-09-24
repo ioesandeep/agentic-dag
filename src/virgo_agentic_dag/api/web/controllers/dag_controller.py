@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from fastapi import HTTPException, status
+from typing import Annotated
+
+from fastapi import HTTPException, Query, status
+from virgo_agentic_dag.api.web.api_responses.conversation_page_response import (
+    ConversationPageResponse,
+)
 from virgo_agentic_dag.api.web.api_responses.dag_detail_response import (
     DagDetailResponse,
 )
@@ -12,8 +17,31 @@ from virgo_agentic_dag.api.web.api_responses.dag_summary_response import (
 from virgo_agentic_dag.api.web.api_responses.memory_response import MemoryResponse
 from virgo_agentic_dag.api.web.api_responses.node_response import NodeResponse
 from virgo_agentic_dag.api.web.service.dag_web_service import DagWebService
+from virgo_agentic_dag.config.constants import (
+    DEFAULT_CONVERSATION_PAGE_LIMIT,
+    MAX_CONVERSATION_PAGE_LIMIT,
+)
+from virgo_agentic_dag.domain.exceptions.host.transcript_cursor_past_end import (
+    TranscriptCursorPastEnd,
+)
 from virgo_agentic_dag.labels.en import LABELS
 from virgo_agentic_dag.utils.format_label import format_label
+
+BeforeQuery = Annotated[
+    int | None,
+    Query(
+        ge=0,
+        description="The byte offset before which the page ends, or null for the newest page.",
+    ),
+]
+LimitQuery = Annotated[
+    int,
+    Query(
+        ge=1,
+        le=MAX_CONVERSATION_PAGE_LIMIT,
+        description="The minimum number of messages on any page other than the last page.",
+    ),
+]
 
 
 class DagController:
@@ -68,3 +96,34 @@ class DagController:
             )
 
         return memory_response
+
+    async def get_conversation_page(
+        self,
+        dag_name: str,
+        node_id: str,
+        before: BeforeQuery = None,
+        limit: LimitQuery = DEFAULT_CONVERSATION_PAGE_LIMIT,
+    ) -> ConversationPageResponse:
+        """Return a page of a node's agent transcript."""
+        try:
+            conversation_page = await self._dag_web_service.get_conversation_page(
+                dag_name, node_id, before, limit
+            )
+        except TranscriptCursorPastEnd as past_end:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=format_label(
+                    LABELS["transcriptCursorPastEnd"],
+                    {"cursor": before, "dag": dag_name, "node": node_id},
+                ),
+            ) from past_end
+
+        if conversation_page is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=format_label(
+                    LABELS["nodeUnknown"], {"dag": dag_name, "node": node_id}
+                ),
+            )
+
+        return conversation_page

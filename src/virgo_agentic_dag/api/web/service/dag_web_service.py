@@ -12,6 +12,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from virgo_agentic_dag.api.web.api_responses.conversation_message_response import (
     ConversationMessageResponse,
 )
+from virgo_agentic_dag.api.web.api_responses.conversation_page_response import (
+    ConversationPageResponse,
+)
 from virgo_agentic_dag.api.web.api_responses.dag_detail_response import (
     DagDetailResponse,
 )
@@ -23,15 +26,20 @@ from virgo_agentic_dag.api.web.api_responses.node_detail_response import (
     NodeDetailResponse,
 )
 from virgo_agentic_dag.api.web.api_responses.node_response import NodeResponse
+from virgo_agentic_dag.api.web.api_responses.pagination_response import (
+    PaginationResponse,
+)
 from virgo_agentic_dag.api.web.mappers import (
     codex_transcript_mapper,
     dag_mapper,
     transcript_mapper,
 )
+from virgo_agentic_dag.domain.agent.transcript_line import TranscriptLine
 from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
     ObservationError,
 )
 from virgo_agentic_dag.domain.infra.agent.transcript_locator import TranscriptLocator
+from virgo_agentic_dag.domain.infra.agent.transcript_reader import TranscriptReader
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
 from virgo_agentic_dag.domain.persistence.entities.audit_entry import AuditEntry
 from virgo_agentic_dag.domain.persistence.entities.node import Node
@@ -64,11 +72,13 @@ class DagWebService:
         database_registry: DagDatabaseRegistry,
         code_repo: CodeRepo,
         transcript_locators: Mapping[ExecutorAgent, TranscriptLocator],
+        transcript_reader: TranscriptReader,
     ) -> None:
         self._dag_service = dag_service
         self._database_registry = database_registry
         self._code_repo = code_repo
         self._transcript_locators = transcript_locators
+        self._transcript_reader = transcript_reader
         self._repo_urls: dict[Path, str] = {}
 
     async def list_dags(self) -> list[DagSummaryResponse]:
@@ -261,6 +271,120 @@ class DagWebService:
             )
 
         return transcript_mapper.to_conversation_message_responses(transcript_lines)
+
+    async def get_conversation_page(
+        self, dag_name: str, node_id: str, before: int | None, limit: int
+    ) -> ConversationPageResponse | None:
+        """Return a page of a node's agent transcript, or None when the dag or node is unknown."""
+        dag_spec = self._find_dag_spec(dag_name)
+        if dag_spec is None:
+            return None
+
+        gateway = self._database_registry.open(dag_spec.name)
+        node: Node | None = None
+        if gateway is not None:
+            node = await gateway.node_repo.read(node_id)
+
+        node_spec = dag_spec.find_node(node_id)
+        if node is None and node_spec is None:
+            return None
+
+        node_agent = node.agent if node is not None else None
+        if node_agent is None:
+            return self._get_empty_conversation_page(limit)
+
+        return await asyncio.to_thread(
+            self._load_conversation_page, node_agent, before, limit
+        )
+
+    def _get_empty_conversation_page(self, limit: int) -> ConversationPageResponse:
+        """Return a conversation page with no messages."""
+        pagination = PaginationResponse(next_cursor=None, per_page=limit)
+
+        return ConversationPageResponse(
+            session_id="", messages=[], pagination=pagination
+        )
+
+    def _load_conversation_page(
+        self, node_agent: NodeAgent, before: int | None, limit: int
+    ) -> ConversationPageResponse:
+        """Return a page of an agent's transcript, or an empty page when no transcript file exists."""
+        transcript_path = self._get_transcript_path(node_agent)
+        if transcript_path is None:
+            return self._get_empty_conversation_page(limit)
+
+        look_ahead_lines = self._list_look_ahead_lines(transcript_path, before, limit)
+        page_lines: list[TranscriptLine] = []
+        conversation_messages: list[ConversationMessageResponse] = []
+        while len(conversation_messages) < limit:
+            block_end = page_lines[0].offset if page_lines else before
+            block_lines = self._transcript_reader.list_lines_before(
+                transcript_path, block_end
+            )
+            if not block_lines:
+                break
+
+            page_lines = block_lines + page_lines
+            conversation_messages = self._to_page_messages(
+                node_agent, page_lines, look_ahead_lines
+            )
+
+        pagination = self._get_pagination(page_lines, conversation_messages, limit)
+
+        return ConversationPageResponse(
+            session_id=node_agent.resume_token,
+            messages=conversation_messages,
+            pagination=pagination,
+        )
+
+    def _get_pagination(
+        self,
+        page_lines: list[TranscriptLine],
+        conversation_messages: list[ConversationMessageResponse],
+        limit: int,
+    ) -> PaginationResponse:
+        """Return pagination with no next cursor when the page reaches the transcript start."""
+        oldest_offset = page_lines[0].offset if page_lines else 0
+        is_start_reached = len(conversation_messages) < limit or oldest_offset == 0
+        next_cursor = None if is_start_reached else oldest_offset
+
+        return PaginationResponse(next_cursor=next_cursor, per_page=limit)
+
+    def _list_look_ahead_lines(
+        self, transcript_path: Path, before: int | None, limit: int
+    ) -> list[TranscriptLine]:
+        """Return transcript lines from the page boundary, or an empty list when `before` is None."""
+        if before is None:
+            return []
+
+        return self._transcript_reader.list_lines_from(transcript_path, before, limit)
+
+    def _get_transcript_path(self, node_agent: NodeAgent) -> Path | None:
+        """Return the agent's transcript file path, or None when no transcript file exists."""
+        transcript_locator = self._transcript_locators[ExecutorAgent(node_agent.name)]
+        transcript_path = transcript_locator.get_transcript_path(node_agent)
+        if transcript_path is None:
+            return None
+
+        has_transcript_file = transcript_path.is_file()
+
+        return transcript_path if has_transcript_file else None
+
+    def _to_page_messages(
+        self,
+        node_agent: NodeAgent,
+        page_lines: list[TranscriptLine],
+        look_ahead_lines: list[TranscriptLine],
+    ) -> list[ConversationMessageResponse]:
+        """Return conversation messages for the page lines, or an empty list when no page line maps to a message."""
+        if node_agent.name == ExecutorAgent.CODEX.value:
+            return codex_transcript_mapper.to_conversation_page_messages(
+                page_lines, look_ahead_lines
+            )
+
+        return transcript_mapper.to_conversation_page_messages(
+            page_lines, look_ahead_lines
+        )
 
     async def _get_slack_notifications(
         self, gateway: DagDatabaseGateway, node_id: str
