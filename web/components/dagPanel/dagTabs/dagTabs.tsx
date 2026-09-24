@@ -55,6 +55,12 @@ export const DagTabs = ({ dag }: DagTabsProps) => {
           label={LABELS.dagNodes}
         />
         <Tab
+          value={DagTab.MEMORY}
+          id={getTabId(DagTab.MEMORY)}
+          aria-controls={TAB_PANEL_ID}
+          label={LABELS.dagMemory}
+        />
+        <Tab
           value={DagTab.SETTINGS}
           id={getTabId(DagTab.SETTINGS)}
           aria-controls={TAB_PANEL_ID}

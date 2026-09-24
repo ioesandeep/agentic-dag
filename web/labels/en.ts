@@ -100,12 +100,18 @@ export const LABELS = {
     'Its database would not open. Every other dag on this host still loads.',
   dagAudit: 'Activity',
   dagNodes: 'Nodes',
+  dagMemory: 'Memory',
   dagSettings: 'Settings',
   dagAuditEmpty: 'No audit entries yet',
   dagAuditEmptyHint:
     'An entry is written every time the controller moves a node to a new state.',
   dagNodesEmpty: 'No nodes in this dag',
   dagNodesEmptyHint: 'Nodes come from the dag.toml this dag was started with.',
+  dagMemoryLoading: 'Loading the memory file',
+  dagMemoryEmpty: 'No memory yet',
+  dagMemoryEmptyHint:
+    "A learning session writes the memory file after a node's pull request is merged or closed.",
+  dagMemoryUpdatedAt: 'updated {time}',
   dagTickInterval: 'Tick interval',
   nodeState: 'State',
   nodeId: 'Node',
