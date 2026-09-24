@@ -251,6 +251,7 @@ def _to_node_detail_response(
         wakes=_count_wakes(agent),
         session_id=agent.resume_token if agent is not None else "",
         pr_url=_get_pr_url(node_spec, worktree, repo_slug),
+        pr_number=_get_pr_number(node_spec, worktree),
         worktree_name=worktree.name if worktree is not None else "",
         branch=worktree.branch if worktree is not None else "",
     )
@@ -356,6 +357,18 @@ def _get_pr_url(
         return ""
 
     return PULL_REQUEST_URL.format(repo_slug=repo_slug, pr_number=worktree.pr_number)
+
+
+def _get_pr_number(node_spec: NodeSpec | None, worktree: WorkTree | None) -> int:
+    """Return the number of a node's pull request, or 0 where it has none."""
+    if worktree is not None and worktree.pr_number != 0:
+        return worktree.pr_number
+
+    declared_pr_url = node_spec.pr if node_spec is not None else ""
+    last_path_segment = declared_pr_url.rsplit("/", 1)[-1]
+    is_pr_number = last_path_segment.isdecimal()
+
+    return int(last_path_segment) if is_pr_number else 0
 
 
 def _get_updated_at(row: Node | None) -> datetime | None:

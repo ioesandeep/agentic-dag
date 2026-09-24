@@ -137,7 +137,8 @@ async def test_dag_detail_returns_what_a_dag_records_where_its_database_opens(
         f"project_root = '{dag_home / 'checkout'}'\n"
         "[[nodes]]\nid = 'seed'\ntitle = 'seed the table'\nname = 'Leo'\n"
         "[[nodes]]\nid = 'read'\ndepends_on = ['seed']\n"
-        "pr = 'https://github.com/acme/virgo/pull/7'\n",
+        "pr = 'https://github.com/acme/virgo/pull/7'\n"
+        "[[nodes]]\nid = 'write'\n",
     )
 
     database = await open_database("alpha")
@@ -181,7 +182,7 @@ async def test_dag_detail_returns_what_a_dag_records_where_its_database_opens(
         "name": "alpha",
         "baseBranch": "develop",
         "tickIntervalSeconds": 600,
-        "nodeCount": 2,
+        "nodeCount": 3,
         "nodes": [
             {
                 "id": "seed",
@@ -193,6 +194,7 @@ async def test_dag_detail_returns_what_a_dag_records_where_its_database_opens(
                 "wakes": 1,
                 "sessionId": "token-seed",
                 "prUrl": "https://github.com/acme/virgo/pull/412",
+                "prNumber": 412,
                 "worktreeName": "alpha-seed",
                 "branch": "feat/seed",
             },
@@ -206,6 +208,21 @@ async def test_dag_detail_returns_what_a_dag_records_where_its_database_opens(
                 "wakes": 0,
                 "sessionId": "",
                 "prUrl": "https://github.com/acme/virgo/pull/7",
+                "prNumber": 7,
+                "worktreeName": "",
+                "branch": "",
+            },
+            {
+                "id": "write",
+                "title": "",
+                "agentName": "write",
+                "state": "pending",
+                "dependsOn": [],
+                "updatedAt": None,
+                "wakes": 0,
+                "sessionId": "",
+                "prUrl": "",
+                "prNumber": 0,
                 "worktreeName": "",
                 "branch": "",
             },

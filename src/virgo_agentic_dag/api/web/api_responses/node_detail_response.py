@@ -36,6 +36,9 @@ class NodeDetailResponse(ApiBaseModel):
     pr_url: str = Field(
         description="The url of this node's pull request, empty where it has none."
     )
+    pr_number: int = Field(
+        description="The pull request number, or 0 when no pull request exists."
+    )
     worktree_name: str = Field(
         description="The name of this node's worktree, empty where it has none."
     )
