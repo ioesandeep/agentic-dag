@@ -2,6 +2,7 @@
 
 import Box from '@mui/material/Box';
 import { useColorScheme } from '@mui/material/styles';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { PrismLight } from 'react-syntax-highlighter';
 import bash from 'react-syntax-highlighter/dist/esm/languages/prism/bash';
 import css from 'react-syntax-highlighter/dist/esm/languages/prism/css';
@@ -21,6 +22,7 @@ import coldarkCold from 'react-syntax-highlighter/dist/esm/styles/prism/coldark-
 import {
   LINE_NUMBER_MIN_LINES,
   MAX_BLOCK_HEIGHT,
+  PLAIN_TEXT_THRESHOLD,
 } from '@/components/codeBlock/constants';
 import { HighlightLanguage } from '@/components/codeBlock/types';
 import { hasManyLines } from '@/components/codeBlock/utils';
@@ -55,6 +57,11 @@ const HIGHLIGHTER_STYLE = {
   overflowWrap: 'anywhere' as const,
 };
 
+const PLAIN_TEXT_STYLE: SxProps<Theme> = {
+  ...HIGHLIGHTER_STYLE,
+  fontFamily: (theme) => theme.typography.fontFamilyMono,
+};
+
 const LINE_NUMBER_STYLE = {
   color: 'var(--mui-palette-text-secondary)',
   paddingRight: '0.75rem',
@@ -75,13 +82,23 @@ interface CodeBlockProps {
 }
 
 /**
- * Renders text as a highlighted code block that scrolls on its own.
+ * Renders text in a scrollable code block.
  */
 export const CodeBlock = ({
   text,
   language = HighlightLanguage.PLAIN,
 }: CodeBlockProps) => {
   const { mode, systemMode } = useColorScheme();
+
+  if (text.length > PLAIN_TEXT_THRESHOLD) {
+    return (
+      <Box sx={CONTAINER_STYLE}>
+        <Box component="pre" sx={PLAIN_TEXT_STYLE}>
+          {text}
+        </Box>
+      </Box>
+    );
+  }
 
   const resolved = mode === 'system' ? systemMode : mode;
   const style = resolved === 'dark' ? a11yDark : coldarkCold;

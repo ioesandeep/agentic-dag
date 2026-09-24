@@ -24,6 +24,7 @@ export const ToolResult = ({ text }: ToolResultProps) => {
       disableGutters
       elevation={0}
       sx={{ bgcolor: 'transparent', '&::before': { display: 'none' } }}
+      slotProps={{ transition: { unmountOnExit: true } }}
     >
       <AccordionSummary
         expandIcon={<ExpandMoreIcon fontSize="small" />}

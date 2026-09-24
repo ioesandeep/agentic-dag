@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 import { AgentMessage } from '@/components/nodeDialog/conversation/agentMessage/agentMessage';
 import { ToolCall } from '@/components/nodeDialog/conversation/toolCall/toolCall';
 import { UserMessage } from '@/components/nodeDialog/conversation/userMessage/userMessage';
@@ -15,7 +17,7 @@ interface MessageByRoleProps {
 /**
  * Renders one message with the component that matches its role.
  */
-export const MessageByRole = ({ message }: MessageByRoleProps) => {
+export const MessageByRole = memo(({ message }: MessageByRoleProps) => {
   switch (message.role) {
     case USER_ROLE:
       return <UserMessage message={message} />;
@@ -26,4 +28,6 @@ export const MessageByRole = ({ message }: MessageByRoleProps) => {
     default:
       return null;
   }
-};
+});
+
+MessageByRole.displayName = 'MessageByRole';
