@@ -11,6 +11,7 @@ from virgo_agentic_dag.api.web.controllers.dag_controller import DagController
 from virgo_agentic_dag.api.web.controllers.health_controller import HealthController
 from virgo_agentic_dag.api.web.routes.dag_route import DagRoute
 from virgo_agentic_dag.api.web.routes.health_route import HealthRoute
+from virgo_agentic_dag.api.web.routes.memory_route import MemoryRoute
 from virgo_agentic_dag.api.web.service.dag_web_service import (
     AUDIT_TAIL_SIZE,
     DagWebService,
@@ -91,16 +92,20 @@ async def open_database(
 
 @pytest.fixture
 def build_application() -> Callable[[CodeRepo], FastAPI]:
-    return lambda code_repo: WebApplicationFactory(
-        dag_route=DagRoute(
-            DagController(
-                DagWebService(
-                    DagService(TomlDagLoader()), DagDatabaseRegistry(), code_repo, {}
-                )
+    def build(code_repo: CodeRepo) -> FastAPI:
+        dag_controller = DagController(
+            DagWebService(
+                DagService(TomlDagLoader()), DagDatabaseRegistry(), code_repo, {}
             )
-        ),
-        health_route=HealthRoute(HealthController()),
-    ).build()
+        )
+
+        return WebApplicationFactory(
+            dag_route=DagRoute(dag_controller),
+            health_route=HealthRoute(HealthController()),
+            memory_route=MemoryRoute(dag_controller),
+        ).build()
+
+    return build
 
 
 @pytest.fixture

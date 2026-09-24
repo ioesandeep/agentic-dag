@@ -9,6 +9,7 @@ from virgo_agentic_dag.api.web.api_responses.dag_detail_response import (
 from virgo_agentic_dag.api.web.api_responses.dag_summary_response import (
     DagSummaryResponse,
 )
+from virgo_agentic_dag.api.web.api_responses.memory_response import MemoryResponse
 from virgo_agentic_dag.api.web.api_responses.node_response import NodeResponse
 from virgo_agentic_dag.api.web.service.dag_web_service import DagWebService
 from virgo_agentic_dag.labels.en import LABELS
@@ -56,3 +57,14 @@ class DagController:
             )
 
         return node_response
+
+    async def get_memory_by_name(self, name: str) -> MemoryResponse:
+        """Return the memory file of a dag."""
+        memory_response = await self._dag_web_service.get_memory_by_name(name)
+        if memory_response is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=format_label(LABELS["dagUnknown"], {"dag": name}),
+            )
+
+        return memory_response

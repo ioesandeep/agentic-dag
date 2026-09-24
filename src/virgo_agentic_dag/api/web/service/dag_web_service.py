@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Mapping
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -17,6 +18,7 @@ from virgo_agentic_dag.api.web.api_responses.dag_detail_response import (
 from virgo_agentic_dag.api.web.api_responses.dag_summary_response import (
     DagSummaryResponse,
 )
+from virgo_agentic_dag.api.web.api_responses.memory_response import MemoryResponse
 from virgo_agentic_dag.api.web.api_responses.node_detail_response import (
     NodeDetailResponse,
 )
@@ -46,6 +48,7 @@ from virgo_agentic_dag.infra.persistence.sqlite.dag_database_registry import (
     DagDatabaseRegistry,
 )
 from virgo_agentic_dag.services.dag.dag_service import DagService
+from virgo_agentic_dag.utils.dag_utils import get_learnings_file_path
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +142,28 @@ class DagWebService:
         )
 
         return newest_first[:AUDIT_TAIL_SIZE]
+
+    async def get_memory_by_name(self, name: str) -> MemoryResponse | None:
+        """Return the memory file of a dag, or None when the dag is unknown."""
+        dag_spec = self._find_dag_spec(name)
+        if dag_spec is None:
+            return None
+
+        memory_path = get_learnings_file_path(dag_spec.name)
+
+        return await asyncio.to_thread(self._load_memory, memory_path)
+
+    def _load_memory(self, memory_path: Path) -> MemoryResponse:
+        """Load the memory file, empty when the file does not exist."""
+        is_memory_file_present = memory_path.is_file()
+        if not is_memory_file_present:
+            return MemoryResponse(content="", updated_at=None)
+
+        content = memory_path.read_text(encoding="utf-8")
+        modified_time = memory_path.stat().st_mtime
+        updated_at = datetime.fromtimestamp(modified_time, UTC)
+
+        return MemoryResponse(content=content, updated_at=updated_at)
 
     async def get_node_by_name(
         self, dag_name: str, node_id: str

@@ -363,6 +363,7 @@ def _register_web_beans(context: ApplicationContext) -> None:
         )
         from virgo_agentic_dag.api.web.routes.dag_route import DagRoute
         from virgo_agentic_dag.api.web.routes.health_route import HealthRoute
+        from virgo_agentic_dag.api.web.routes.memory_route import MemoryRoute
         from virgo_agentic_dag.api.web.service.dag_web_service import DagWebService
         from virgo_agentic_dag.api.web.web_application_factory import (
             WebApplicationFactory,
@@ -390,10 +391,14 @@ def _register_web_beans(context: ApplicationContext) -> None:
     )
     context.register(DagRoute, lambda _context: DagRoute(_context.get(DagController)))
     context.register(
+        MemoryRoute, lambda _context: MemoryRoute(_context.get(DagController))
+    )
+    context.register(
         WebApplicationFactory,
         lambda _context: WebApplicationFactory(
             dag_route=_context.get(DagRoute),
             health_route=_context.get(HealthRoute),
+            memory_route=_context.get(MemoryRoute),
         ),
     )
     context.register(
