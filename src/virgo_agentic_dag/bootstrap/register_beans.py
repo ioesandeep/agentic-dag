@@ -42,6 +42,9 @@ from virgo_agentic_dag.api.cli.handlers.start_command_handler import (
 from virgo_agentic_dag.api.cli.handlers.status_command_handler import (
     StatusCommandHandler,
 )
+from virgo_agentic_dag.api.cli.handlers.stop_command_handler import (
+    StopCommandHandler,
+)
 from virgo_agentic_dag.api.cli.handlers.tick_command_handler import TickCommandHandler
 from virgo_agentic_dag.api.cli.handlers.validate_command_handler import (
     ValidateCommandHandler,
@@ -229,6 +232,7 @@ from virgo_agentic_dag.services.signals.check_signal import CheckSignal
 from virgo_agentic_dag.services.signals.comment_signal import CommentSignal
 from virgo_agentic_dag.services.signals.conflict_signal import ConflictSignal
 from virgo_agentic_dag.services.signals.pr_signal import PrSignal
+from virgo_agentic_dag.services.stop.node_stop_service import NodeStopService
 from virgo_agentic_dag.services.watching.run_watcher import RunWatcher
 from virgo_agentic_dag.services.watching.subscription_factory import SubscriptionFactory
 from virgo_agentic_dag.services.watching.watch_plan_reader import WatchPlanReader
@@ -332,6 +336,8 @@ def register_beans(context: ApplicationContext) -> None:
     context.register(RetryCommandHandler, _build_retry_command_handler)
     context.register(NodeSkipService, _build_node_skip_service)
     context.register(SkipCommandHandler, _build_skip_command_handler)
+    context.register(NodeStopService, _build_node_stop_service)
+    context.register(StopCommandHandler, _build_stop_command_handler)
     context.register(StatusCommandHandler, _build_status_command_handler)
     context.register(LogCommandHandler, _build_log_command_handler)
     context.register(DagService, _build_dag_service)
@@ -589,6 +595,21 @@ def _build_node_skip_service(context: ApplicationContext) -> NodeSkipService:
 
 def _build_skip_command_handler(context: ApplicationContext) -> SkipCommandHandler:
     return SkipCommandHandler(context.get(RunLock), context.get(NodeSkipService))
+
+
+def _build_node_stop_service(context: ApplicationContext) -> NodeStopService:
+    return NodeStopService(
+        node_repo=context.get(NodeRepo),
+        agent_session_repo=context.get(AgentSessionRepo),
+        audit_entry_repo=context.get(AuditEntryRepo),
+        notification_publisher=context.get(NotificationPublisher),
+        graph_builder=context.get(GraphBuilder),
+        agent_launchers=_build_agent_launchers(context.get(DagSpec)),
+    )
+
+
+def _build_stop_command_handler(context: ApplicationContext) -> StopCommandHandler:
+    return StopCommandHandler(context.get(RunLock), context.get(NodeStopService))
 
 
 def _build_status_command_handler(context: ApplicationContext) -> StatusCommandHandler:

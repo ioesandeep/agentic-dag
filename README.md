@@ -245,6 +245,7 @@ The command you run is `start`. The rest are for looking, checking, and changing
 | `watch NAME` | Hold the event stream open and fire a pass within a debounce window of a pull request event. `start` spawns this; run it by hand to watch in the foreground. |
 | `retry NODE --dag DAG` | Send a stopped node back to work: an `ERRORED` or `NEEDS_HUMAN` node returns to `PENDING` for the next pass to start. Refuses a node in any other state. |
 | `skip NODE --dag DAG` | Take a node out of the run: it becomes `SKIPPED`, its dependents inherit its dependencies, and every node that stopped waiting on it returns to `PENDING`. Refuses a node that is `IN_PROGRESS` or `MERGED`. |
+| `stop NODE --dag DAG` | Stop an `IN_PROGRESS` node's running session. |
 | `status NAME` | What the named run's database records: each node's state, every open agent session, the watcher, and the scheduled job. Then, when the graph names an `sse_url`, whether the bridge behind it answers. |
 | `log NAME` | Every transition the named run has recorded: each entry's node, state, and note, in the order they were written. |
 | `validate --dag DAG` | Check the graph loads and is legal: no cycles, no unknown or self dependencies, no duplicate ids, every node resolving to an executor agent, and every `pr` an http url. |
@@ -254,8 +255,8 @@ The command you run is `start`. The rest are for looking, checking, and changing
 
 ### Options
 
-`start`, `tick`, `validate`, and `preview` take `--dag PATH`. `retry` and `skip` each take the
-node's id as a positional and `--dag PATH` for the run holding it.
+`start`, `tick`, `validate`, and `preview` accept `--dag PATH`, while `retry`, `skip`, and
+`stop` accept `NODE --dag PATH`.
 
 `abort`, `watch`, `status`, and `log` take the run's name as a positional; `watch` also takes
 `--sse URL` to override the graph's `sse_url`.

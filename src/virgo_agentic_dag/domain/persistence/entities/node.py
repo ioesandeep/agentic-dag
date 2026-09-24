@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from virgo_agentic_dag.config.constants import STOPPED_SESSION_END_STATE
 from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.persistence.entities.entity_base import EntityBase
 
@@ -99,7 +100,18 @@ class Node(EntityBase):
 
     def can_recover(self) -> bool:
         """Report whether a recovery agent may examine this node."""
-        return self.is_process_dead() and self.has_failed() and self.can_attempt()
+        latest_session = self.get_latest_session()
+        is_latest_session_stopped = (
+            latest_session is not None
+            and latest_session.end_state == STOPPED_SESSION_END_STATE
+        )
+
+        return (
+            self.is_process_dead()
+            and self.has_failed()
+            and self.can_attempt()
+            and not is_latest_session_stopped
+        )
 
     def is_out_of_attempts(self) -> bool:
         """Report whether this node failed with no process running and no recovery attempt left."""

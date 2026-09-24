@@ -94,6 +94,9 @@ def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "skip":
         return _run_skip(args)
 
+    if args.command == "stop":
+        return _run_stop(args)
+
     if args.command == "examine":
         return _run_examine(args)
 
@@ -246,6 +249,23 @@ def _run_skip(args: argparse.Namespace) -> int:
     async def _run() -> int:
         async with initialize_context(command, sys.stdout) as context:
             return int(await context.get(SkipCommandHandler).handle(command))
+
+    return asyncio.run(_run())
+
+
+def _run_stop(args: argparse.Namespace) -> int:
+    """Stop the specified node's running session."""
+    from virgo_agentic_dag.api.cli.handlers.stop_command_handler import (
+        StopCommandHandler,
+    )
+    from virgo_agentic_dag.bootstrap.context_initializer import initialize_context
+    from virgo_agentic_dag.domain.command.stop_command import StopCommand
+
+    command = StopCommand(dag_path=args.dag, node_id=args.node)
+
+    async def _run() -> int:
+        async with initialize_context(command, sys.stdout) as context:
+            return int(await context.get(StopCommandHandler).handle(command))
 
     return asyncio.run(_run())
 
@@ -474,6 +494,12 @@ def _build_parser() -> argparse.ArgumentParser:
     skip.add_argument("node", help="the id of the node to skip")
     skip.add_argument(
         "--dag", type=Path, required=True, help="the graph file of the run holding it"
+    )
+
+    stop = commands.add_parser("stop", help=LABELS["stopHelp"])
+    stop.add_argument("node", help="the id of the node to stop")
+    stop.add_argument(
+        "--dag", type=Path, required=True, help="the graph file for the run"
     )
 
     examine = commands.add_parser("examine", help=LABELS["examineHelp"])

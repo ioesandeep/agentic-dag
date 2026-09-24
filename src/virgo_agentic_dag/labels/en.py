@@ -12,6 +12,7 @@ LABELS: dict[str, str] = {
     "adoptHelp": "add a node for a pull request that already exists",
     "retryHelp": "send a stopped node back to work",
     "skipHelp": "skip a node and return its stopped descendants to pending",
+    "stopHelp": "stop an in-progress node's running session",
     "examineHelp": "print a node's current row and the evidence of its latest session",
     "recoverHelp": "act on a failed node and record what was decided about it",
     "statusHelp": "display the status of a dag",
@@ -54,6 +55,11 @@ LABELS: dict[str, str] = {
     "nodeStillInProgress": "{node_id} is in progress and cannot be skipped\n",
     "nodeAlreadyMerged": "{node_id} has merged and cannot be skipped\n",
     "nodeSkipped": "{node_id} is skipped\n",
+    "nodeNotInProgress": "stop fails for {node_id} because its state is {state}\n",
+    "nodeSessionNotRunning": (
+        "{node_id} has no running session; the next tick settles it\n"
+    ),
+    "nodeStopped": "stop moves {node_id} to needs human\n",
     "nodePendingAgain": (
         "{node_id} is pending again because an upstream node was skipped\n"
     ),
@@ -104,6 +110,7 @@ LABELS: dict[str, str] = {
     "upstreamStopped": "upstream node {node_id} stopped, so this one can never start",
     "upstreamSkipped": "an upstream node was skipped",
     "skippedByHuman": "a human skipped it",
+    "stoppedByPerson": "the stop command stops the session",
     "unknownExecutor": "no launcher runs executor {executor}",
     "sessionNeverStarted": "its session never started",
     "sessionOverdue": "its session ran past its deadline and was killed",
