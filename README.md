@@ -167,7 +167,8 @@ top-level value is absent, it is `claude`, so a graph written before Codex suppo
 Install and authenticate each selected CLI on the machine running the graph, and make its binary
 available on the scheduled job's `PATH`. Codex runs through `codex exec --json` and resumes the
 thread ID it emits, using the model from the CLI configuration. Claude runs unattended with its
-permission checks bypassed. Codex runs in its `workspace-write` sandbox with `approval_policy`
+permission checks bypassed. The launcher sets effort to `max` for new and resumed Claude
+sessions. Codex runs in its `workspace-write` sandbox with `approval_policy`
 set to `on-request` and `approvals_reviewer` set to `auto_review`, so a command the sandbox
 blocks, such as a push over the network, is an escalation that Codex's automatic reviewer
 decides. Only run trusted graph instructions in an environment where that access is appropriate.

@@ -29,7 +29,9 @@ _AGENT_FLAGS: tuple[str, ...] = (
     "--permission-mode",
     "bypassPermissions",
     "--model",
-    "claude-fable-5-1",
+    "claude-opus-5-5",
+    "--effort",
+    "max",
 )
 _SHELL = "sh"
 _RECORD_EXIT_CODE_SCRIPT = 'exit_path="$1"; shift; "$@"; echo "$?" > "$exit_path"'
