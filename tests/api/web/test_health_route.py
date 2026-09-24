@@ -7,6 +7,9 @@ from virgo_agentic_dag.api.web.routes.conversation_route import ConversationRout
 from virgo_agentic_dag.api.web.routes.dag_route import DagRoute
 from virgo_agentic_dag.api.web.routes.health_route import HealthRoute
 from virgo_agentic_dag.api.web.routes.memory_route import MemoryRoute
+from virgo_agentic_dag.api.web.routes.recovery_session_route import (
+    RecoverySessionRoute,
+)
 from virgo_agentic_dag.api.web.service.dag_web_service import DagWebService
 from virgo_agentic_dag.api.web.web_application_factory import WebApplicationFactory
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
@@ -36,6 +39,7 @@ def test_health_route_responds_ok_where_the_server_is_up(mocker: MockerFixture) 
         health_route=HealthRoute(HealthController()),
         memory_route=MemoryRoute(dag_controller),
         conversation_route=ConversationRoute(dag_controller),
+        recovery_session_route=RecoverySessionRoute(dag_controller),
     )
     client = TestClient(factory.build())
 

@@ -67,3 +67,23 @@ async def test_find_open_session_returns_none_when_the_row_is_closed(
     await repo.close(closed_recovery_session)
 
     assert await repo.find_open_session() is None
+
+
+async def test_get_all_returns_recovery_sessions_newest_first_when_several_are_added(
+    repo: SqliteRecoverySessionRepo, started_at: datetime
+) -> None:
+    first_recovery_session = RecoverySession(
+        session_token="token-1", pid=4242, started_at=started_at, node_ids='["A"]'
+    )
+    await repo.add(first_recovery_session)
+
+    second_recovery_session = RecoverySession(
+        session_token="token-2", pid=4343, started_at=started_at, node_ids='["B"]'
+    )
+    await repo.add(second_recovery_session)
+
+    recovery_sessions = await repo.get_all()
+
+    assert [
+        recovery_session.session_token for recovery_session in recovery_sessions
+    ] == ["token-2", "token-1"]

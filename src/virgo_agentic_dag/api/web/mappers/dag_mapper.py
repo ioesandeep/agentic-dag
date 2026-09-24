@@ -36,6 +36,7 @@ from virgo_agentic_dag.api.web.api_responses.slack_notification_response import 
 from virgo_agentic_dag.api.web.api_responses.worktree_response import (
     WorktreeResponse,
 )
+from virgo_agentic_dag.api.web.utils.to_utc import to_utc
 from virgo_agentic_dag.domain.infra.scheduling.scheduled_job import ScheduledJob
 from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSession
@@ -280,7 +281,7 @@ def _to_worktree_response(worktree: WorkTree) -> WorktreeResponse:
         branch=worktree.branch,
         pr_number=worktree.pr_number,
         created_at=worktree.created_at.replace(tzinfo=UTC),
-        reclaimed_at=_to_utc(worktree.reclaimed_at),
+        reclaimed_at=to_utc(worktree.reclaimed_at),
         signal_marks=_get_signal_marks(worktree),
     )
 
@@ -290,7 +291,7 @@ def _to_agent_session_response(agent_session: AgentSession) -> AgentSessionRespo
     return AgentSessionResponse(
         id=agent_session.id,
         started_at=agent_session.started_at.replace(tzinfo=UTC),
-        ended_at=_to_utc(agent_session.ended_at),
+        ended_at=to_utc(agent_session.ended_at),
         end_state=agent_session.end_state,
         triggered_by=agent_session.triggered_by,
     )
@@ -326,14 +327,6 @@ def _get_signal_marks(worktree: WorkTree) -> dict[str, str]:
     signal_marks: dict[str, str] = json.loads(worktree.marks or "{}")
 
     return signal_marks
-
-
-def _to_utc(timestamp: datetime | None) -> datetime | None:
-    """Return the timestamp in UTC."""
-    if timestamp is None:
-        return None
-
-    return timestamp.replace(tzinfo=UTC)
 
 
 def _count_wakes(agent: NodeAgent | None) -> int:

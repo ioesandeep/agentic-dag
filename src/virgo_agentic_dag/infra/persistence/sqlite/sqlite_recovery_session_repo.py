@@ -43,3 +43,9 @@ class SqliteRecoverySessionRepo(RecoverySessionRepo):
             )
 
             return (await db_session.execute(statement)).scalar_one_or_none()
+
+    async def get_all(self) -> list[RecoverySession]:
+        async with self._database.open_session() as db_session:
+            statement = select(RecoverySession).order_by(RecoverySession.id.desc())
+
+            return list((await db_session.execute(statement)).scalars())

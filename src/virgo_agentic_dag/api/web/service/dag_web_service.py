@@ -29,9 +29,13 @@ from virgo_agentic_dag.api.web.api_responses.node_response import NodeResponse
 from virgo_agentic_dag.api.web.api_responses.pagination_response import (
     PaginationResponse,
 )
+from virgo_agentic_dag.api.web.api_responses.recovery_session_response import (
+    RecoverySessionResponse,
+)
 from virgo_agentic_dag.api.web.mappers import (
     codex_transcript_mapper,
     dag_mapper,
+    recovery_session_mapper,
     transcript_mapper,
 )
 from virgo_agentic_dag.domain.agent.transcript_line import TranscriptLine
@@ -409,6 +413,24 @@ class DagWebService:
         ]
 
         return self._find_audit_tail(node_audit_entries)
+
+    async def get_recovery_sessions_by_dag_name(
+        self, name: str
+    ) -> list[RecoverySessionResponse] | None:
+        """Return the named dag's recovery sessions, or None when no dag has the name."""
+        dag_spec = self._find_dag_spec(name)
+        if dag_spec is None:
+            return None
+
+        gateway = self._database_registry.open(dag_spec.name)
+        if gateway is None:
+            return []
+
+        recovery_sessions = await gateway.recovery_session_repo.get_all()
+
+        return recovery_session_mapper.to_recovery_session_list_response(
+            recovery_sessions
+        )
 
     async def _get_repo_url(self, dag_spec: DagSpec) -> str:
         """Return the web url of a dag's repository, or empty where unreadable."""

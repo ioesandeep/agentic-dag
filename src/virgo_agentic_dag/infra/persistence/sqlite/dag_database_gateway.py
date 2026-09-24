@@ -7,6 +7,9 @@ from virgo_agentic_dag.domain.persistence.repos.node_recovery_repo import (
     NodeRecoveryRepo,
 )
 from virgo_agentic_dag.domain.persistence.repos.node_repo import NodeRepo
+from virgo_agentic_dag.domain.persistence.repos.recovery_session_repo import (
+    RecoverySessionRepo,
+)
 from virgo_agentic_dag.domain.persistence.repos.scheduled_job_repo import (
     ScheduledJobRepo,
 )
@@ -22,6 +25,9 @@ from virgo_agentic_dag.infra.persistence.sqlite.sqlite_node_recovery_repo import
     SqliteNodeRecoveryRepo,
 )
 from virgo_agentic_dag.infra.persistence.sqlite.sqlite_node_repo import SqliteNodeRepo
+from virgo_agentic_dag.infra.persistence.sqlite.sqlite_recovery_session_repo import (
+    SqliteRecoverySessionRepo,
+)
 from virgo_agentic_dag.infra.persistence.sqlite.sqlite_scheduled_job_repo import (
     SqliteScheduledJobRepo,
 )
@@ -40,6 +46,9 @@ class DagDatabaseGateway:
         self._database = database
         self.node_repo: NodeRepo = SqliteNodeRepo(database)
         self.node_recovery_repo: NodeRecoveryRepo = SqliteNodeRecoveryRepo(database)
+        self.recovery_session_repo: RecoverySessionRepo = SqliteRecoverySessionRepo(
+            database
+        )
         self.audit_entry_repo: AuditEntryRepo = SqliteAuditEntryRepo(database)
         self.scheduled_job_repo: ScheduledJobRepo = SqliteScheduledJobRepo(database)
         self.slack_notification_repo: SlackNotificationRepo = (

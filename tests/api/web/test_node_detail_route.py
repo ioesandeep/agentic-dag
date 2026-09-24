@@ -14,6 +14,9 @@ from virgo_agentic_dag.api.web.routes.conversation_route import ConversationRout
 from virgo_agentic_dag.api.web.routes.dag_route import DagRoute
 from virgo_agentic_dag.api.web.routes.health_route import HealthRoute
 from virgo_agentic_dag.api.web.routes.memory_route import MemoryRoute
+from virgo_agentic_dag.api.web.routes.recovery_session_route import (
+    RecoverySessionRoute,
+)
 from virgo_agentic_dag.api.web.service.dag_web_service import DagWebService
 from virgo_agentic_dag.api.web.web_application_factory import WebApplicationFactory
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
@@ -123,6 +126,7 @@ def build_application() -> Callable[[CodeRepo], FastAPI]:
             health_route=HealthRoute(HealthController()),
             memory_route=MemoryRoute(dag_controller),
             conversation_route=ConversationRoute(dag_controller),
+            recovery_session_route=RecoverySessionRoute(dag_controller),
         ).build()
 
     return build

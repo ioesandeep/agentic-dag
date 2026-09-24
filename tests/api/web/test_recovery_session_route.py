@@ -17,10 +17,10 @@ from virgo_agentic_dag.api.web.routes.recovery_session_route import (
 )
 from virgo_agentic_dag.api.web.service.dag_web_service import DagWebService
 from virgo_agentic_dag.api.web.web_application_factory import WebApplicationFactory
-from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
-from virgo_agentic_dag.domain.node.node_state import NodeState
-from virgo_agentic_dag.domain.persistence.entities.watcher import Watcher
+from virgo_agentic_dag.domain.persistence.entities.recovery_session import (
+    RecoverySession,
+)
 from virgo_agentic_dag.infra.agent.transcript_page_reader import TranscriptPageReader
 from virgo_agentic_dag.infra.persistence.sqlite.dag_database_gateway import (
     DagDatabaseGateway,
@@ -34,17 +34,25 @@ from virgo_agentic_dag.services.loading.toml.toml_dag_loader import TomlDagLoade
 
 pytestmark = pytest.mark.e2e
 
-STARTED_AT = datetime(2026, 8, 15, 9, 0, tzinfo=UTC)
-WAKE_AT = datetime(2026, 8, 15, 9, 58, tzinfo=UTC)
+
+@pytest.fixture
+def started_at() -> datetime:
+    return datetime(2026, 9, 5, 9, 0, tzinfo=UTC)
 
 
 @pytest.fixture
-def dag_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setattr(
-        "virgo_agentic_dag.services.dag.dag_service.get_dag_root", lambda: tmp_path
+def ended_at() -> datetime:
+    return datetime(2026, 9, 5, 9, 30, tzinfo=UTC)
+
+
+@pytest.fixture
+def dag_home(tmp_path: Path, mocker: MockerFixture) -> Path:
+    mocker.patch(
+        "virgo_agentic_dag.services.dag.dag_service.get_dag_root",
+        return_value=tmp_path,
     )
-    monkeypatch.setattr(
-        "virgo_agentic_dag.utils.dag_utils.get_dag_root", lambda: tmp_path
+    mocker.patch(
+        "virgo_agentic_dag.utils.dag_utils.get_dag_root", return_value=tmp_path
     )
 
     return tmp_path
@@ -108,122 +116,78 @@ def build_client() -> Callable[[CodeRepo], TestClient]:
     return build
 
 
-async def test_dag_listing_returns_what_a_dag_records_where_its_database_opens(
+async def test_recovery_session_route_returns_recovery_session_node_ids_newest_first_when_multiple_recovery_sessions_exist(
+    mocker: MockerFixture,
+    build_client: Callable[[CodeRepo], TestClient],
+    write_graph: Callable[[str, str], None],
+    open_database: Callable[[str], Awaitable[DagDatabaseGateway]],
+    started_at: datetime,
+    ended_at: datetime,
+) -> None:
+    write_graph("alpha", "name = 'alpha'\n[[nodes]]\nid = 'API-1'\n")
+    gateway = await open_database("alpha")
+    closed_recovery_session = RecoverySession(
+        session_token="token-1",
+        started_at=started_at,
+        ended_at=ended_at,
+        node_ids='["API-1", "API-2"]',
+    )
+    await gateway.recovery_session_repo.add(closed_recovery_session)
+
+    open_recovery_session = RecoverySession(
+        session_token="token-2", started_at=ended_at, node_ids='["API-3"]'
+    )
+    await gateway.recovery_session_repo.add(open_recovery_session)
+    code_repo = mocker.MagicMock(spec=CodeRepo)
+
+    response = build_client(code_repo).get("/api/dags/alpha/recovery-sessions")
+
+    assert [recovery_session["nodeIds"] for recovery_session in response.json()] == [
+        ["API-3"],
+        ["API-1", "API-2"],
+    ]
+
+
+async def test_recovery_session_route_responds_200_with_an_empty_list_when_no_recovery_sessions_exist(
     mocker: MockerFixture,
     build_client: Callable[[CodeRepo], TestClient],
     write_graph: Callable[[str, str], None],
     open_database: Callable[[str], Awaitable[DagDatabaseGateway]],
 ) -> None:
-    write_graph(
-        "alpha",
-        "name = 'alpha'\nbase_branch = 'develop'\ntick_interval_seconds = 600\n"
-        "[[nodes]]\nid = 'seed'\ntitle = 'seed the table'\nname = 'Leo'\n"
-        "[[nodes]]\nid = 'read'\ndepends_on = ['seed']\n",
-    )
-    gateway = await open_database("alpha")
-    await gateway.node_repo.ensure_rows(
-        [GraphNode(id="seed", title="seed the table", name="Leo")], STARTED_AT
-    )
-    await gateway.node_repo.update_state("seed", NodeState.IN_PROGRESS, WAKE_AT)
-    await gateway.watcher_repo.save(
-        Watcher(dag_name="alpha", pid=4242, started_at=STARTED_AT)
-    )
-
+    write_graph("alpha", "name = 'alpha'\n[[nodes]]\nid = 'API-1'\n")
+    await open_database("alpha")
     code_repo = mocker.MagicMock(spec=CodeRepo)
 
-    response = build_client(code_repo).get("/api/dags")
+    response = build_client(code_repo).get("/api/dags/alpha/recovery-sessions")
 
     assert response.status_code == 200
-    assert response.json() == [
-        {
-            "name": "alpha",
-            "baseBranch": "develop",
-            "tickIntervalSeconds": 600,
-            "nodeCount": 2,
-            "nodes": [
-                {
-                    "id": "seed",
-                    "title": "seed the table",
-                    "agentName": "Leo",
-                    "state": "in_progress",
-                    "dependsOn": [],
-                    "updatedAt": "2026-08-15T09:58:00Z",
-                },
-                {
-                    "id": "read",
-                    "title": "",
-                    "agentName": "read",
-                    "state": "pending",
-                    "dependsOn": ["seed"],
-                    "updatedAt": None,
-                },
-            ],
-            "lastActivityAt": "2026-08-15T09:58:00Z",
-            "isScheduled": False,
-            "isWatching": True,
-            "isReadable": True,
-        }
-    ]
+    assert response.json() == []
 
 
-async def test_dag_listing_returns_is_readable_false_where_the_database_does_not_open(
+def test_recovery_session_route_responds_404_when_no_dag_has_the_name(
     mocker: MockerFixture,
     build_client: Callable[[CodeRepo], TestClient],
-    dag_home: Path,
     write_graph: Callable[[str, str], None],
-    open_database: Callable[[str], Awaitable[DagDatabaseGateway]],
 ) -> None:
-    write_graph("alpha", "name = 'alpha'\n[[nodes]]\nid = 'seed'\n")
-    gateway = await open_database("alpha")
-    await gateway.node_repo.ensure_rows([GraphNode(id="seed")], STARTED_AT)
-    write_graph("beta", "name = 'beta'\n[[nodes]]\nid = 'x'\n")
-    write_graph("gamma", "name = 'gamma'\n[[nodes]]\nid = 'y'\n")
-    dag_home.joinpath("gamma", "db.sqlite3").write_bytes(b"not a database")
-
+    write_graph("alpha", "name = 'alpha'\n[[nodes]]\nid = 'API-1'\n")
     code_repo = mocker.MagicMock(spec=CodeRepo)
 
-    response = build_client(code_repo).get("/api/dags")
+    response = build_client(code_repo).get("/api/dags/ghost/recovery-sessions")
 
-    entries = response.json()
-    assert [(entry["name"], entry["isReadable"]) for entry in entries] == [
-        ("alpha", True),
-        ("beta", False),
-        ("gamma", False),
-    ]
-    assert entries[2] == {
-        "name": "gamma",
-        "baseBranch": "",
-        "tickIntervalSeconds": 300,
-        "nodeCount": 0,
-        "nodes": [],
-        "lastActivityAt": None,
-        "isScheduled": False,
-        "isWatching": False,
-        "isReadable": False,
-    }
+    assert response.status_code == 404
+    assert response.json() == {"detail": "no dag named ghost lives on this host"}
 
 
-async def test_dag_listing_returns_a_node_where_only_the_database_records_it(
+async def test_recovery_session_route_matches_before_the_node_route_when_a_node_identifier_matches_the_route_suffix(
     mocker: MockerFixture,
     build_client: Callable[[CodeRepo], TestClient],
     write_graph: Callable[[str, str], None],
     open_database: Callable[[str], Awaitable[DagDatabaseGateway]],
 ) -> None:
-    write_graph("alpha", "name = 'alpha'\n[[nodes]]\nid = 'seed'\n")
-    gateway = await open_database("alpha")
-    await gateway.node_repo.ensure_rows(
-        [GraphNode(id="PR-42", title="take over #42")], STARTED_AT
-    )
-
+    write_graph("alpha", "name = 'alpha'\n[[nodes]]\nid = 'recovery-sessions'\n")
+    await open_database("alpha")
     code_repo = mocker.MagicMock(spec=CodeRepo)
 
-    response = build_client(code_repo).get("/api/dags")
+    response = build_client(code_repo).get("/api/dags/alpha/recovery-sessions")
 
-    assert response.json()[0]["nodes"][1] == {
-        "id": "PR-42",
-        "title": "take over #42",
-        "agentName": "take over #42",
-        "state": "pending",
-        "dependsOn": [],
-        "updatedAt": "2026-08-15T09:00:00Z",
-    }
+    assert response.json() == []

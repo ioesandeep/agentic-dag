@@ -16,6 +16,9 @@ from virgo_agentic_dag.api.web.api_responses.dag_summary_response import (
 )
 from virgo_agentic_dag.api.web.api_responses.memory_response import MemoryResponse
 from virgo_agentic_dag.api.web.api_responses.node_response import NodeResponse
+from virgo_agentic_dag.api.web.api_responses.recovery_session_response import (
+    RecoverySessionResponse,
+)
 from virgo_agentic_dag.api.web.service.dag_web_service import DagWebService
 from virgo_agentic_dag.config.constants import (
     DEFAULT_CONVERSATION_PAGE_LIMIT,
@@ -127,3 +130,18 @@ class DagController:
             )
 
         return conversation_page
+
+    async def get_recovery_sessions_by_dag_name(
+        self, name: str
+    ) -> list[RecoverySessionResponse]:
+        """Return the dag's recovery sessions newest first."""
+        recovery_session_responses = (
+            await self._dag_web_service.get_recovery_sessions_by_dag_name(name)
+        )
+        if recovery_session_responses is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=format_label(LABELS["dagUnknown"], {"dag": name}),
+            )
+
+        return recovery_session_responses

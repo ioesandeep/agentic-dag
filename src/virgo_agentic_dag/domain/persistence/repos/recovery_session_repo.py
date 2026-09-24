@@ -23,3 +23,7 @@ class RecoverySessionRepo(ABC):
     @abstractmethod
     async def find_open_session(self) -> RecoverySession | None:
         """Return the recovery execution not yet ended, or None when every row has ended."""
+
+    @abstractmethod
+    async def get_all(self) -> list[RecoverySession]:
+        """Return all recovery sessions newest first."""
