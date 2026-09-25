@@ -9,9 +9,6 @@ from virgo_agentic_dag.api.web.api_responses.agent_session_response import (
 from virgo_agentic_dag.api.web.api_responses.audit_line_response import (
     AuditLineResponse,
 )
-from virgo_agentic_dag.api.web.api_responses.conversation_message_response import (
-    ConversationMessageResponse,
-)
 from virgo_agentic_dag.api.web.api_responses.node_detail_response import (
     NodeDetailResponse,
 )
@@ -51,13 +48,6 @@ class NodeResponse(NodeDetailResponse):
     slack_notifications: list[SlackNotificationResponse] = Field(
         default_factory=list,
         description="The Slack notification threads opened for this node.",
-    )
-    transcript: list[ConversationMessageResponse] = Field(
-        default_factory=list,
-        description=(
-            "The newest messages of this node's agent session, oldest first, "
-            "empty where the node has none."
-        ),
     )
     exit_code: int | None = Field(
         default=None,

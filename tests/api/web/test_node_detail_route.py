@@ -1,4 +1,3 @@
-import json
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -238,54 +237,6 @@ async def test_node_detail_returns_what_the_dag_records_where_its_database_opens
         "its dependencies merged",
     ]
     assert node_response["slackNotifications"][0]["threadId"] == "1755248400.000100"
-
-
-async def test_node_detail_returns_the_messages_of_its_agent_session_when_the_last_line_is_partial(
-    mocker: MockerFixture,
-    tmp_path: Path,
-    build_application: Callable[[CodeRepo], FastAPI],
-    write_graph: Callable[[str, str], None],
-    open_database: Callable[[str], Awaitable[SqliteDatabase]],
-) -> None:
-    write_graph("alpha", "name = 'alpha'\n[[nodes]]\nid = 'seed'\n")
-    database = await open_database("alpha")
-    await SqliteNodeRepo(database).ensure_rows([GraphNode(id="seed")], STARTED_AT)
-    worktree = WorkTree(
-        name="alpha-seed",
-        absolute_path="/ws/alpha/seed",
-        branch="feat/seed",
-        created_at=STARTED_AT,
-    )
-    node_agent = NodeAgent(
-        id="agent-seed",
-        name="claude",
-        resume_token="token-seed",
-        node_id="seed",
-        worktree=worktree,
-    )
-    await SqliteNodeAgentRepo(database).save(node_agent)
-
-    mocker.patch(
-        "virgo_agentic_dag.infra.agent.claude_transcript_locator.PROJECTS_HOME",
-        tmp_path,
-    )
-    session_home = tmp_path / "-ws-alpha-seed"
-    session_home.mkdir(parents=True)
-    user_record = {
-        "type": "user",
-        "uuid": "user-1",
-        "timestamp": "2026-08-15T09:00:00.000Z",
-        "isSidechain": False,
-        "message": {"role": "user", "content": "hi"},
-    }
-    session_body = json.dumps(user_record) + '\n{"type": "assistant", "uu'
-    session_home.joinpath("token-seed.jsonl").write_text(session_body, encoding="utf-8")
-    code_repo = mocker.MagicMock(spec=CodeRepo)
-
-    response = TestClient(build_application(code_repo)).get("/api/dags/alpha/seed")
-
-    assert response.status_code == 200
-    assert [message["uuid"] for message in response.json()["transcript"]] == ["user-1"]
 
 
 def test_node_detail_responds_404_where_no_dag_has_the_name(

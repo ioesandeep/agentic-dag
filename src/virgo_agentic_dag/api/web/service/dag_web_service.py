@@ -219,7 +219,6 @@ class DagWebService:
                 node=None,
                 audit_entries=[],
                 slack_notifications=[],
-                conversation_messages=[],
                 node_recovery=None,
             )
 
@@ -231,7 +230,6 @@ class DagWebService:
         node_audit_entries = self._find_node_audit_entries(
             audit_entries, node_detail.id
         )
-        conversation_messages = await self._get_conversation_messages(node)
         node_recovery = await gateway.node_recovery_repo.get_newest_recovery_by_node_id(
             node_detail.id
         )
@@ -243,38 +241,8 @@ class DagWebService:
             node=node,
             audit_entries=node_audit_entries,
             slack_notifications=slack_notifications,
-            conversation_messages=conversation_messages,
             node_recovery=node_recovery,
         )
-
-    async def _get_conversation_messages(
-        self, node: Node | None
-    ) -> list[ConversationMessageResponse]:
-        """Return the messages of a node's agent transcript, empty where it has none."""
-        node_agent = node.agent if node is not None else None
-        if node_agent is None:
-            return []
-
-        try:
-            return await asyncio.to_thread(self._load_conversation_messages, node_agent)
-        except OSError as error:
-            logger.warning("%s will not read: %s", node_agent.id, error)
-
-            return []
-
-    def _load_conversation_messages(
-        self, node_agent: NodeAgent
-    ) -> list[ConversationMessageResponse]:
-        """Load the messages of an agent's session file."""
-        transcript_locator = self._transcript_locators[ExecutorAgent(node_agent.name)]
-        transcript_path = transcript_locator.get_transcript_path(node_agent)
-        transcript_lines = node_agent.get_transcript_lines(transcript_path)
-        if node_agent.name == ExecutorAgent.CODEX.value:
-            return codex_transcript_mapper.to_conversation_message_responses(
-                transcript_lines
-            )
-
-        return transcript_mapper.to_conversation_message_responses(transcript_lines)
 
     async def get_conversation_page(
         self, dag_name: str, node_id: str, before: int | None, limit: int

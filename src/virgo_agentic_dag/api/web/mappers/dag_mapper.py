@@ -11,9 +11,6 @@ from virgo_agentic_dag.api.web.api_responses.agent_session_response import (
 from virgo_agentic_dag.api.web.api_responses.audit_line_response import (
     AuditLineResponse,
 )
-from virgo_agentic_dag.api.web.api_responses.conversation_message_response import (
-    ConversationMessageResponse,
-)
 from virgo_agentic_dag.api.web.api_responses.dag_detail_response import (
     DagDetailResponse,
 )
@@ -145,7 +142,6 @@ def to_node_response(
     node: Node | None,
     audit_entries: list[AuditEntry],
     slack_notifications: list[SlackNotification],
-    conversation_messages: list[ConversationMessageResponse],
     node_recovery: NodeRecovery | None,
 ) -> NodeResponse:
     """Convert a single node to its API response."""
@@ -174,7 +170,6 @@ def to_node_response(
         sessions=agent_session_responses,
         audits=audit_line_responses,
         slack_notifications=slack_notification_responses,
-        transcript=conversation_messages,
         exit_code=newest_session.exit_code if newest_session is not None else None,
         log_tail=newest_session.log_tail if newest_session is not None else None,
         node_recovery=(
