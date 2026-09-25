@@ -11,6 +11,7 @@ import { NodeSidebar } from '@/components/nodeDialog/nodeSidebar/nodeSidebar';
 import { NodeStatus } from '@/components/nodeDialog/nodeStatus/nodeStatus';
 import { SessionFailure } from '@/components/nodeDialog/sessionFailure/sessionFailure';
 import type { NodeDetail, NodeLink } from '@/entities/nodeDetail';
+import { useConversationPages } from '@/hooks/useConversationPages';
 
 const CONVERSATION_STYLE = {
   flexGrow: { md: CONVERSATION_COLUMN_WIDTH },
@@ -24,6 +25,7 @@ const CONVERSATION_STYLE = {
 
 interface NodeDetailColumnsProps {
   dagName: string;
+  nodeId: string;
   // Every node of the dag.
   nodes: NodeLink[];
   // The node's record, null until the api sends it.
@@ -37,11 +39,14 @@ interface NodeDetailColumnsProps {
  */
 export const NodeDetailColumns = ({
   dagName,
+  nodeId,
   nodes,
   detail,
   isConversationWide,
   onToggleWidth,
 }: NodeDetailColumnsProps) => {
+  const transcript = useConversationPages(dagName, nodeId);
+
   if (detail === null) {
     return <NodeDetailColumnsSkeleton />;
   }
@@ -57,7 +62,7 @@ export const NodeDetailColumns = ({
             nodeRecovery={detail.nodeRecovery}
           />
           <Conversation
-            messages={detail.transcript}
+            transcript={transcript}
             sessions={detail.sessions}
             isWide={isConversationWide}
             onToggleWidth={onToggleWidth}
@@ -67,6 +72,7 @@ export const NodeDetailColumns = ({
           dagName={dagName}
           nodes={nodes}
           detail={detail}
+          loadedSince={transcript.loadedSince}
           isHidden={isConversationWide}
         />
       </Box>

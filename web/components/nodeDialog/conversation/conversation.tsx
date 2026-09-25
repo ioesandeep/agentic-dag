@@ -2,18 +2,19 @@
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import { Fragment, useState } from 'react';
+import LinearProgress from '@mui/material/LinearProgress';
+import { useState } from 'react';
 
 import { EmptyState } from '@/components/emptyState/emptyState';
 import { ConversationHeader } from '@/components/nodeDialog/conversation/conversationHeader/conversationHeader';
-import { MessageByRole } from '@/components/nodeDialog/conversation/messageByRole/messageByRole';
-import { SessionDivider } from '@/components/nodeDialog/conversation/sessionDivider/sessionDivider';
+import { MessageList } from '@/components/nodeDialog/conversation/messageList/messageList';
 import {
   readSessionStarts,
   selectMessages,
 } from '@/components/nodeDialog/conversation/utils';
-import type { ConversationMessage } from '@/entities/conversationMessage';
+import { RequestFailureAlert } from '@/components/requestFailureAlert/requestFailureAlert';
 import type { AgentSession } from '@/entities/nodeDetail';
+import type { Transcript } from '@/hooks/useConversationPages';
 import { LABELS } from '@/labels/en';
 
 const CARD_STYLE = {
@@ -23,28 +24,34 @@ const CARD_STYLE = {
   minHeight: 0,
 };
 
-const MESSAGES_STYLE = {
+const LIST_AREA_STYLE = {
+  position: 'relative',
   flexGrow: 1,
   minHeight: 0,
-  overflowY: 'auto',
-  p: 2,
   display: 'flex',
   flexDirection: 'column',
-  gap: 2,
+};
+
+const PAGE_LOADING_STYLE = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  zIndex: 1,
 };
 
 interface ConversationProps {
-  messages: ConversationMessage[];
+  transcript: Transcript;
   sessions: AgentSession[];
   isWide: boolean;
   onToggleWidth: () => void;
 }
 
 /**
- * Renders a node's messages as one chat, oldest first.
+ * Renders the conversation card of a node.
  */
 export const Conversation = ({
-  messages,
+  transcript,
   sessions,
   isWide,
   onToggleWidth,
@@ -53,8 +60,19 @@ export const Conversation = ({
   const handleToggleSubagents = () =>
     setIsShowingSubagents((isShowing) => !isShowing);
 
-  const shownMessages = selectMessages(messages, isShowingSubagents);
-  const sessionStarts = readSessionStarts(shownMessages, sessions);
+  const shownMessages = selectMessages(
+    transcript.messages,
+    isShowingSubagents,
+  );
+  const sessionStarts = readSessionStarts(
+    shownMessages,
+    sessions,
+    transcript.loadedSince,
+  );
+  const isEmpty =
+    transcript.isNewestPageLoaded &&
+    !transcript.hasOlderPage &&
+    shownMessages.length === 0;
   const header = (
     <ConversationHeader
       isWide={isWide}
@@ -64,10 +82,11 @@ export const Conversation = ({
     />
   );
 
-  if (shownMessages.length === 0) {
+  if (isEmpty) {
     return (
       <Card sx={CARD_STYLE}>
         {header}
+        <RequestFailureAlert hasFailed={transcript.hasFailed} />
         <Box sx={{ p: 2 }}>
           <EmptyState
             title={LABELS.conversationEmpty}
@@ -81,15 +100,24 @@ export const Conversation = ({
   return (
     <Card sx={CARD_STYLE}>
       {header}
-      <Box sx={MESSAGES_STYLE}>
-        {shownMessages.map((message) => (
-          <Fragment key={message.uuid}>
-            <SessionDivider
-              sessionStart={sessionStarts.get(message.uuid) ?? null}
-            />
-            <MessageByRole message={message} />
-          </Fragment>
-        ))}
+      <RequestFailureAlert hasFailed={transcript.hasFailed} />
+      <Box sx={LIST_AREA_STYLE}>
+        {transcript.isLoadingPage && (
+          <Box
+            role="status"
+            aria-label={LABELS.conversationLoading}
+            sx={PAGE_LOADING_STYLE}
+          >
+            <LinearProgress />
+          </Box>
+        )}
+        <MessageList
+          key={transcript.sessionId}
+          messages={shownMessages}
+          sessionStarts={sessionStarts}
+          hasOlderPage={transcript.hasOlderPage}
+          onReachTopEdge={transcript.loadOlderPage}
+        />
       </Box>
     </Card>
   );

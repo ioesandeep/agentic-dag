@@ -16,7 +16,11 @@ interface ToolResultProps {
  */
 export const ToolResult = ({ text }: ToolResultProps) => {
   if (text === undefined || text === '') {
-    return null;
+    return (
+      <Typography variant="caption" color="text.secondary">
+        {LABELS.toolResultNotLoaded}
+      </Typography>
+    );
   }
 
   return (

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { useIsTabVisible } from '@/hooks/useIsTabVisible';
 
-const POLL_INTERVAL_MS = 5000;
+export const POLL_INTERVAL_MS = 5000;
 const NOT_FOUND_STATUS = 404;
 const NO_RESPONSE_YET = { response: null, isMissing: false, hasFailed: false };
 
@@ -17,7 +17,10 @@ export interface PolledApiResponse<TResponse> {
   hasFailed: boolean;
 }
 
-const getApiResponse = async <TResponse>(
+/**
+ * Returns the response of an api path, with no body when the path responds 404 or the request fails.
+ */
+export const getApiResponse = async <TResponse>(
   path: string,
   controller: AbortController,
 ): Promise<PolledApiResponse<TResponse>> => {
@@ -56,7 +59,13 @@ const getLatestResponse = <TResponse>(
   };
 };
 
-const stopPolling = (timer: number, controller: AbortController): void => {
+/**
+ * Cancels a poll and its in-flight request.
+ */
+export const stopPolling = (
+  timer: number,
+  controller: AbortController,
+): void => {
   window.clearInterval(timer);
   controller.abort();
 };

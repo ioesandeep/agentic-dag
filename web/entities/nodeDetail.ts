@@ -1,4 +1,3 @@
-import type { ConversationMessage } from '@/entities/conversationMessage';
 import type { AuditLine } from '@/entities/dagDetail';
 import type { NodeState } from '@/entities/nodeState';
 
@@ -108,8 +107,6 @@ export interface NodeDetail {
   audits: AuditLine[];
   // The Slack notification threads opened for this node.
   slackNotifications: SlackNotification[];
-  // The newest messages of the agent's session, oldest first.
-  transcript: ConversationMessage[];
   // The exit code of the newest session, null when none is recorded.
   exitCode: number | null;
   // The last log lines of the newest session, null when none is recorded.

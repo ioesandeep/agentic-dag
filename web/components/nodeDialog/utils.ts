@@ -1,6 +1,10 @@
 import type { SxProps, Theme } from '@mui/material/styles';
 
-import type { NodeDetail, NodeLink } from '@/entities/nodeDetail';
+import type {
+  AgentSession,
+  NodeDetail,
+  NodeLink,
+} from '@/entities/nodeDetail';
 import {
   COLLAPSED_GRAPH_LEFT_EDGE,
   GRAPH_LEFT_EDGE,
@@ -118,3 +122,12 @@ export const scrollToSession = (wake: number): void => {
 
   anchor.scrollIntoView(scrollOptions);
 };
+
+/**
+ * Returns true when a session starts inside the loaded part of the transcript.
+ */
+export const isSessionStartLoaded = (
+  session: AgentSession,
+  loadedSince: string | null,
+): boolean =>
+  loadedSince === null || session.startedAt >= loadedSince;

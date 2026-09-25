@@ -17,6 +17,8 @@ interface NodeSidebarProps {
   // Every node of the dag.
   nodes: NodeLink[];
   detail: NodeDetail;
+  // The timestamp of the oldest loaded message, or null when every message of the transcript is loaded.
+  loadedSince: string | null;
   // True while the conversation takes the whole width.
   isHidden: boolean;
 }
@@ -28,6 +30,7 @@ export const NodeSidebar = ({
   dagName,
   nodes,
   detail,
+  loadedSince,
   isHidden,
 }: NodeSidebarProps) => {
   const dependsOnNodes = listNodeLinksByIds(detail.dependsOn, nodes);
@@ -53,7 +56,10 @@ export const NodeSidebar = ({
         />
       </NodeSidebarCard>
       <NodeSidebarCard title={LABELS.sessionsHeading}>
-        <SessionTable sessions={detail.sessions} />
+        <SessionTable
+          sessions={detail.sessions}
+          loadedSince={loadedSince}
+        />
       </NodeSidebarCard>
       <NodeSidebarCard title={LABELS.instructionsHeading}>
         <InstructionsText instructions={detail.instructions} />

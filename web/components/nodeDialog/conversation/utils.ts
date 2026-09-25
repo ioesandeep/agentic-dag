@@ -1,5 +1,6 @@
 import { FIRST_WAKE } from '@/components/nodeDialog/constants';
 import type { SessionStart } from '@/components/nodeDialog/conversation/types';
+import { isSessionStartLoaded } from '@/components/nodeDialog/utils';
 import type {
   ConversationMessage,
   ConversationRole,
@@ -67,26 +68,28 @@ export const selectMessages = (
   });
 
 /**
- * Returns the first shown message of each session, keyed by message id.
+ * Returns each loaded session start indexed by its first shown message id.
  */
 export const readSessionStarts = (
   messages: ConversationMessage[],
   sessions: AgentSession[],
+  loadedSince: string | null,
 ): Map<string, SessionStart> => {
   const starts = sessions.map((session, index): SessionStartEntry | null => {
     const opensAt = readSessionStart(sessions, index);
     const closesAt = sessions[index + 1]?.startedAt;
+    const isStartLoaded = isSessionStartLoaded(session, loadedSince);
     const first = messages.find((message) =>
       isWithin(message.timestamp, opensAt, closesAt),
     );
 
-    if (first === undefined) {
+    if (!isStartLoaded || first === undefined) {
       return null;
     }
 
     const sessionStart = { session, wake: index + FIRST_WAKE };
 
-    return [first.uuid, sessionStart];
+    return [first.id, sessionStart];
   });
 
   return new Map(starts.filter(isStart));

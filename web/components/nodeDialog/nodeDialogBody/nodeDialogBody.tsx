@@ -87,6 +87,7 @@ export const NodeDialogBody = ({
       </Box>
       <NodeDetailColumns
         dagName={dagName}
+        nodeId={nodeId}
         nodes={nodes}
         detail={nodeDetail}
         isConversationWide={isConversationWide}

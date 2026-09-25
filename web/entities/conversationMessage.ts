@@ -11,7 +11,9 @@ export const CONVERSATION_ROLES: readonly ConversationRole[] = [
 ];
 
 export interface ConversationMessage {
-  // The message's id in the transcript.
+  // The message's id, which is unique across pages even when the message's uuid repeats.
+  id: string;
+  // The transcript's own id for the message, which the messages of one record can share.
   uuid: string;
   // The role the transcript gives the message.
   role: string;
