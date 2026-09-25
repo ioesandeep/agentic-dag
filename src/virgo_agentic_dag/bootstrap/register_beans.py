@@ -52,6 +52,7 @@ from virgo_agentic_dag.api.cli.handlers.validate_command_handler import (
 from virgo_agentic_dag.api.cli.handlers.watch_command_handler import (
     WatchCommandHandler,
 )
+from virgo_agentic_dag.config.constants import NODE_ACTION_TIMEOUT_SECONDS
 from virgo_agentic_dag.domain.command.dag_command import DagCommand
 from virgo_agentic_dag.domain.command.serve_command import ServeCommand
 from virgo_agentic_dag.domain.exceptions.host.web_extra_missing import WebExtraMissing
@@ -127,6 +128,9 @@ from virgo_agentic_dag.infra.agent.transcript_page_reader import TranscriptPageR
 from virgo_agentic_dag.infra.code.github_code_repo import GitHubCodeRepo
 from virgo_agentic_dag.infra.host.subprocess_command_runner import (
     SubprocessCommandRunner,
+)
+from virgo_agentic_dag.infra.host.subprocess_dagctl_runner import (
+    SubprocessDagctlRunner,
 )
 from virgo_agentic_dag.infra.host.system_sleeper import SystemSleeper
 from virgo_agentic_dag.infra.locking.dag_run_lock import DagRunLock
@@ -357,6 +361,7 @@ def register_beans(context: ApplicationContext) -> None:
     context.register(ExamineCommandHandler, _build_examine_command_handler)
     context.register(RecoverCommandHandler, _build_recover_command_handler)
 
+    # TODO: register the web api beans outside the core dag registry.
     if isinstance(context.command, ServeCommand):
         _register_web_beans(context)
 
@@ -368,16 +373,25 @@ def _register_web_beans(context: ApplicationContext) -> None:
         from virgo_agentic_dag.api.web.controllers.health_controller import (
             HealthController,
         )
+        from virgo_agentic_dag.api.web.controllers.node_action_controller import (
+            NodeActionController,
+        )
         from virgo_agentic_dag.api.web.routes.conversation_route import (
             ConversationRoute,
         )
         from virgo_agentic_dag.api.web.routes.dag_route import DagRoute
         from virgo_agentic_dag.api.web.routes.health_route import HealthRoute
         from virgo_agentic_dag.api.web.routes.memory_route import MemoryRoute
+        from virgo_agentic_dag.api.web.routes.node_action_route import (
+            NodeActionRoute,
+        )
         from virgo_agentic_dag.api.web.routes.recovery_session_route import (
             RecoverySessionRoute,
         )
         from virgo_agentic_dag.api.web.service.dag_web_service import DagWebService
+        from virgo_agentic_dag.api.web.service.node_action_service import (
+            NodeActionService,
+        )
         from virgo_agentic_dag.api.web.web_application_factory import (
             WebApplicationFactory,
         )
@@ -412,6 +426,22 @@ def _register_web_beans(context: ApplicationContext) -> None:
         lambda _context: ConversationRoute(_context.get(DagController)),
     )
     context.register(
+        NodeActionService,
+        lambda _context: NodeActionService(
+            dag_web_service=_context.get(DagWebService),
+            dagctl_runner=SubprocessDagctlRunner(),
+            timeout=NODE_ACTION_TIMEOUT_SECONDS,
+        ),
+    )
+    context.register(
+        NodeActionController,
+        lambda _context: NodeActionController(_context.get(NodeActionService)),
+    )
+    context.register(
+        NodeActionRoute,
+        lambda _context: NodeActionRoute(_context.get(NodeActionController)),
+    )
+    context.register(
         RecoverySessionRoute,
         lambda _context: RecoverySessionRoute(_context.get(DagController)),
     )
@@ -422,6 +452,7 @@ def _register_web_beans(context: ApplicationContext) -> None:
             health_route=_context.get(HealthRoute),
             memory_route=_context.get(MemoryRoute),
             conversation_route=_context.get(ConversationRoute),
+            node_action_route=_context.get(NodeActionRoute),
             recovery_session_route=_context.get(RecoverySessionRoute),
         ),
     )

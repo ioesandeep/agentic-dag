@@ -14,6 +14,8 @@ class RetryCommand(DagCommand):
     node_id: str
     # when true, the next start opens a new conversation instead of resuming the recorded one
     reset: bool = False
+    # the maximum run lock wait in seconds, or None for an unlimited wait
+    timeout: float | None = None
 
     def requires_run_lock(self) -> bool:
         """Retry claims the run itself, waiting out the pass that holds it instead of failing."""

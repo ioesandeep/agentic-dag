@@ -12,14 +12,14 @@ DEFAULT_PORT = 8788
 
 @dataclass(frozen=True)
 class ServeCommand(Command):
-    """A request to serve the read-only web api over this host's runs."""
+    """A request to serve the web api over this host's runs."""
 
     # loopback by default, because widening it exposes every run on this host
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
 
     def requires_run_lock(self) -> bool:
-        """The server changes no run, so it needs no run lock."""
+        """Return false because the serve command does not select a run."""
         return False
 
     def requires_database(self) -> bool:

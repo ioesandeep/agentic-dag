@@ -227,7 +227,12 @@ def _run_retry(args: argparse.Namespace) -> int:
     from virgo_agentic_dag.bootstrap.context_initializer import initialize_context
     from virgo_agentic_dag.domain.command.retry_command import RetryCommand
 
-    command = RetryCommand(dag_path=args.dag, node_id=args.node, reset=args.reset)
+    command = RetryCommand(
+        dag_path=args.dag,
+        node_id=args.node,
+        reset=args.reset,
+        timeout=args.timeout,
+    )
 
     async def _run() -> int:
         async with initialize_context(command, sys.stdout) as context:
@@ -261,7 +266,7 @@ def _run_stop(args: argparse.Namespace) -> int:
     from virgo_agentic_dag.bootstrap.context_initializer import initialize_context
     from virgo_agentic_dag.domain.command.stop_command import StopCommand
 
-    command = StopCommand(dag_path=args.dag, node_id=args.node)
+    command = StopCommand(dag_path=args.dag, node_id=args.node, timeout=args.timeout)
 
     async def _run() -> int:
         async with initialize_context(command, sys.stdout) as context:
@@ -304,6 +309,7 @@ def _run_recover(args: argparse.Namespace) -> int:
         recover_at=args.recover_at,
         restore_marks=args.restore_marks,
         wake_message=args.wake,
+        timeout=args.timeout,
     )
 
     async def _run() -> int:
@@ -361,7 +367,7 @@ def _run_status(args: argparse.Namespace) -> int:
 
 
 def _run_serve(args: argparse.Namespace) -> int:
-    """Serve the read-only web api until the process is stopped."""
+    """Serve the web api until the process is stopped."""
     from virgo_agentic_dag.api.cli.handlers.serve_command_handler import (
         ServeCommandHandler,
     )
@@ -489,6 +495,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="start a new conversation instead of resuming the recorded one",
     )
+    retry.add_argument(
+        "--timeout",
+        type=float,
+        help="seconds to wait for the run lock, with no limit by default",
+    )
 
     skip = commands.add_parser("skip", help=LABELS["skipHelp"])
     skip.add_argument("node", help="the id of the node to skip")
@@ -500,6 +511,11 @@ def _build_parser() -> argparse.ArgumentParser:
     stop.add_argument("node", help="the id of the node to stop")
     stop.add_argument(
         "--dag", type=Path, required=True, help="the graph file for the run"
+    )
+    stop.add_argument(
+        "--timeout",
+        type=float,
+        help="seconds to wait for the run lock, with no limit by default",
     )
 
     examine = commands.add_parser("examine", help=LABELS["examineHelp"])
@@ -532,6 +548,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="put the worktree's watermarks back to before the latest session",
     )
+    recover.add_argument(
+        "--timeout",
+        type=float,
+        help="seconds to wait for the run lock, with no limit by default",
+    )
     verdict = recover.add_mutually_exclusive_group()
     verdict.add_argument(
         "--wake", default="", help="resume the node's conversation with this message"
@@ -553,3 +574,7 @@ def _build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--port", type=int, default=DEFAULT_PORT)
 
     return parser
+
+
+if __name__ == "__main__":
+    sys.exit(main())

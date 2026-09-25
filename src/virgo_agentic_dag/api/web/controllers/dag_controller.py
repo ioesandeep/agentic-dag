@@ -20,6 +20,9 @@ from virgo_agentic_dag.api.web.api_responses.recovery_session_response import (
     RecoverySessionResponse,
 )
 from virgo_agentic_dag.api.web.service.dag_web_service import DagWebService
+from virgo_agentic_dag.api.web.utils.get_node_unknown_exception import (
+    get_node_unknown_exception,
+)
 from virgo_agentic_dag.config.constants import (
     DEFAULT_CONVERSATION_PAGE_LIMIT,
     MAX_CONVERSATION_PAGE_LIMIT,
@@ -80,12 +83,7 @@ class DagController:
         """
         node_response = await self._dag_web_service.get_node_by_name(dag_name, node_id)
         if node_response is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=format_label(
-                    LABELS["nodeUnknown"], {"dag": dag_name, "node": node_id}
-                ),
-            )
+            raise get_node_unknown_exception(dag_name, node_id)
 
         return node_response
 
@@ -122,12 +120,7 @@ class DagController:
             ) from past_end
 
         if conversation_page is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=format_label(
-                    LABELS["nodeUnknown"], {"dag": dag_name, "node": node_id}
-                ),
-            )
+            raise get_node_unknown_exception(dag_name, node_id)
 
         return conversation_page
 

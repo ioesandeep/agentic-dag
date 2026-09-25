@@ -12,7 +12,7 @@ from virgo_agentic_dag.infra.persistence.sqlite.dag_database_registry import (
 
 
 class ServeCommandHandler(CommandHandler[ServeCommand]):
-    """Serves the read-only web api."""
+    """Serves the web api."""
 
     def __init__(
         self, web_server: WebServer, database_registry: DagDatabaseRegistry

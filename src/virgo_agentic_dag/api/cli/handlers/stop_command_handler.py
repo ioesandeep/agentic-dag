@@ -11,6 +11,7 @@ from virgo_agentic_dag.domain.command.exit_code import ExitCode
 from virgo_agentic_dag.domain.command.stop_command import StopCommand
 from virgo_agentic_dag.domain.exceptions.run.stop_refused import StopRefused
 from virgo_agentic_dag.domain.infra.locking.run_lock import RunLock
+from virgo_agentic_dag.domain.infra.locking.run_lock_config import RunLockConfig
 from virgo_agentic_dag.labels.en import LABELS
 from virgo_agentic_dag.services.stop.node_stop_service import NodeStopService
 from virgo_agentic_dag.utils.format_label import format_label
@@ -24,7 +25,8 @@ class StopCommandHandler(CommandHandler[StopCommand]):
         self._node_stop_service = node_stop_service
 
     async def handle(self, command: StopCommand) -> ExitCode:
-        await asyncio.to_thread(self._run_lock.acquire_waiting)
+        run_lock_config = RunLockConfig(timeout=command.timeout)
+        await asyncio.to_thread(self._run_lock.acquire_lock, run_lock_config)
 
         try:
             current_time = datetime.now(UTC)

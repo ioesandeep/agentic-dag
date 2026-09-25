@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from virgo_agentic_dag.domain.exceptions.run.run_busy import RunBusy
+from virgo_agentic_dag.domain.infra.locking.run_lock_config import RunLockConfig
 from virgo_agentic_dag.infra.locking.dag_run_lock import DagRunLock
 
 pytestmark = pytest.mark.unit
@@ -89,4 +90,23 @@ def test_waits_out_the_holder_and_then_claims_the_run(tmp_path: Path) -> None:
     waiter.acquire_waiting()
 
     assert time.monotonic() - started >= 0.15
+    waiter.release()
+
+
+@pytest.mark.parametrize("timeout", [None, 5], ids=["no_timeout", "within_the_timeout"])
+def test_acquires_the_run_lock_when_the_current_holder_releases_it(
+    tmp_path: Path, timeout: float | None
+) -> None:
+    holder = build_lock(tmp_path)
+    holder.acquire()
+    release_delay = threading.Timer(0.2, holder.release)
+    release_delay.start()
+    run_lock_config = RunLockConfig(timeout=timeout)
+
+    waiter = build_lock(tmp_path)
+    waiter.acquire_lock(run_lock_config)
+
+    with pytest.raises(RunBusy, match="another pass"):
+        build_lock(tmp_path).acquire()
+
     waiter.release()

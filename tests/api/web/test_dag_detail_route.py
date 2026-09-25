@@ -9,10 +9,14 @@ from pytest_mock import MockerFixture
 from sqlalchemy.ext.asyncio import create_async_engine
 from virgo_agentic_dag.api.web.controllers.dag_controller import DagController
 from virgo_agentic_dag.api.web.controllers.health_controller import HealthController
+from virgo_agentic_dag.api.web.controllers.node_action_controller import (
+    NodeActionController,
+)
 from virgo_agentic_dag.api.web.routes.conversation_route import ConversationRoute
 from virgo_agentic_dag.api.web.routes.dag_route import DagRoute
 from virgo_agentic_dag.api.web.routes.health_route import HealthRoute
 from virgo_agentic_dag.api.web.routes.memory_route import MemoryRoute
+from virgo_agentic_dag.api.web.routes.node_action_route import NodeActionRoute
 from virgo_agentic_dag.api.web.routes.recovery_session_route import (
     RecoverySessionRoute,
 )
@@ -20,6 +24,7 @@ from virgo_agentic_dag.api.web.service.dag_web_service import (
     AUDIT_TAIL_SIZE,
     DagWebService,
 )
+from virgo_agentic_dag.api.web.service.node_action_service import NodeActionService
 from virgo_agentic_dag.api.web.web_application_factory import WebApplicationFactory
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
@@ -45,7 +50,7 @@ from virgo_agentic_dag.services.loading.toml.toml_dag_loader import TomlDagLoade
 
 pytestmark = pytest.mark.e2e
 
-READ_ONLY_METHODS = {"GET", "HEAD"}
+READ_ONLY_METHODS = {"get", "head"}
 STARTED_AT = datetime(2026, 8, 15, 9, 0, tzinfo=UTC)
 WAKE_AT = datetime(2026, 8, 15, 9, 58, tzinfo=UTC)
 REPO_URL = "https://git.example.com/acme/virgo"
@@ -96,7 +101,7 @@ async def open_database(
 
 
 @pytest.fixture
-def build_application() -> Callable[[CodeRepo], FastAPI]:
+def build_application(mocker: MockerFixture) -> Callable[[CodeRepo], FastAPI]:
     def build(code_repo: CodeRepo) -> FastAPI:
         dag_controller = DagController(
             DagWebService(
@@ -107,12 +112,16 @@ def build_application() -> Callable[[CodeRepo], FastAPI]:
                 TranscriptPageReader(),
             )
         )
+        node_action_controller = NodeActionController(
+            mocker.MagicMock(spec=NodeActionService)
+        )
 
         return WebApplicationFactory(
             dag_route=DagRoute(dag_controller),
             health_route=HealthRoute(HealthController()),
             memory_route=MemoryRoute(dag_controller),
             conversation_route=ConversationRoute(dag_controller),
+            node_action_route=NodeActionRoute(node_action_controller),
             recovery_session_route=RecoverySessionRoute(dag_controller),
         ).build()
 
@@ -386,15 +395,21 @@ async def test_dag_detail_returns_the_latest_audit_entries_where_more_exist(
     assert notes == [f"pass {index}" for index in range(AUDIT_TAIL_SIZE + 1, 1, -1)]
 
 
-def test_web_api_exposes_no_route_that_changes_a_dag(
+def test_web_api_accepts_a_write_method_only_on_the_node_action_routes(
     mocker: MockerFixture, build_application: Callable[[CodeRepo], FastAPI]
 ) -> None:
     application = build_application(mocker.MagicMock(spec=CodeRepo))
 
-    methods = {
-        method
-        for route in application.routes
-        for method in getattr(route, "methods", set())
+    operations_by_path = application.openapi()["paths"]
+    write_methods_by_route = {
+        (path, method)
+        for path, operations in operations_by_path.items()
+        for method in operations
+        if method not in READ_ONLY_METHODS
     }
 
-    assert methods <= READ_ONLY_METHODS
+    assert write_methods_by_route == {
+        ("/api/dags/{dag_name}/{node_id}/retry", "post"),
+        ("/api/dags/{dag_name}/{node_id}/wake", "post"),
+        ("/api/dags/{dag_name}/{node_id}/stop", "post"),
+    }

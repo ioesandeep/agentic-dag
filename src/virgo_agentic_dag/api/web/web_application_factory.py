@@ -7,14 +7,15 @@ from virgo_agentic_dag.api.web.routes.conversation_route import ConversationRout
 from virgo_agentic_dag.api.web.routes.dag_route import DagRoute
 from virgo_agentic_dag.api.web.routes.health_route import HealthRoute
 from virgo_agentic_dag.api.web.routes.memory_route import MemoryRoute
+from virgo_agentic_dag.api.web.routes.node_action_route import NodeActionRoute
 from virgo_agentic_dag.api.web.routes.recovery_session_route import (
     RecoverySessionRoute,
 )
 
 TITLE = "virgo-agentic-dag"
 DESCRIPTION = (
-    "A read-only api over the dags this host records. "
-    "No route starts, advances, or stops a dag."
+    "An api over the dags this host records. "
+    "The retry, wake, and stop routes run dagctl as a child process."
 )
 
 
@@ -27,12 +28,14 @@ class WebApplicationFactory:
         health_route: HealthRoute,
         memory_route: MemoryRoute,
         conversation_route: ConversationRoute,
+        node_action_route: NodeActionRoute,
         recovery_session_route: RecoverySessionRoute,
     ) -> None:
         self._dag_route = dag_route
         self._health_route = health_route
         self._memory_route = memory_route
         self._conversation_route = conversation_route
+        self._node_action_route = node_action_route
         self._recovery_session_route = recovery_session_route
 
     def build(self) -> FastAPI:
@@ -41,6 +44,7 @@ class WebApplicationFactory:
         application.include_router(self._health_route.build())
         application.include_router(self._memory_route.build())
         application.include_router(self._conversation_route.build())
+        application.include_router(self._node_action_route.build())
         application.include_router(self._recovery_session_route.build())
         application.include_router(self._dag_route.build())
 

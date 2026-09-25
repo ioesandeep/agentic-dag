@@ -10,14 +10,19 @@ from pytest_mock import MockerFixture
 from sqlalchemy.ext.asyncio import create_async_engine
 from virgo_agentic_dag.api.web.controllers.dag_controller import DagController
 from virgo_agentic_dag.api.web.controllers.health_controller import HealthController
+from virgo_agentic_dag.api.web.controllers.node_action_controller import (
+    NodeActionController,
+)
 from virgo_agentic_dag.api.web.routes.conversation_route import ConversationRoute
 from virgo_agentic_dag.api.web.routes.dag_route import DagRoute
 from virgo_agentic_dag.api.web.routes.health_route import HealthRoute
 from virgo_agentic_dag.api.web.routes.memory_route import MemoryRoute
+from virgo_agentic_dag.api.web.routes.node_action_route import NodeActionRoute
 from virgo_agentic_dag.api.web.routes.recovery_session_route import (
     RecoverySessionRoute,
 )
 from virgo_agentic_dag.api.web.service.dag_web_service import DagWebService
+from virgo_agentic_dag.api.web.service.node_action_service import NodeActionService
 from virgo_agentic_dag.api.web.web_application_factory import WebApplicationFactory
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
@@ -109,7 +114,7 @@ async def open_database(
 
 
 @pytest.fixture
-def build_application() -> Callable[[CodeRepo], FastAPI]:
+def build_application(mocker: MockerFixture) -> Callable[[CodeRepo], FastAPI]:
     def build(code_repo: CodeRepo) -> FastAPI:
         dag_controller = DagController(
             DagWebService(
@@ -120,12 +125,16 @@ def build_application() -> Callable[[CodeRepo], FastAPI]:
                 TranscriptPageReader(),
             )
         )
+        node_action_controller = NodeActionController(
+            mocker.MagicMock(spec=NodeActionService)
+        )
 
         return WebApplicationFactory(
             dag_route=DagRoute(dag_controller),
             health_route=HealthRoute(HealthController()),
             memory_route=MemoryRoute(dag_controller),
             conversation_route=ConversationRoute(dag_controller),
+            node_action_route=NodeActionRoute(node_action_controller),
             recovery_session_route=RecoverySessionRoute(dag_controller),
         ).build()
 

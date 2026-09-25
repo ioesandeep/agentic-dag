@@ -11,6 +11,7 @@ from virgo_agentic_dag.domain.command.exit_code import ExitCode
 from virgo_agentic_dag.domain.command.retry_command import RetryCommand
 from virgo_agentic_dag.domain.events.node_retried_event import NodeRetriedEvent
 from virgo_agentic_dag.domain.infra.locking.run_lock import RunLock
+from virgo_agentic_dag.domain.infra.locking.run_lock_config import RunLockConfig
 from virgo_agentic_dag.domain.notifications.notification_type import NotificationType
 from virgo_agentic_dag.domain.persistence.entities.audit_entry import AuditEntry
 from virgo_agentic_dag.domain.persistence.entities.node import Node
@@ -46,7 +47,8 @@ class RetryCommandHandler(CommandHandler[RetryCommand]):
         self._node_agent_repo = node_agent_repo
 
     async def handle(self, command: RetryCommand) -> ExitCode:
-        await asyncio.to_thread(self._run_lock.acquire_waiting)
+        run_lock_config = RunLockConfig(timeout=command.timeout)
+        await asyncio.to_thread(self._run_lock.acquire_lock, run_lock_config)
 
         try:
             return await self._retry(command)

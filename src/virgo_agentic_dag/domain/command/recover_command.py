@@ -23,6 +23,8 @@ class RecoverCommand(DagCommand):
     restore_marks: bool = False
     # the turn to resume the node's conversation with, empty when the node stays stopped
     wake_message: str = ""
+    # the maximum run lock wait in seconds, or None for an unlimited wait
+    timeout: float | None = None
 
     def requires_run_lock(self) -> bool:
         """Recover claims the run itself, waiting out the pass that has it instead of failing."""

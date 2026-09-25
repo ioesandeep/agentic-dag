@@ -17,7 +17,7 @@ LABELS: dict[str, str] = {
     "recoverHelp": "act on a failed node and record what was decided about it",
     "statusHelp": "display the status of a dag",
     "logHelp": "show a run's transition history",
-    "serveHelp": "serve the read-only web api over this host's runs",
+    "serveHelp": "serve the web api over this host's runs",
     "webExtraMissing": (
         "serve needs the web extra: uv sync --package virgo-agentic-dag --extra web"
     ),
@@ -99,6 +99,13 @@ LABELS: dict[str, str] = {
     "transcriptCursorPastEnd": (
         "cursor {cursor} is past the end of the transcript of node {node} in dag {dag}"
     ),
+    "runBusy": (
+        "dagctl cannot acquire the run lock for dag {dag} before the {timeout}-second "
+        "timeout because another dagctl command, such as tick, retry, recover, or "
+        "stop, retains the lock"
+    ),
+    "nodeNotResting": "wake requires node {node} in dag {dag} to be resting, not {state}",
+    "nodeActionFailed": "dagctl exits with code {exit_code} for node {node} in dag {dag}",
     "commandCarriesNoGraph": "{command} does not carry a graph file",
     "unknownDependency": "{node_id} depends on {dep_id}, which is not in the graph",
     "duplicateNode": "{node_id} is declared more than once",
