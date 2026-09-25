@@ -15,6 +15,8 @@ export interface DagNode {
   sessionId: string;
   // The pull request this node opened, empty when it has none.
   prUrl: string;
+  // The node's pull request number, or 0 when the node has no pull request.
+  prNumber: number;
   // The worktree this node's agent builds in, empty when it has none.
   worktreeName: string;
   branch: string;

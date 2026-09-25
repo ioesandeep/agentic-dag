@@ -1,7 +1,7 @@
 'use client';
 
 import Box from '@mui/material/Box';
-import ButtonBase from '@mui/material/ButtonBase';
+import ButtonBase, { buttonBaseClasses } from '@mui/material/ButtonBase';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import type { NodeProps } from '@xyflow/react';
@@ -10,12 +10,14 @@ import Link from 'next/link';
 import type { MouseEvent } from 'react';
 
 import {
+  FOCUS_OUTLINE_WIDTH,
   NODE_HEIGHT,
   NODE_WIDTH,
+  PRIMARY_MAIN_COLOR,
   STATE_BORDER_WIDTH,
 } from '@/components/dagPanel/dagGraph/constants';
-import { PullRequestBadge } from '@/components/dagPanel/dagGraph/pullRequestBadge/pullRequestBadge';
 import type { DagFlowNode } from '@/components/dagPanel/dagGraph/types';
+import { PullRequestChip } from '@/components/pullRequestChip/pullRequestChip';
 import { SoftChip } from '@/components/softChip/softChip';
 import { NODE_STATE_LABELS } from '@/labels/en';
 import { createEntryFromDagPage } from '@/utils/dagPageEntry';
@@ -42,8 +44,14 @@ export const DagGraphNode = ({ data }: NodeProps<DagFlowNode>) => {
       <Paper
         variant="outlined"
         sx={{
+          position: 'relative',
           width: NODE_WIDTH,
           height: NODE_HEIGHT,
+          p: 1.25,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          gap: 0.75,
           overflow: 'hidden',
           borderLeft: STATE_BORDER_WIDTH,
           borderLeftColor: getStateColor(node.state),
@@ -51,42 +59,39 @@ export const DagGraphNode = ({ data }: NodeProps<DagFlowNode>) => {
           '&:hover': { boxShadow: 3 },
         }}
       >
-        <ButtonBase
-          component={Link}
-          href={`/dags/${dagName}/${node.id}`}
-          onClick={handleOpen}
-          sx={{
-            width: '100%',
-            height: '100%',
-            p: 1.25,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'stretch',
-            justifyContent: 'center',
-            gap: 0.75,
-            textAlign: 'left',
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-            <Typography
-              variant="body2"
-              noWrap
-              sx={{ flexGrow: 1, minWidth: 0, fontWeight: 500 }}
-            >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          <ButtonBase
+            component={Link}
+            href={`/dags/${dagName}/${node.id}`}
+            onClick={handleOpen}
+            sx={{
+              position: 'static',
+              flexGrow: 1,
+              minWidth: 0,
+              justifyContent: 'flex-start',
+              '&::after': { content: '""', position: 'absolute', inset: 0 },
+              [`&.${buttonBaseClasses.focusVisible}::after`]: {
+                borderRadius: 1,
+                outline: `${FOCUS_OUTLINE_WIDTH} solid ${PRIMARY_MAIN_COLOR}`,
+                outlineOffset: `-${FOCUS_OUTLINE_WIDTH}`,
+              },
+            }}
+          >
+            <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
               {node.title}
             </Typography>
-            <PullRequestBadge prUrl={node.prUrl} />
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-            <SoftChip
-              color={getStateColor(node.state)}
-              label={NODE_STATE_LABELS[node.state]}
-            />
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {node.agentName}
-            </Typography>
-          </Box>
-        </ButtonBase>
+          </ButtonBase>
+          <PullRequestChip prNumber={node.prNumber} prUrl={node.prUrl} />
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          <SoftChip
+            color={getStateColor(node.state)}
+            label={NODE_STATE_LABELS[node.state]}
+          />
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {node.agentName}
+          </Typography>
+        </Box>
       </Paper>
       <Handle type="source" position={Position.Right} isConnectable={false} />
     </>

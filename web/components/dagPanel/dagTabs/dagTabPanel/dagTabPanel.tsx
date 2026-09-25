@@ -2,6 +2,7 @@ import { AuditList } from '@/components/dagPanel/dagTabs/auditList/auditList';
 import { DagMemory } from '@/components/dagPanel/dagTabs/dagMemory/dagMemory';
 import { DagSettings } from '@/components/dagPanel/dagTabs/dagSettings/dagSettings';
 import { NodeTable } from '@/components/dagPanel/dagTabs/nodeTable/nodeTable';
+import { RecoverySessionList } from '@/components/dagPanel/dagTabs/recoverySessionList/recoverySessionList';
 import { DagTab } from '@/components/dagPanel/dagTabs/types';
 import type { DagDetail } from '@/entities/dagDetail';
 
@@ -19,6 +20,8 @@ export const DagTabPanel = ({ dag, tab }: DagTabPanelProps) => {
       return <NodeTable dagName={dag.name} nodes={dag.nodes} />;
     case DagTab.MEMORY:
       return <DagMemory dagName={dag.name} />;
+    case DagTab.RECOVERY:
+      return <RecoverySessionList dagName={dag.name} />;
     case DagTab.SETTINGS:
       return <DagSettings dag={dag} />;
     case DagTab.AUDIT:

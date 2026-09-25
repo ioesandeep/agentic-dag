@@ -11,7 +11,9 @@ export const READABLE_ZOOM = 1;
 // The gap in pixels between the graph and the edge of its container.
 export const GRAPH_PADDING = 24;
 export const STATE_BORDER_WIDTH = 4;
+export const FOCUS_OUTLINE_WIDTH = '0.125rem';
 export const DIVIDER_COLOR = 'var(--mui-palette-divider)';
 export const SECONDARY_TEXT_COLOR = 'var(--mui-palette-text-secondary)';
+export const PRIMARY_MAIN_COLOR = 'var(--mui-palette-primary-main)';
 export const BACKGROUND_GAP = 20;
 export const BACKGROUND_DOT_SIZE = 1;

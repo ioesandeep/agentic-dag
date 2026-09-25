@@ -6,6 +6,10 @@ export interface NodeLink {
   id: string;
   title: string;
   state: NodeState;
+  // The node's pull request url, empty when the node has no pull request.
+  prUrl: string;
+  // The node's pull request number, or 0 when the node has no pull request.
+  prNumber: number;
 }
 
 export interface NodeWorktree {

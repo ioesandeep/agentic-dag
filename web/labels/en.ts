@@ -5,6 +5,7 @@ import type {
 } from '@/entities/nodeDetail';
 import type { NodeState } from '@/entities/nodeState';
 import { DagState } from '@/utils/dagState';
+import { RecoverySessionState } from '@/utils/recoverySessionState';
 
 export const NODE_STATE_LABELS: Record<NodeState, string> = {
   pending: 'Pending',
@@ -39,6 +40,15 @@ export const RECOVERY_CAUSE_LABELS: Record<RecoveryCause, string> = {
   no_pull_request: 'No pull request',
   overdue: 'Overdue',
   workspace_inconsistent: 'Workspace inconsistent',
+};
+
+export const RECOVERY_SESSION_STATE_LABELS: Record<
+  RecoverySessionState,
+  string
+> = {
+  [RecoverySessionState.RUNNING]: 'Running',
+  [RecoverySessionState.ENDED]: 'Ended',
+  [RecoverySessionState.ENDED_WITHOUT_CLOSE]: 'Ended without a close',
 };
 
 export const SIGNAL_LABELS: Record<SignalKind, string> = {
@@ -101,6 +111,7 @@ export const LABELS = {
   dagAudit: 'Activity',
   dagNodes: 'Nodes',
   dagMemory: 'Memory',
+  dagRecovery: 'Recovery',
   dagSettings: 'Settings',
   dagAuditEmpty: 'No audit entries yet',
   dagAuditEmptyHint:
@@ -112,13 +123,17 @@ export const LABELS = {
   dagMemoryEmptyHint:
     "A learning session writes the memory file after a node's pull request is merged or closed.",
   dagMemoryUpdatedAt: 'updated {time}',
+  dagRecoveryLoading: 'Loading the recovery sessions',
+  dagRecoveryEmpty: 'No recovery sessions yet',
+  dagRecoveryEmptyHint:
+    'A tick can start a recovery session for a failed node that has a recovery attempt left.',
   dagTickInterval: 'Tick interval',
   nodeState: 'State',
   nodeId: 'Node',
   nodeTitle: 'Title',
   nodeAgent: 'Agent',
   nodeLastActivity: 'Last activity',
-  nodePullRequest: 'Has a pull request',
+  nodePullRequestOpen: 'Open pull request #{number} in a new tab',
   nodeOpen: 'Open the node',
   durationSeconds: '{count} seconds',
   durationMinutes: '{count} minutes',
@@ -148,6 +163,7 @@ export const LABELS = {
   agentMessageTitle: 'Agent',
   sessionWake: 'Wake {wake}',
   sessionStartedAt: 'started {time}',
+  sessionEndedAt: 'closed {time}',
   toolUnnamed: 'Tool',
   toolResultHeading: 'Result',
   toolNoInput: 'This call was made without arguments.',
