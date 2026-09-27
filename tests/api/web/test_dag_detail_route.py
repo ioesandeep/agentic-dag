@@ -33,6 +33,7 @@ from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSes
 from virgo_agentic_dag.domain.persistence.entities.audit_entry import AuditEntry
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
+from virgo_agentic_dag.domain.service.graph_builder import GraphBuilder
 from virgo_agentic_dag.infra.agent.transcript_page_reader import TranscriptPageReader
 from virgo_agentic_dag.infra.persistence.sqlite.dag_database_registry import (
     DagDatabaseRegistry,
@@ -110,6 +111,7 @@ def build_application(mocker: MockerFixture) -> Callable[[CodeRepo], FastAPI]:
                 code_repo,
                 {},
                 TranscriptPageReader(),
+                GraphBuilder(TomlDagLoader()),
             )
         )
         node_action_controller = NodeActionController(
@@ -216,6 +218,7 @@ async def test_dag_detail_returns_what_a_dag_records_where_its_database_opens(
                 "state": "resting",
                 "dependsOn": [],
                 "updatedAt": "2026-08-15T09:58:00Z",
+                "startsAt": None,
                 "wakes": 1,
                 "sessionId": "token-seed",
                 "prUrl": "https://git.example.com/acme/virgo/pull/412",
@@ -230,6 +233,7 @@ async def test_dag_detail_returns_what_a_dag_records_where_its_database_opens(
                 "state": "pending",
                 "dependsOn": ["seed"],
                 "updatedAt": None,
+                "startsAt": None,
                 "wakes": 0,
                 "sessionId": "",
                 "prUrl": "https://github.com/acme/virgo/pull/7",
@@ -244,6 +248,7 @@ async def test_dag_detail_returns_what_a_dag_records_where_its_database_opens(
                 "state": "pending",
                 "dependsOn": [],
                 "updatedAt": None,
+                "startsAt": None,
                 "wakes": 0,
                 "sessionId": "",
                 "prUrl": "",
@@ -393,6 +398,77 @@ async def test_dag_detail_returns_the_latest_audit_entries_where_more_exist(
 
     notes = [line["note"] for line in response.json()["audit"]]
     assert notes == [f"pass {index}" for index in range(AUDIT_TAIL_SIZE + 1, 1, -1)]
+
+
+async def test_dag_detail_returns_the_start_time_when_a_node_waits_for_its_cooldown(
+    mocker: MockerFixture,
+    build_application: Callable[[CodeRepo], FastAPI],
+    write_graph: Callable[[str, str], None],
+    open_database: Callable[[str], Awaitable[SqliteDatabase]],
+) -> None:
+    write_graph(
+        "alpha",
+        "name = 'alpha'\ncooldown_seconds = 3600\n"
+        "[[nodes]]\nid = 'seed'\n"
+        "[[nodes]]\nid = 'read'\ndepends_on = ['seed']\n",
+    )
+    database = await open_database("alpha")
+    node_repo = SqliteNodeRepo(database)
+    await node_repo.ensure_rows(
+        [GraphNode(id="seed"), GraphNode(id="read")], STARTED_AT
+    )
+
+    merged_at = datetime.now(UTC)
+    await node_repo.update_state("seed", NodeState.MERGED, merged_at)
+    code_repo = mocker.MagicMock(spec=CodeRepo)
+
+    response = TestClient(build_application(code_repo)).get("/api/dags/alpha")
+
+    starts_at = response.json()["nodes"][1]["startsAt"]
+    assert datetime.fromisoformat(starts_at) == merged_at + timedelta(hours=1)
+
+
+@pytest.mark.parametrize(
+    ("cooldown_seconds", "time_since_merge", "index_state", "read_state"),
+    [
+        (3600, timedelta(hours=2), NodeState.MERGED, NodeState.PENDING),
+        (0, timedelta(0), NodeState.MERGED, NodeState.PENDING),
+        (3600, timedelta(0), NodeState.MERGED, NodeState.IN_PROGRESS),
+        (3600, timedelta(0), NodeState.RESTING, NodeState.PENDING),
+    ],
+    ids=["start_time_passed", "no_cooldown", "not_pending", "dependency_not_merged"],
+)
+async def test_dag_detail_returns_a_null_start_time_when_the_node_does_not_wait_for_its_cooldown(
+    cooldown_seconds: int,
+    time_since_merge: timedelta,
+    index_state: NodeState,
+    read_state: NodeState,
+    mocker: MockerFixture,
+    build_application: Callable[[CodeRepo], FastAPI],
+    write_graph: Callable[[str, str], None],
+    open_database: Callable[[str], Awaitable[SqliteDatabase]],
+) -> None:
+    write_graph(
+        "alpha",
+        f"name = 'alpha'\ncooldown_seconds = {cooldown_seconds}\n"
+        "[[nodes]]\nid = 'seed'\n"
+        "[[nodes]]\nid = 'index'\n"
+        "[[nodes]]\nid = 'read'\ndepends_on = ['seed', 'index']\n",
+    )
+    database = await open_database("alpha")
+    node_repo = SqliteNodeRepo(database)
+    graph_nodes = [GraphNode(id="seed"), GraphNode(id="index"), GraphNode(id="read")]
+    await node_repo.ensure_rows(graph_nodes, STARTED_AT)
+
+    merged_at = datetime.now(UTC) - time_since_merge
+    await node_repo.update_state("seed", NodeState.MERGED, merged_at)
+    await node_repo.update_state("index", index_state, merged_at)
+    await node_repo.update_state("read", read_state, merged_at)
+    code_repo = mocker.MagicMock(spec=CodeRepo)
+
+    response = TestClient(build_application(code_repo)).get("/api/dags/alpha")
+
+    assert response.json()["nodes"][2]["startsAt"] is None
 
 
 def test_web_api_accepts_a_write_method_only_on_the_node_action_routes(

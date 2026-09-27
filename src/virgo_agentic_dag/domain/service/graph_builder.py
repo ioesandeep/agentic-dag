@@ -20,9 +20,16 @@ class GraphBuilder:
     def build_from_path(self, dag_path: Path) -> Graph:
         """Load the file at this path and return it as the domain graph."""
         spec = self._dag_loader.load(dag_path)
-        nodes = [self._build_node(spec, node) for node in spec.nodes]
 
-        return Graph(name=spec.name, nodes=nodes)
+        return self.create_graph(spec)
+
+    def create_graph(self, dag_spec: DagSpec) -> Graph:
+        """Return a graph created from the DAG specification."""
+        graph_nodes = [
+            self._build_node(dag_spec, node_spec) for node_spec in dag_spec.nodes
+        ]
+
+        return Graph(name=dag_spec.name, nodes=graph_nodes)
 
     def _build_node(self, dag_spec: DagSpec, spec: NodeSpec) -> GraphNode:
         return GraphNode(

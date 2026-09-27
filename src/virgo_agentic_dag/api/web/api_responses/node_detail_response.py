@@ -27,6 +27,12 @@ class NodeDetailResponse(ApiBaseModel):
             "The time of the last write to this node's state, null where there is none."
         ),
     )
+    starts_at: datetime | None = Field(
+        default=None,
+        description=(
+            "The node's start time, null where the node does not wait for its cooldown."
+        ),
+    )
     wakes: int = Field(description="The number of wakes of this node's agent.")
     session_id: str = Field(
         description=(

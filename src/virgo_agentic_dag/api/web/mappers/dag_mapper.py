@@ -106,10 +106,13 @@ def to_detail_response(
     watcher: Watcher | None,
     audit_entries: list[AuditEntry],
     repo_url: str,
+    start_times_by_node_id: dict[str, datetime],
 ) -> DagDetailResponse:
     """Convert a dag to its detail API response."""
     previews = to_node_responses(dag_spec, rows)
-    nodes = _to_node_detail_responses(dag_spec, rows, previews, repo_url)
+    nodes = _to_node_detail_responses(
+        dag_spec, rows, previews, repo_url, start_times_by_node_id
+    )
     audit = [_to_audit_response(audit_entry) for audit_entry in audit_entries]
 
     return DagDetailResponse(
@@ -210,6 +213,7 @@ def _to_node_detail_responses(
     rows: list[Node],
     previews: list[NodePreviewResponse],
     repo_url: str,
+    start_times_by_node_id: dict[str, datetime],
 ) -> list[NodeDetailResponse]:
     """Convert every node of a dag to its detail API response."""
     rows_by_id = {row.id: row for row in rows}
@@ -220,6 +224,7 @@ def _to_node_detail_responses(
             rows_by_id.get(preview.id),
             dag_spec.find_node(preview.id),
             repo_url,
+            start_times_by_node_id.get(preview.id),
         )
         for preview in previews
     ]
@@ -230,6 +235,7 @@ def _to_node_detail_response(
     row: Node | None,
     node_spec: NodeSpec | None,
     repo_url: str,
+    start_time: datetime | None,
 ) -> NodeDetailResponse:
     """Convert one node to its detail API response."""
     agent = row.agent if row is not None else None
@@ -242,6 +248,7 @@ def _to_node_detail_response(
         state=preview.state,
         depends_on=preview.depends_on,
         updated_at=preview.updated_at,
+        starts_at=start_time,
         wakes=_count_wakes(agent),
         session_id=agent.resume_token if agent is not None else "",
         pr_url=_get_pr_url(node_spec, worktree, repo_url),

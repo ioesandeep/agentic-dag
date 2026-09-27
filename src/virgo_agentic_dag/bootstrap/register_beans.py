@@ -409,6 +409,7 @@ def _register_web_beans(context: ApplicationContext) -> None:
             code_repo=_context.get(CodeRepo),
             transcript_locators=_build_transcript_locators(),
             transcript_reader=TranscriptPageReader(),
+            graph_builder=_context.get(GraphBuilder),
         ),
     )
     context.register(

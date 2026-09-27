@@ -26,6 +26,7 @@ from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
 from virgo_agentic_dag.domain.persistence.entities.recovery_session import (
     RecoverySession,
 )
+from virgo_agentic_dag.domain.service.graph_builder import GraphBuilder
 from virgo_agentic_dag.infra.agent.transcript_page_reader import TranscriptPageReader
 from virgo_agentic_dag.infra.persistence.sqlite.dag_database_gateway import (
     DagDatabaseGateway,
@@ -106,6 +107,7 @@ def build_client(mocker: MockerFixture) -> Callable[[CodeRepo], TestClient]:
                 code_repo,
                 {},
                 TranscriptPageReader(),
+                GraphBuilder(TomlDagLoader()),
             )
         )
         node_action_controller = NodeActionController(

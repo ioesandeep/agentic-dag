@@ -31,6 +31,7 @@ from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSession
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
+from virgo_agentic_dag.domain.service.graph_builder import GraphBuilder
 from virgo_agentic_dag.domain.specs.executor_agent import ExecutorAgent
 from virgo_agentic_dag.infra.agent.claude_transcript_locator import (
     ClaudeTranscriptLocator,
@@ -101,6 +102,7 @@ def client(mocker: MockerFixture, dag_home: Path) -> TestClient:
         mocker.MagicMock(spec=CodeRepo),
         {ExecutorAgent.CLAUDE: ClaudeTranscriptLocator()},
         TranscriptPageReader(),
+        GraphBuilder(TomlDagLoader()),
     )
     dag_controller = DagController(dag_web_service)
     node_action_service = NodeActionService(

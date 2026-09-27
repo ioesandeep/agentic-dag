@@ -2,10 +2,10 @@
 
 import Box from '@mui/material/Box';
 import LinearProgress from '@mui/material/LinearProgress';
-import type { SxProps, Theme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
 import { EmptyState } from '@/components/emptyState/emptyState';
+import { MarkdownText } from '@/components/markdownText/markdownText';
 import { RelativeTime } from '@/components/relativeTime/relativeTime';
 import { RequestFailureAlert } from '@/components/requestFailureAlert/requestFailureAlert';
 import type { Memory } from '@/entities/memory';
@@ -21,12 +21,6 @@ const MEMORY_STYLE = {
   flexDirection: 'column',
   gap: 1,
   p: 2,
-};
-
-const MEMORY_TEXT_STYLE: SxProps<Theme> = {
-  fontFamily: (theme) => theme.typography.fontFamilyMono,
-  whiteSpace: 'pre-wrap',
-  overflowWrap: 'anywhere',
 };
 
 interface DagMemoryProps {
@@ -80,8 +74,8 @@ export const DagMemory = ({ dagName }: DagMemoryProps) => {
         at={memory.updatedAt}
         template={LABELS.dagMemoryUpdatedAt}
       />
-      <Typography component="pre" variant="body2" sx={MEMORY_TEXT_STYLE}>
-        {memory.content}
+      <Typography component="div" variant="body2">
+        <MarkdownText text={memory.content} />
       </Typography>
     </Box>
   );

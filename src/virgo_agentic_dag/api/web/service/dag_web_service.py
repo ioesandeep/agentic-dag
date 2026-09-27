@@ -42,14 +42,22 @@ from virgo_agentic_dag.domain.agent.transcript_line import TranscriptLine
 from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
     ObservationError,
 )
+from virgo_agentic_dag.domain.graph.graph import Graph
+from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.infra.agent.transcript_locator import TranscriptLocator
 from virgo_agentic_dag.domain.infra.agent.transcript_reader import TranscriptReader
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
+from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.persistence.entities.audit_entry import AuditEntry
 from virgo_agentic_dag.domain.persistence.entities.node import Node
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.entities.slack_notification import (
     SlackNotification,
+)
+from virgo_agentic_dag.domain.service.graph_builder import GraphBuilder
+from virgo_agentic_dag.domain.service.graph_service import GraphService
+from virgo_agentic_dag.domain.service.node_start_time_service import (
+    NodeStartTimeService,
 )
 from virgo_agentic_dag.domain.specs.dag_spec import DagSpec
 from virgo_agentic_dag.domain.specs.executor_agent import ExecutorAgent
@@ -77,12 +85,14 @@ class DagWebService:
         code_repo: CodeRepo,
         transcript_locators: Mapping[ExecutorAgent, TranscriptLocator],
         transcript_reader: TranscriptReader,
+        graph_builder: GraphBuilder,
     ) -> None:
         self._dag_service = dag_service
         self._database_registry = database_registry
         self._code_repo = code_repo
         self._transcript_locators = transcript_locators
         self._transcript_reader = transcript_reader
+        self._graph_builder = graph_builder
         self._repo_urls: dict[Path, str] = {}
 
     async def list_dags(self) -> list[DagSummaryResponse]:
@@ -144,9 +154,60 @@ class DagWebService:
 
         repo_url = await self._get_repo_url(dag_spec)
         audit_tail = self._find_audit_tail(audit_entries)
+        start_times_by_node_id = self._find_start_times_by_node_id(dag_spec, rows)
 
         return dag_mapper.to_detail_response(
-            dag_spec, rows, scheduled_job, watcher, audit_tail, repo_url
+            dag_spec,
+            rows,
+            scheduled_job,
+            watcher,
+            audit_tail,
+            repo_url,
+            start_times_by_node_id,
+        )
+
+    def _find_start_times_by_node_id(
+        self, dag_spec: DagSpec, nodes: list[Node]
+    ) -> dict[str, datetime]:
+        """Return future start times for pending nodes, keyed by node id."""
+        graph = self._graph_builder.create_graph(dag_spec)
+        graph_service = GraphService(graph)
+        pending_graph_nodes = graph_service.get_pending_nodes(nodes)
+
+        current_time = datetime.now(UTC)
+        start_times_by_node_id: dict[str, datetime] = {}
+        for graph_node in pending_graph_nodes:
+            start_time = self._get_start_time(graph, graph_node, nodes)
+            if start_time is not None and start_time > current_time:
+                start_times_by_node_id[graph_node.id] = start_time
+
+        return start_times_by_node_id
+
+    def _get_start_time(
+        self, graph: Graph, graph_node: GraphNode, nodes: list[Node]
+    ) -> datetime | None:
+        """Return the node's start time, or None when no start time is available."""
+        skipped_nodes = [
+            node for node in nodes if node.state == NodeState.SKIPPED.value
+        ]
+        graph_service = GraphService(graph)
+        dependencies = graph_service.get_effective_dependencies(
+            graph_node.id, skipped_nodes
+        )
+
+        dependency_ids = {dependency.id for dependency in dependencies}
+        dependency_nodes = [node for node in nodes if node.id in dependency_ids]
+        is_every_dependency_merged = all(
+            node.state == NodeState.MERGED.value for node in dependency_nodes
+        )
+        if not is_every_dependency_merged:
+            return None
+
+        node_start_time_service = NodeStartTimeService(graph)
+        skipped_and_dependency_nodes = [*skipped_nodes, *dependency_nodes]
+
+        return node_start_time_service.get_start_time(
+            graph_node, skipped_and_dependency_nodes
         )
 
     def _find_audit_tail(self, audit_entries: list[AuditEntry]) -> list[AuditEntry]:

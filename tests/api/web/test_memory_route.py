@@ -23,6 +23,7 @@ from virgo_agentic_dag.api.web.service.dag_web_service import DagWebService
 from virgo_agentic_dag.api.web.service.node_action_service import NodeActionService
 from virgo_agentic_dag.api.web.web_application_factory import WebApplicationFactory
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
+from virgo_agentic_dag.domain.service.graph_builder import GraphBuilder
 from virgo_agentic_dag.infra.agent.transcript_page_reader import TranscriptPageReader
 from virgo_agentic_dag.infra.persistence.sqlite.dag_database_registry import (
     DagDatabaseRegistry,
@@ -70,6 +71,7 @@ def client(mocker: MockerFixture, dag_home: Path) -> TestClient:
             mocker.MagicMock(spec=CodeRepo),
             {},
             TranscriptPageReader(),
+            GraphBuilder(TomlDagLoader()),
         )
     )
     node_action_controller = NodeActionController(

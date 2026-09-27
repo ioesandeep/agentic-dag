@@ -1,5 +1,5 @@
 from collections.abc import AsyncGenerator, Awaitable, Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -35,6 +35,7 @@ from virgo_agentic_dag.domain.persistence.entities.slack_notification import (
     SlackNotification,
 )
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
+from virgo_agentic_dag.domain.service.graph_builder import GraphBuilder
 from virgo_agentic_dag.domain.specs.executor_agent import ExecutorAgent
 from virgo_agentic_dag.infra.agent.claude_transcript_locator import (
     ClaudeTranscriptLocator,
@@ -122,6 +123,7 @@ def build_application(mocker: MockerFixture) -> Callable[[CodeRepo], FastAPI]:
                 code_repo,
                 {ExecutorAgent.CLAUDE: ClaudeTranscriptLocator()},
                 TranscriptPageReader(),
+                GraphBuilder(TomlDagLoader()),
             )
         )
         node_action_controller = NodeActionController(
@@ -415,3 +417,31 @@ async def test_node_detail_returns_no_recovery_when_the_newest_session_ends_clea
     node_response = response.json()
     assert node_response["exitCode"] == 0
     assert node_response["nodeRecovery"] is None
+
+
+async def test_node_detail_returns_the_start_time_when_a_node_waits_for_its_cooldown(
+    mocker: MockerFixture,
+    build_application: Callable[[CodeRepo], FastAPI],
+    write_graph: Callable[[str, str], None],
+    open_database: Callable[[str], Awaitable[SqliteDatabase]],
+) -> None:
+    write_graph(
+        "alpha",
+        "name = 'alpha'\n"
+        "[[nodes]]\nid = 'seed'\n"
+        "[[nodes]]\nid = 'read'\ndepends_on = ['seed']\ncooldown_seconds = 3600\n",
+    )
+    database = await open_database("alpha")
+    node_repo = SqliteNodeRepo(database)
+    await node_repo.ensure_rows(
+        [GraphNode(id="seed"), GraphNode(id="read")], STARTED_AT
+    )
+
+    merged_at = datetime.now(UTC)
+    await node_repo.update_state("seed", NodeState.MERGED, merged_at)
+    code_repo = mocker.MagicMock(spec=CodeRepo)
+
+    response = TestClient(build_application(code_repo)).get("/api/dags/alpha/read")
+
+    starts_at = response.json()["startsAt"]
+    assert datetime.fromisoformat(starts_at) == merged_at + timedelta(hours=1)
