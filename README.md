@@ -110,6 +110,7 @@ executor_agent = "claude"                  # the agent every node inherits
 agent_account = "acme-bot"                 # the agent's own login, so its comments never wake it
 max_workers = 2                            # how many sessions may run at once
 tick_interval_seconds = 300                # how long the host waits between passes
+cooldown_seconds = 0                       # the number of seconds a node waits after its dependencies merge or are skipped
 slack_channel = "C0123456789"              # omit for no Slack
 sse_url = "http://127.0.0.1:8787/events"   # where `watch` subscribes
 
@@ -133,12 +134,19 @@ id = "MIDDLEWARE"
 name = "Juno"
 title = "Reject unsigned requests at the edge"
 depends_on = ["TOKENS"]
+cooldown_seconds = 86400                        # a one-day cooldown after TOKENS merges
 instructions = """
 ..."""
 ```
 
-Every top-level default a node does not override applies to it: `project_root`, `workspace_path`,
-`executor_agent`, and `base_branch` are all read per node first and from the graph second.
+Node values override the graph defaults for `project_root`, `workspace_path`, `executor_agent`,
+`base_branch`, and `cooldown_seconds`.
+
+`cooldown_seconds` specifies the number of seconds a node waits after its dependencies merge or are
+skipped. `cooldown_seconds` defaults to 0. A node's `cooldown_seconds` value overrides the graph's
+value. The cooldown starts at the latest update time among the node's merged or skipped
+dependencies. Declared dependencies and dependencies inherited through a skipped dependency
+determine the cooldown start time. `dagctl log` displays the start time of a waiting node.
 
 ### Choosing Claude or Codex
 
@@ -343,23 +351,33 @@ bridge's `/healthz` and prints whether it answered, so you can see it is gone an
 watcher itself is supervised: `start` spawns it, records its pid, and `abort` and the completing
 pass both kill it.
 
-## The read-only web api
+## The web api
 
-`dagctl serve` opens a read-only HTTP window on the runs this host records. It is a second entry
+`dagctl serve` starts an HTTP api over the runs this host records. It is a second entry
 point over the same services, not a second implementation: routes name the surface, controllers
 answer them, and every collaborator is built by the application context the CLI already uses.
 
 | Route | Purpose |
 |---|---|
-| `GET /api/runs` | one summary per run this host records |
-| `GET /api/runs/NAME` | one run's nodes, dependency edges, and audit tail. `404` when no run answers to the name |
-| `GET /healthz` | liveness, for whatever supervises it |
+| `GET /api/dags` | Returns a summary of every dag on this host. |
+| `GET /api/dags/NAME` | Returns the dag with its nodes and its latest audit entries. |
+| `GET /api/dags/NAME/NODE` | Returns the node with its agent sessions, worktree, and latest audit entries. |
+| `GET /api/dags/NAME/NODE/conversation` | Returns a page of the node's agent transcript, newest first, with a `pagination.nextCursor` to send as the `before` query parameter for the next older page. |
+| `GET /api/dags/NAME/memory` | Returns the text and modification time of the dag's memory file, `memory.md`. |
+| `GET /api/dags/NAME/recovery-sessions` | Returns the sessions of the dag's recovery agent, newest first. |
+| `POST /api/dags/NAME/NODE/retry` | Runs `dagctl retry` for the node, with `--reset` when the JSON body sets `reset` to `true`. |
+| `POST /api/dags/NAME/NODE/wake` | Runs `dagctl recover --wake` for a resting node with the `cause`, `action`, and `message` of the JSON body. |
+| `POST /api/dags/NAME/NODE/stop` | Runs `dagctl stop` for the node. |
+| `GET /healthz` | Responds with `{"status": "ok"}`, so a process supervisor can check that the server is running. |
 
-The routes and their response shapes are the contract; the answers are stubs until the run readers
-land, so the listing comes back empty and the detail comes back fixed.
-
-**No route changes a run.** This server cannot start, advance, adopt, or abort anything. That is a
-design decision, not an omission — writing to a run stays on the CLI, where the run lock is.
+**Three routes change a run.** The retry, wake, and stop routes run `dagctl retry`,
+`dagctl recover --wake`, and `dagctl stop` as a child process of the server. The child gets only
+`PATH`, `HOME`, `USER`, `LOGNAME`, `SHELL`, `TMPDIR`, and `LANG` from the server's environment. It
+therefore takes `GH_TOKEN` and `SLACK_BOT_TOKEN` from the run's own `.env.local`, as a scheduled
+pass does, and not from the shell that started `serve`. Each route passes `--timeout 30`, so the
+child waits at most 30 seconds for the run lock. The route responds with the node after the child
+exits, or with `409` when another command has the run lock for all 30 seconds or dagctl refuses the
+action. The wake route also responds `409`, without running dagctl, when the node is not resting.
 
 **`fastapi` and `uvicorn` are an extra, not core dependencies.** Every other verb runs without them.
 `serve` is the only one that needs them, and it names the install command and exits `1` when they
@@ -370,9 +388,12 @@ uv sync --package virgo-agentic-dag --extra web
 uv run --package virgo-agentic-dag dagctl serve
 ```
 
-**It binds loopback on purpose.** Agent sessions on this host run with broad permissions, so
-widening even a read-only window onto them is the operator's explicit decision: pass `--host` to
-make it one.
+**The api and console bind to `127.0.0.1` by default.** `dagctl serve` binds `127.0.0.1` unless
+`--host` sets another address. The routes have no authentication, so any client that can connect
+to `serve` can retry, wake, or stop a node. The console's `dev` and `start` scripts in
+`web/package.json` bind `127.0.0.1` as well. A rewrite in `web/next.config.mjs` proxies each
+`/api/*` request to `DAG_CONSOLE_API_ORIGIN`, which defaults to `http://127.0.0.1:8788`. A console
+bound to another address would therefore expose the same routes.
 
 **This is not the SSE bridge.** `dag-webhook-sse` stays what it is — a wake hint that carries no
 state and reads nothing — and it is a separate process on a separate port. Both answer `/healthz`,

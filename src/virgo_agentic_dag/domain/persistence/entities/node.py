@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Integer, String
@@ -124,3 +124,15 @@ class Node(EntityBase):
     def is_due_for_learning_extraction(self) -> bool:
         """Report whether this node's pull request settled and its learnings are not extracted."""
         return self.has_pull_request_settled() and self.learnings_extracted_at is None
+
+    def is_merged_or_skipped(self) -> bool:
+        """Report whether this node has the MERGED or SKIPPED state."""
+        state = NodeState(self.state)
+
+        return state in (NodeState.MERGED, NodeState.SKIPPED)
+
+    def is_updated_after(self, timestamp: datetime) -> bool:
+        """Report whether this node's latest update occurs after the provided timestamp."""
+        updated_at = self.updated_at.replace(tzinfo=UTC)
+
+        return updated_at > timestamp

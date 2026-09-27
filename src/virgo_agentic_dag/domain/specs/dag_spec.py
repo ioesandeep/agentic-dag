@@ -28,6 +28,7 @@ class DagSpec:
     workspace_path: Path | None = None
     executor_agent: ExecutorAgent = ExecutorAgent.CLAUDE
     base_branch: str = ""
+    cooldown_seconds: int = 0
     # where this run keeps its database; the run's own home when unnamed
     db_path: Path | None = None
     max_workers: int = 2
@@ -60,6 +61,13 @@ class DagSpec:
     def get_base_branch(self, node: NodeSpec) -> str:
         """Return the branch this node's worktree is cut from."""
         return node.base_branch or self.base_branch or DEFAULT_BASE_BRANCH
+
+    def get_cooldown_seconds(self, node: NodeSpec) -> int:
+        """Return the node's cooldown in seconds, defaulting to this dag's value."""
+        if node.cooldown_seconds is None:
+            return self.cooldown_seconds
+
+        return node.cooldown_seconds
 
     def find_node(self, node_id: str) -> NodeSpec | None:
         return next((n for n in self.nodes if n.id == node_id), None)

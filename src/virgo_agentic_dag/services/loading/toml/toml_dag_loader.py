@@ -57,6 +57,9 @@ class TomlDagLoader(DagLoader):
             workspace_path=self._get_path(data, "workspace_path"),
             executor_agent=dag_executor_agent or ExecutorAgent.CLAUDE,
             base_branch=str(data.get("base_branch", "")),
+            cooldown_seconds=self._reader.get_non_negative_int(
+                data, "cooldown_seconds", 0, "dag"
+            ),
             db_path=self._get_path(data, "db_path"),
             max_workers=self._reader.get_positive_int(data, "max_workers", 2, "dag"),
             tick_interval_seconds=self._reader.get_positive_int(

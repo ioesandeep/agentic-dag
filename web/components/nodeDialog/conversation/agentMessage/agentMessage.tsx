@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 
+import { MarkdownText } from '@/components/markdownText/markdownText';
 import { MessageHeader } from '@/components/nodeDialog/conversation/messageHeader/messageHeader';
 import type { ConversationMessage } from '@/entities/conversationMessage';
 import { LABELS } from '@/labels/en';
@@ -15,8 +16,8 @@ interface AgentMessageProps {
 export const AgentMessage = ({ message }: AgentMessageProps) => (
   <Box>
     <MessageHeader title={LABELS.agentMessageTitle} message={message} />
-    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-      {message.text ?? ''}
+    <Typography component="div" variant="body1">
+      <MarkdownText text={message.text ?? ''} />
     </Typography>
   </Box>
 );

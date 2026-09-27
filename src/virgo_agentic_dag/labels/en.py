@@ -119,6 +119,7 @@ LABELS: dict[str, str] = {
     "skippedByHuman": "a human skipped it",
     "stoppedByPerson": "the stop command stops the session",
     "unknownExecutor": "no launcher runs executor {executor}",
+    "startsAfterCooldown": "it starts at {start_time} when its cooldown ends",
     "sessionNeverStarted": "its session never started",
     "sessionOverdue": "its session ran past its deadline and was killed",
     "finishedWithoutPullRequest": (

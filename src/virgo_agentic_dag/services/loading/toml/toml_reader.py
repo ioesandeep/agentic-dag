@@ -46,3 +46,12 @@ class TomlReader:
             raise self._error(f"{where}: {key!r} must be a positive integer")
 
         return value
+
+    def get_non_negative_int(
+        self, table: dict[str, object], key: str, default: int, where: str
+    ) -> int:
+        value = table.get(key, default)
+        if not isinstance(value, int) or value < 0:
+            raise self._error(f"{where}: {key!r} must be a non-negative integer")
+
+        return value

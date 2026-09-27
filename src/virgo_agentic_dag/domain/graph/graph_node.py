@@ -25,6 +25,8 @@ class GraphNode:
     # where its worktree is cut, and the branch it is cut from
     workspace_path: Path = field(default_factory=Path.cwd)
     base_branch: str = DEFAULT_BASE_BRANCH
+    # the number of seconds this node waits after its dependencies merge or are skipped
+    cooldown_seconds: int = 0
     # the url of a pull request this node takes over instead of opening its own
     pr: str = ""
     recovery_attempts_allowed: int = get_default_recovery_attempts_allowed()

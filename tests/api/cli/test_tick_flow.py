@@ -2,6 +2,7 @@ import os
 import sqlite3
 import subprocess
 import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -228,6 +229,46 @@ def test_runs_the_recovery_and_learning_agents_with_the_dag_executor_when_a_node
     learning_pid = int((tmp_path / "learning_extraction.lock").read_text())
     assert wait_until_dead(learning_pid)
     assert f"stub={executor}" in (tmp_path / "learning.log").read_text()
+
+
+def test_starts_the_dependent_node_when_its_cooldown_ends(
+    tmp_path: Path,
+) -> None:
+    paths = build_run_dir(tmp_path, "cooldown_seconds = 3600\n" + DAG_TOML)
+    assert run_tick(paths) == 0
+    merged_at = datetime.now(UTC)
+    with sqlite3.connect(paths["db"]) as connection:
+        connection.execute(
+            "update nodes set state = 'merged', updated_at = ? where id = 'A'",
+            (merged_at.strftime("%Y-%m-%d %H:%M:%S.%f"),),
+        )
+
+    assert run_tick(paths) == 0
+    assert run_tick(paths) == 0
+    assert get_states(paths["db"])["B"] == "pending"
+
+    earlier_merged_at = merged_at - timedelta(hours=2)
+    with sqlite3.connect(paths["db"]) as connection:
+        connection.execute(
+            "update nodes set updated_at = ? where id = 'A'",
+            (earlier_merged_at.strftime("%Y-%m-%d %H:%M:%S.%f"),),
+        )
+
+    assert run_tick(paths) == 0
+
+    assert get_states(paths["db"]) == {"A": "merged", "B": "in_progress"}
+    with sqlite3.connect(paths["db"]) as connection:
+        audits = list(
+            connection.execute(
+                "select state, note from audit_entries where node_id = 'B' order by rowid"
+            )
+        )
+
+    start_time = merged_at + timedelta(hours=1)
+    assert audits == [
+        ("pending", f"it starts at {start_time} when its cooldown ends"),
+        ("in_progress", "B started work"),
+    ]
 
 
 def test_changes_nothing_when_the_agent_is_still_working(

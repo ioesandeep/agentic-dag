@@ -35,6 +35,7 @@ class GraphBuilder:
             project_root=dag_spec.get_project_root(spec),
             workspace_path=dag_spec.get_workspace_path(spec),
             base_branch=dag_spec.get_base_branch(spec),
+            cooldown_seconds=dag_spec.get_cooldown_seconds(spec),
             pr=spec.pr,
             recovery_attempts_allowed=dag_spec.caps.node_recoveries,
         )

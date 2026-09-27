@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import uuid
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from virgo_agentic_dag.domain.events.agent_stopped_event import AgentStoppedEvent
@@ -22,12 +22,16 @@ from virgo_agentic_dag.domain.infra.workspace.workspace import Workspace
 from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.node.node_state_handler import NodeStateHandler
 from virgo_agentic_dag.domain.notifications.notification_type import NotificationType
+from virgo_agentic_dag.domain.persistence.entities.audit_entry import AuditEntry
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
 from virgo_agentic_dag.domain.persistence.repos.audit_entry_repo import AuditEntryRepo
 from virgo_agentic_dag.domain.persistence.repos.node_agent_repo import NodeAgentRepo
 from virgo_agentic_dag.domain.persistence.repos.node_repo import NodeRepo
 from virgo_agentic_dag.domain.service.graph_service import GraphService
+from virgo_agentic_dag.domain.service.node_start_time_service import (
+    NodeStartTimeService,
+)
 from virgo_agentic_dag.domain.service.notification_publisher import (
     NotificationPublisher,
 )
@@ -45,7 +49,7 @@ _STOPPED = (NodeState.NEEDS_HUMAN, NodeState.ERRORED)
 
 
 class PendingNodeHandler(NodeStateHandler):
-    """Starts or adopts each pending node once its dependencies, budget, and executor allow."""
+    """Starts or adopts each pending node once its dependencies, cooldown, budget, and executor allow."""
 
     def __init__(
         self,
@@ -117,6 +121,16 @@ class PendingNodeHandler(NodeStateHandler):
         if not all(state is NodeState.MERGED for state in dependency_states):
             return TickResponse()
 
+        node_start_time_service = NodeStartTimeService(graph)
+        skipped_and_dependency_nodes = [*skipped_nodes, *dependency_nodes]
+        start_time = node_start_time_service.get_start_time(
+            graph_node, skipped_and_dependency_nodes
+        )
+        if start_time is not None and start_time > current_time:
+            await self._record_wait(graph_node, start_time)
+
+            return TickResponse()
+
         in_progress_nodes = await self._node_repo.get_nodes_by_state(
             NodeState.IN_PROGRESS
         )
@@ -147,6 +161,29 @@ class PendingNodeHandler(NodeStateHandler):
             )
 
             return TickResponse()
+
+    async def _record_wait(self, graph_node: GraphNode, start_time: datetime) -> None:
+        """Write an audit entry stating the start time of this node, once for each wait."""
+        node = await self._node_repo.read(graph_node.id)
+        cooldown_start_time = start_time - timedelta(
+            seconds=graph_node.cooldown_seconds
+        )
+        if node is None or node.is_updated_after(cooldown_start_time):
+            return
+
+        current_time = datetime.now(UTC)
+        await self._node_repo.update_state(
+            graph_node.id, NodeState.PENDING, current_time
+        )
+
+        note = format_label(LABELS["startsAfterCooldown"], {"start_time": start_time})
+        audit_entry = AuditEntry(
+            node_id=graph_node.id,
+            state=NodeState.PENDING.value,
+            note=note,
+            created_at=current_time,
+        )
+        await self._audit_entry_repo.save(audit_entry)
 
     async def _adopt(self, graph_node: GraphNode) -> TickResponse:
         pr_details = await self._code_repo.get_pr_details_from_url(graph_node.pr)

@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import ANY
 
 import pytest
@@ -27,6 +27,12 @@ from virgo_agentic_dag.domain.service.notification_publisher import (
 )
 from virgo_agentic_dag.domain.specs.dag_spec import DagSpec
 from virgo_agentic_dag.domain.specs.executor_agent import ExecutorAgent
+from virgo_agentic_dag.infra.persistence.memory.inmemory_audit_entry_repo import (
+    InMemoryAuditEntryRepo,
+)
+from virgo_agentic_dag.infra.persistence.memory.inmemory_node_repo import (
+    InMemoryNodeRepo,
+)
 from virgo_agentic_dag.services.node_state_handlers.pending_node_handler import (
     PendingNodeHandler,
 )
@@ -952,3 +958,67 @@ async def test_skips_adoption_when_a_dependency_has_not_merged(
     node_repo.update_state.assert_not_awaited()
     node_agent_repo.save.assert_not_awaited()
     workspace.provision.assert_not_awaited()
+
+
+async def test_records_a_single_pending_audit_entry_when_the_node_waits_for_its_cooldown(
+    mocker: MockerFixture,
+) -> None:
+    dependency = GraphNode(id="A", executor_agent=ExecutorAgent.CLAUDE)
+    graph_node = GraphNode(
+        id="B",
+        executor_agent=ExecutorAgent.CLAUDE,
+        depends_on=("A",),
+        cooldown_seconds=3600,
+    )
+    graph = Graph(name="demo", nodes=[dependency, graph_node])
+
+    node_repo = InMemoryNodeRepo()
+    await node_repo.ensure_rows([dependency, graph_node], NOW)
+    await node_repo.update_state("A", NodeState.MERGED, NOW)
+    audit_entry_repo = InMemoryAuditEntryRepo()
+
+    workspace = mocker.MagicMock(spec=Workspace)
+    workspace.provision.return_value = WorkTree(
+        name="B", absolute_path="/ws/B", created_at=NOW
+    )
+
+    agent_launcher = mocker.MagicMock(spec=AgentLauncher)
+    agent_launcher.launch.return_value = AgentSession(
+        agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=4242
+    )
+
+    node_agent_repo = mocker.MagicMock(spec=NodeAgentRepo)
+    node_agent_repo.get_by_node_id.return_value = None
+    notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
+    code_repo = mocker.MagicMock(spec=CodeRepo)
+
+    agent_launchers = {ExecutorAgent.CLAUDE: agent_launcher}
+    handler = PendingNodeHandler(
+        node_repo=node_repo,
+        audit_entry_repo=audit_entry_repo,
+        notification_publisher=notification_publisher,
+        workspace=workspace,
+        agent_launchers=agent_launchers,
+        dag_spec=DagSpec(name="demo", nodes=(), max_workers=2),
+        node_agent_repo=node_agent_repo,
+        code_repo=code_repo,
+        node_importer=AdoptedNodeImporter(
+            workspace=workspace,
+            node_repo=node_repo,
+            node_agent_repo=node_agent_repo,
+            audit_entry_repo=audit_entry_repo,
+            notification_publisher=notification_publisher,
+            agent_launchers=agent_launchers,
+        ),
+    )
+
+    await handler.handle(graph, [graph_node], NOW)
+    await handler.handle(graph, [graph_node], NOW + timedelta(minutes=30))
+    await handler.handle(graph, [graph_node], NOW + timedelta(hours=2))
+
+    audit_entries = await audit_entry_repo.get_all()
+    assert [(audit_entry.state, audit_entry.note) for audit_entry in audit_entries] == [
+        ("pending", f"it starts at {NOW + timedelta(hours=1)} when its cooldown ends"),
+        ("in_progress", "B started work"),
+    ]
+    notification_publisher.publish.assert_called_once()

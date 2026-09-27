@@ -35,6 +35,7 @@ class NodeParser:
             project_root=self._get_path(table, "project_root"),
             workspace_path=self._get_path(table, "workspace_path"),
             base_branch=str(table.get("base_branch", "")),
+            cooldown_seconds=self._get_cooldown_seconds(table, f"node {node_id!r}"),
         )
 
     def _get_path(self, table: dict[str, object], key: str) -> Path | None:
@@ -43,6 +44,12 @@ class NodeParser:
             return None
 
         return Path(raw).expanduser()
+
+    def _get_cooldown_seconds(self, table: dict[str, object], where: str) -> int | None:
+        if "cooldown_seconds" not in table:
+            return None
+
+        return self._reader.get_non_negative_int(table, "cooldown_seconds", 0, where)
 
     def get_executor_agent(
         self, table: dict[str, object], where: str

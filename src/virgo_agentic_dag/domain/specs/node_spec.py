@@ -20,6 +20,7 @@ class NodeSpec:
     workspace_path: Path | None = None
     executor_agent: ExecutorAgent | None = None
     base_branch: str = ""
+    cooldown_seconds: int | None = None
     # the url of a pull request this node takes over instead of opening its own
     pr: str = ""
     session: str = ""

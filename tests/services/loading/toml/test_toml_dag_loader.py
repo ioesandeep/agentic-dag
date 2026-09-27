@@ -84,6 +84,7 @@ def test_leaves_the_overrides_empty_when_a_node_names_none() -> None:
     assert node.workspace_path is None
     assert node.executor_agent is None
     assert node.base_branch == ""
+    assert node.cooldown_seconds is None
 
 
 def test_load_dag_round_trips(tmp_path: Path) -> None:
@@ -132,6 +133,7 @@ def test_defaults_the_run_behavior_when_the_dag_says_nothing() -> None:
 
     assert spec.max_workers == 2
     assert spec.tick_interval_seconds == 300
+    assert spec.cooldown_seconds == 0
     assert spec.caps == AttemptBudget()
     assert spec.notification_dispatcher is NotificationDispatcherType.BOT
     assert spec.sse_url == ""
@@ -149,6 +151,39 @@ def test_rejects_a_session_turns_that_is_not_a_positive_integer() -> None:
     data = {**build_data(), "caps": {"session_turns": 0}}
 
     with pytest.raises(SpecError, match="session_turns"):
+        TomlDagLoader().parse(data)
+
+
+def test_uses_the_dag_cooldown_or_a_nodes_own_override_when_one_is_set() -> None:
+    data = {
+        "name": "staged",
+        "cooldown_seconds": 86400,
+        "nodes": [{"id": "A"}, {"id": "B", "cooldown_seconds": 0}],
+    }
+
+    spec = TomlDagLoader().parse(data)
+
+    assert spec.get_cooldown_seconds(spec.nodes[0]) == 86400
+    assert spec.get_cooldown_seconds(spec.nodes[1]) == 0
+
+
+@pytest.mark.parametrize(
+    ("data", "where"),
+    [
+        ({"name": "staged", "cooldown_seconds": -1, "nodes": [{"id": "A"}]}, "dag"),
+        (
+            {"name": "staged", "nodes": [{"id": "A", "cooldown_seconds": -1}]},
+            "node 'A'",
+        ),
+    ],
+    ids=["dag", "node"],
+)
+def test_reports_the_dag_or_node_in_the_error_when_a_cooldown_is_negative(
+    data: dict[str, object], where: str
+) -> None:
+    with pytest.raises(
+        SpecError, match=f"^{where}: 'cooldown_seconds' must be a non-negative integer"
+    ):
         TomlDagLoader().parse(data)
 
 
