@@ -41,7 +41,13 @@ class CodexAgentLauncher(AgentLauncher):
         "-c",
         'approvals_reviewer="auto_review"',
         "-c",
-        'model_reasoning_effort="high"',
+        'model="gpt-6-sol"',
+        "-c",
+        'model_reasoning_effort="xhigh"',
+        "-c",
+        'service_tier="fast"',
+        "-c",
+        "features.fast_mode=true",
     )
     _SESSION_RUNNER = Path(__file__).with_name("codex_session_runner.py")
 

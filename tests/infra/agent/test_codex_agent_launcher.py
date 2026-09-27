@@ -85,6 +85,10 @@ async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_
     messages = to_conversation_message_responses(transcript_lines)
     arguments = json.loads(messages[-1].text)
     assert arguments[:2] == ["exec", "resume"]
+    assert 'model="gpt-6-sol"' in arguments
+    assert 'model_reasoning_effort="xhigh"' in arguments
+    assert 'service_tier="fast"' in arguments
+    assert "features.fast_mode=true" in arguments
     assert arguments[-2] == THREAD_ID
     assert "Run the tests before pushing." in arguments[-1]
     assert [message.role for message in messages] == [
