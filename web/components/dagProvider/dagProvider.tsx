@@ -54,6 +54,7 @@ export const DagProvider = ({ dagName, children }: DagProviderProps) => {
     dagSummaries: dagSummariesResponse.response,
     dagDetail: dagDetailResponse.response,
     hasFailed: dagSummariesResponse.hasFailed || dagDetailResponse.hasFailed,
+    refreshDagDetail: dagDetailResponse.refresh,
   };
 
   return <DagContext value={dagValue}>{children}</DagContext>;

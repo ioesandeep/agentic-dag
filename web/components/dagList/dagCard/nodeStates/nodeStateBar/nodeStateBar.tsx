@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import Tooltip from '@mui/material/Tooltip';
 
+import { NodeStateEnum } from '@/entities/nodeState';
 import { LABELS, NODE_STATE_LABELS } from '@/labels/en';
 import type { NodeStateCount } from '@/utils/dagNodes';
 import { formatLabel } from '@/utils/formatLabel';
@@ -62,7 +63,7 @@ export const NodeStateBar = ({ states }: NodeStateBarProps) => {
                 flexGrow: count,
                 transition: 'flex-grow 400ms ease',
                 bgcolor: getStateColor(state),
-                ...(state === 'in_progress' ? RUNNING_SEGMENT : {}),
+                ...(state === NodeStateEnum.IN_PROGRESS ? RUNNING_SEGMENT : {}),
               }}
             />
           </Tooltip>

@@ -1,4 +1,4 @@
-import type { SessionEndState } from '@/entities/nodeDetail';
+import type { SessionEndStateEnum } from '@/entities/nodeDetail';
 import { LABELS, SESSION_END_STATE_LABELS } from '@/labels/en';
 import { formatLabel } from '@/utils/formatLabel';
 
@@ -7,7 +7,9 @@ const NO_TOOLTIP = '';
 /**
  * Returns the label for how a session ended, or the running label.
  */
-export const endStateText = (endState: SessionEndState | ''): string => {
+export const endStateText = (
+  endState: SessionEndStateEnum | '',
+): string => {
   if (endState === '') {
     return LABELS.sessionRunning;
   }

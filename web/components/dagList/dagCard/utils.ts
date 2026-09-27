@@ -3,7 +3,7 @@ import {
   CURRENT_PAGE,
   RESTING_BORDER_COLOR,
 } from '@/components/dagList/dagCard/constants';
-import type { NodeState } from '@/entities/nodeState';
+import type { NodeStateEnum } from '@/entities/nodeState';
 import { LABELS } from '@/labels/en';
 import { getStateColor } from '@/utils/getStateColor';
 
@@ -66,7 +66,7 @@ export const getCardBorderColor = (isCurrent: boolean): string => {
  * Returns the colour for a dag's latest state dot.
  */
 export const getLatestStateColor = (
-  state: NodeState | null,
+  state: NodeStateEnum | null,
 ): string | undefined => {
   if (state === null) {
     return undefined;

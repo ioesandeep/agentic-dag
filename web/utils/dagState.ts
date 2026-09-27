@@ -1,5 +1,5 @@
 import type { DagSummary } from '@/entities/dagSummary';
-import type { NodeState } from '@/entities/nodeState';
+import { NodeStateEnum } from '@/entities/nodeState';
 import { getStateColor } from '@/utils/getStateColor';
 import { isNull } from '@/utils/typeGuards';
 
@@ -20,23 +20,26 @@ const ANY_STATE_COLOR = 'var(--mui-palette-primary-main)';
 // The colour each dag state carries in the filter.
 const DAG_STATE_COLORS: Record<DagState, string> = {
   [DagState.ANY]: ANY_STATE_COLOR,
-  [DagState.ACTIVE]: getStateColor('in_progress'),
-  [DagState.COMPLETE]: getStateColor('merged'),
-  [DagState.ERRORED]: getStateColor('needs_human'),
+  [DagState.ACTIVE]: getStateColor(NodeStateEnum.IN_PROGRESS),
+  [DagState.COMPLETE]: getStateColor(NodeStateEnum.MERGED),
+  [DagState.ERRORED]: getStateColor(NodeStateEnum.NEEDS_HUMAN),
 };
 
-const ACTIVE_NODE_STATES: readonly NodeState[] = [
-  'in_progress',
-  'resting',
-  'pending',
+const ACTIVE_NODE_STATES: readonly NodeStateEnum[] = [
+  NodeStateEnum.IN_PROGRESS,
+  NodeStateEnum.RESTING,
+  NodeStateEnum.PENDING,
 ];
-const ERRORED_NODE_STATES: readonly NodeState[] = ['needs_human', 'errored'];
-const COMPLETE_NODE_STATE: NodeState = 'merged';
+const ERRORED_NODE_STATES: readonly NodeStateEnum[] = [
+  NodeStateEnum.NEEDS_HUMAN,
+  NodeStateEnum.ERRORED,
+];
+const COMPLETE_NODE_STATE = NodeStateEnum.MERGED;
 const NO_CURRENT_DAG_NAME = '';
 
 const hasNodeInStates = (
   dag: DagSummary,
-  nodeStates: readonly NodeState[],
+  nodeStates: readonly NodeStateEnum[],
 ): boolean => dag.nodes.some((node) => nodeStates.includes(node.state));
 
 const isCompleteDag = (dag: DagSummary): boolean =>

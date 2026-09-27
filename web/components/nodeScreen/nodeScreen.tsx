@@ -20,9 +20,14 @@ interface NodeScreenProps {
 export const NodeScreen = ({ dagName, nodeId }: NodeScreenProps) => {
   const nodePath = getNodePath(dagName, nodeId);
   const nodeDetailResponse = usePolledApiResponse<NodeDetail>(nodePath);
-  const { dagDetail, hasFailed } = useDag();
+  const { dagDetail, hasFailed, refreshDagDetail } = useDag();
 
   const dagNodes = dagDetail === null ? NO_DAG_NODES : dagDetail.nodes;
+
+  const handleNodeActionSuccess = () => {
+    nodeDetailResponse.refresh();
+    refreshDagDetail();
+  };
 
   return (
     <NodeDialog
@@ -32,6 +37,7 @@ export const NodeScreen = ({ dagName, nodeId }: NodeScreenProps) => {
       detail={nodeDetailResponse.response}
       isMissing={nodeDetailResponse.isMissing}
       hasFailed={hasFailed || nodeDetailResponse.hasFailed}
+      onNodeActionSuccess={handleNodeActionSuccess}
     />
   );
 };

@@ -1,20 +1,20 @@
-import type {
-  RecoveryCause,
-  SessionEndState,
-  SignalKind,
+import type { SignalKind } from '@/entities/nodeDetail';
+import {
+  RecoveryCauseEnum,
+  SessionEndStateEnum,
 } from '@/entities/nodeDetail';
-import type { NodeState } from '@/entities/nodeState';
+import { NodeStateEnum } from '@/entities/nodeState';
 import { DagState } from '@/utils/dagState';
 import { RecoverySessionState } from '@/utils/recoverySessionState';
 
-export const NODE_STATE_LABELS: Record<NodeState, string> = {
-  pending: 'Pending',
-  in_progress: 'In progress',
-  resting: 'Resting',
-  merged: 'Merged',
-  needs_human: 'Needs human',
-  errored: 'Errored',
-  skipped: 'Skipped',
+export const NODE_STATE_LABELS: Record<NodeStateEnum, string> = {
+  [NodeStateEnum.PENDING]: 'Pending',
+  [NodeStateEnum.IN_PROGRESS]: 'In progress',
+  [NodeStateEnum.RESTING]: 'Resting',
+  [NodeStateEnum.MERGED]: 'Merged',
+  [NodeStateEnum.NEEDS_HUMAN]: 'Needs human',
+  [NodeStateEnum.ERRORED]: 'Errored',
+  [NodeStateEnum.SKIPPED]: 'Skipped',
 };
 
 export const DAG_STATE_LABELS: Record<DagState, string> = {
@@ -24,22 +24,23 @@ export const DAG_STATE_LABELS: Record<DagState, string> = {
   [DagState.ERRORED]: 'Errored',
 };
 
-export const SESSION_END_STATE_LABELS: Record<SessionEndState, string> = {
-  alive: 'Running',
-  finished: 'Finished',
-  overdue: 'Overdue',
-  aborted: 'Aborted',
+export const SESSION_END_STATE_LABELS: Record<SessionEndStateEnum, string> = {
+  [SessionEndStateEnum.ALIVE]: 'Running',
+  [SessionEndStateEnum.FINISHED]: 'Finished',
+  [SessionEndStateEnum.OVERDUE]: 'Overdue',
+  [SessionEndStateEnum.ABORTED]: 'Aborted',
+  [SessionEndStateEnum.STOPPED]: 'Stopped',
 };
 
-export const RECOVERY_CAUSE_LABELS: Record<RecoveryCause, string> = {
-  turn_cap_reached: 'Turn cap reached',
-  background_wait_terminated: 'Background wait terminated',
-  usage_limit: 'Usage limit',
-  provider_failure: 'Provider failure',
-  process_killed: 'Process killed',
-  no_pull_request: 'No pull request',
-  overdue: 'Overdue',
-  workspace_inconsistent: 'Workspace inconsistent',
+export const RECOVERY_CAUSE_LABELS: Record<RecoveryCauseEnum, string> = {
+  [RecoveryCauseEnum.TURN_CAP_REACHED]: 'Turn cap reached',
+  [RecoveryCauseEnum.BACKGROUND_WAIT_TERMINATED]: 'Background wait terminated',
+  [RecoveryCauseEnum.USAGE_LIMIT]: 'Usage limit',
+  [RecoveryCauseEnum.PROVIDER_FAILURE]: 'Provider failure',
+  [RecoveryCauseEnum.PROCESS_KILLED]: 'Process killed',
+  [RecoveryCauseEnum.NO_PULL_REQUEST]: 'No pull request',
+  [RecoveryCauseEnum.OVERDUE]: 'Overdue',
+  [RecoveryCauseEnum.WORKSPACE_INCONSISTENT]: 'Workspace inconsistent',
 };
 
 export const RECOVERY_SESSION_STATE_LABELS: Record<
@@ -59,14 +60,14 @@ export const SIGNAL_LABELS: Record<SignalKind, string> = {
   conflict: 'Conflict',
 };
 
-export const NODE_STATE_LABELS_LOWERCASE: Record<NodeState, string> = {
-  pending: 'pending',
-  in_progress: 'in progress',
-  resting: 'resting',
-  merged: 'merged',
-  needs_human: 'needs human',
-  errored: 'errored',
-  skipped: 'skipped',
+export const NODE_STATE_LABELS_LOWERCASE: Record<NodeStateEnum, string> = {
+  [NodeStateEnum.PENDING]: 'pending',
+  [NodeStateEnum.IN_PROGRESS]: 'in progress',
+  [NodeStateEnum.RESTING]: 'resting',
+  [NodeStateEnum.MERGED]: 'merged',
+  [NodeStateEnum.NEEDS_HUMAN]: 'needs human',
+  [NodeStateEnum.ERRORED]: 'errored',
+  [NodeStateEnum.SKIPPED]: 'skipped',
 };
 
 export const LABELS = {
@@ -146,6 +147,35 @@ export const LABELS = {
   nodeUpdatedAt: 'updated {time}',
   nodePullRequestLink: 'Pull request',
   nodeNoPullRequest: 'No pull request opened yet',
+  nodeRetry: 'Retry',
+  nodeRetryPending: 'Retrying…',
+  nodeRetryDialogTitle: 'Retry {node}?',
+  nodeRetryDialogDescription:
+    'The node will move to pending. The next tick will start it again.',
+  nodeRetryResetSession: 'Reset current session and start a new session',
+  nodeRetrySubmit: 'Retry the node',
+  nodeWake: 'Wake',
+  nodeWakeDialogTitle: 'Wake {node}',
+  nodeWakeDialogDescription:
+    "The agent resumes its conversation with the message. The node's recovery record stores the cause and the action.",
+  nodeWakeCause: 'Cause',
+  nodeWakeCauseRequired: 'Choose a cause.',
+  nodeWakeAction: 'Action',
+  nodeWakeActionRequired: 'Enter the action.',
+  nodeWakeMessage: 'Message',
+  nodeWakeMessageRequired: 'Enter the message.',
+  nodeWakeFieldsRequired: 'Fill in each required field to wake the node.',
+  nodeWakeSubmit: 'Wake the node',
+  nodeWakePending: 'Waking…',
+  nodeStop: 'Stop',
+  nodeStopPending: 'Stopping…',
+  nodeStopDialogTitle: 'Stop {node}?',
+  nodeStopDialogDescription:
+    "The stop command kills the running session of the node's agent. The node moves to needs human. Retry sends the node back to pending.",
+  nodeStopSubmit: 'Stop the session',
+  nodeActionCancel: 'Cancel',
+  nodeActionFailed:
+    'The request failed without a detail from the api. Check that dagctl serve is running.',
   sessionFailureHeading: 'Session failure',
   sessionExitCode: 'exit {code}',
   recoveryRetryAt: 'retry {time}',

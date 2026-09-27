@@ -54,3 +54,25 @@ export const getConversationPath = (
 
   return `${conversationPath}?${BEFORE_PARAMETER}=${before}`;
 };
+
+/**
+ * The actions the api performs on a node.
+ */
+export enum NodeActionEnum {
+  RETRY = 'retry',
+  WAKE = 'wake',
+  STOP = 'stop',
+}
+
+/**
+ * Returns the api path of an action on a node of a dag.
+ */
+export const getNodeActionPath = (
+  dagName: string,
+  nodeId: string,
+  nodeAction: NodeActionEnum,
+): string => {
+  const nodePath = getNodePath(dagName, nodeId);
+
+  return `${nodePath}/${nodeAction}`;
+};

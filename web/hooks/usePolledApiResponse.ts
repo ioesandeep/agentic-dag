@@ -18,6 +18,15 @@ export interface PolledApiResponse<TResponse> {
 }
 
 /**
+ * Represents the latest response of a polled api path with a function that requests the path again.
+ */
+export interface RefreshablePolledApiResponse<TResponse>
+  extends PolledApiResponse<TResponse> {
+  // Requests the path immediately and restarts the poll interval.
+  refresh: () => void;
+}
+
+/**
  * Returns the response of an api path, with no body when the path responds 404 or the request fails.
  */
 export const getApiResponse = async <TResponse>(
@@ -82,10 +91,13 @@ export const hasNoResponseToShow = (
  */
 export const usePolledApiResponse = <TResponse>(
   path: string,
-): PolledApiResponse<TResponse> => {
+): RefreshablePolledApiResponse<TResponse> => {
   const [polledResponse, setPolledResponse] =
     useState<PolledApiResponse<TResponse>>(NO_RESPONSE_YET);
+  const [refreshCount, setRefreshCount] = useState(0);
   const isTabVisible = useIsTabVisible();
+
+  const refresh = () => setRefreshCount((count) => count + 1);
 
   useEffect(() => {
     if (!isTabVisible) {
@@ -110,7 +122,7 @@ export const usePolledApiResponse = <TResponse>(
     const timer = window.setInterval(refreshResponse, POLL_INTERVAL_MS);
 
     return () => stopPolling(timer, controller);
-  }, [path, isTabVisible]);
+  }, [path, isTabVisible, refreshCount]);
 
-  return polledResponse;
+  return { ...polledResponse, refresh };
 };

@@ -1,12 +1,12 @@
-import type { NodeState } from '@/entities/nodeState';
+import type { NodeStateEnum } from '@/entities/nodeState';
 
 declare module '@mui/material/styles' {
   interface Palette {
-    state: Record<NodeState, string>;
+    state: Record<NodeStateEnum, string>;
   }
 
   interface PaletteOptions {
-    state?: Record<NodeState, string>;
+    state?: Record<NodeStateEnum, string>;
   }
 
   interface TypographyVariants {

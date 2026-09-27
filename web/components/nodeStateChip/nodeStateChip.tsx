@@ -1,9 +1,9 @@
 import { SoftChip } from '@/components/softChip/softChip';
-import type { NodeState } from '@/entities/nodeState';
+import type { NodeStateEnum } from '@/entities/nodeState';
 import { NODE_STATE_LABELS } from '@/labels/en';
 
 interface NodeStateChipProps {
-  state: NodeState;
+  state: NodeStateEnum;
 }
 
 /**

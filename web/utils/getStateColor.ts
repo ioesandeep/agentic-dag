@@ -1,7 +1,7 @@
-import type { NodeState } from '@/entities/nodeState';
+import type { NodeStateEnum } from '@/entities/nodeState';
 
 /**
  * Returns the theme colour for a node state.
  */
-export const getStateColor = (state: NodeState): string =>
+export const getStateColor = (state: NodeStateEnum): string =>
   `var(--mui-palette-state-${state})`;

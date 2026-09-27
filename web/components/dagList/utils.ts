@@ -1,7 +1,8 @@
 import type { DagSummary } from '@/entities/dagSummary';
+import { NodeStateEnum } from '@/entities/nodeState';
 
 const countRunning = (dag: DagSummary): number =>
-  dag.nodes.filter((node) => node.state === 'in_progress').length;
+  dag.nodes.filter((node) => node.state === NodeStateEnum.IN_PROGRESS).length;
 
 /**
  * Compares two dags by how active they are.

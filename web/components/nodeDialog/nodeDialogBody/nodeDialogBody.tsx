@@ -39,6 +39,7 @@ interface NodeDialogBodyProps {
   detail: NodeDetail | null;
   // True where the dag records no node with this id.
   isMissing: boolean;
+  onNodeActionSuccess: () => void;
 }
 
 /**
@@ -50,6 +51,7 @@ export const NodeDialogBody = ({
   nodes,
   detail,
   isMissing,
+  onNodeActionSuccess,
 }: NodeDialogBodyProps) => {
   const [isConversationWide, setIsConversationWide] = useState(false);
   const dagSidebarCollapse = useStoredFlag(SIDEBAR_COLLAPSE_KEY, false);
@@ -92,6 +94,7 @@ export const NodeDialogBody = ({
         detail={nodeDetail}
         isConversationWide={isConversationWide}
         onToggleWidth={handleToggleWidth}
+        onNodeActionSuccess={onNodeActionSuccess}
       />
     </Box>
   );

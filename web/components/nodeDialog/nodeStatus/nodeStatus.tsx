@@ -3,6 +3,7 @@ import Card from '@mui/material/Card';
 import Typography from '@mui/material/Typography';
 
 import { INFO_MAIN_COLOR } from '@/components/nodeDialog/constants';
+import { NodeActionByState } from '@/components/nodeDialog/nodeStatus/nodeActionByState/nodeActionByState';
 import { NodeUpdatedTime } from '@/components/nodeDialog/nodeStatus/nodeUpdatedTime/nodeUpdatedTime';
 import { PullRequestLink } from '@/components/nodeDialog/nodeStatus/pullRequestLink/pullRequestLink';
 import { NodeStateChip } from '@/components/nodeStateChip/nodeStateChip';
@@ -12,13 +13,19 @@ import { LABELS } from '@/labels/en';
 import { formatLabel } from '@/utils/formatLabel';
 
 interface NodeStatusProps {
+  dagName: string;
   detail: NodeDetail;
+  onNodeActionSuccess: () => void;
 }
 
 /**
- * Renders the node's state, agent, wake count, pull request link and last update.
+ * Renders the node's state, agent, wake count, pull request link, last update, and the actions its state allows.
  */
-export const NodeStatus = ({ detail }: NodeStatusProps) => {
+export const NodeStatus = ({
+  dagName,
+  detail,
+  onNodeActionSuccess,
+}: NodeStatusProps) => {
   const wakeValues = { wakes: detail.wakes };
 
   return (
@@ -43,6 +50,12 @@ export const NodeStatus = ({ detail }: NodeStatusProps) => {
       <Box sx={{ flexGrow: 1 }} />
       <PullRequestLink url={detail.prUrl} />
       <NodeUpdatedTime at={detail.updatedAt} />
+      <NodeActionByState
+        dagName={dagName}
+        nodeId={detail.id}
+        state={detail.state}
+        onNodeActionSuccess={onNodeActionSuccess}
+      />
     </Card>
   );
 };

@@ -1,19 +1,18 @@
 import type { NodePreview } from '@/entities/dagSummary';
-import type { NodeState } from '@/entities/nodeState';
-import { NODE_STATES } from '@/entities/nodeState';
+import { NODE_STATES, NodeStateEnum } from '@/entities/nodeState';
 
-const HIGHLIGHT_ORDER: readonly NodeState[] = [
-  'in_progress',
-  'needs_human',
-  'errored',
-  'resting',
-  'pending',
-  'merged',
-  'skipped',
+const HIGHLIGHT_ORDER: readonly NodeStateEnum[] = [
+  NodeStateEnum.IN_PROGRESS,
+  NodeStateEnum.NEEDS_HUMAN,
+  NodeStateEnum.ERRORED,
+  NodeStateEnum.RESTING,
+  NodeStateEnum.PENDING,
+  NodeStateEnum.MERGED,
+  NodeStateEnum.SKIPPED,
 ];
 
 export interface NodeStateCount {
-  state: NodeState;
+  state: NodeStateEnum;
   // The number of nodes in that state.
   count: number;
 }
@@ -22,7 +21,7 @@ export interface NodeStateCount {
  * Returns the node counts of a dag by state.
  */
 export const countNodeStates = (nodes: NodePreview[]): NodeStateCount[] => {
-  const counts = new Map<NodeState, number>();
+  const counts = new Map<NodeStateEnum, number>();
 
   for (const node of nodes) {
     counts.set(node.state, (counts.get(node.state) ?? 0) + 1);
@@ -37,7 +36,7 @@ export const countNodeStates = (nodes: NodePreview[]): NodeStateCount[] => {
 /**
  * Returns the state of a dag's most recently updated node.
  */
-export const getLatestNodeState = (nodes: NodePreview[]): NodeState | null => {
+export const getLatestNodeState = (nodes: NodePreview[]): NodeStateEnum | null => {
   const moved = nodes.filter((node) => node.updatedAt !== null);
 
   if (moved.length === 0) {

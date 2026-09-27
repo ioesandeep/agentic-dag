@@ -1,10 +1,10 @@
 import type { AuditLine } from '@/entities/dagDetail';
-import type { NodeState } from '@/entities/nodeState';
+import type { NodeStateEnum } from '@/entities/nodeState';
 
 export interface NodeLink {
   id: string;
   title: string;
-  state: NodeState;
+  state: NodeStateEnum;
   // The node's pull request url, empty when the node has no pull request.
   prUrl: string;
   // The node's pull request number, or 0 when the node has no pull request.
@@ -34,7 +34,16 @@ export const SIGNAL_KINDS: readonly SignalKind[] = [
   'conflict',
 ];
 
-export type SessionEndState = 'alive' | 'finished' | 'overdue' | 'aborted';
+/**
+ * The end states of an agent session that the api sends.
+ */
+export enum SessionEndStateEnum {
+  ALIVE = 'alive',
+  FINISHED = 'finished',
+  OVERDUE = 'overdue',
+  ABORTED = 'aborted',
+  STOPPED = 'stopped',
+}
 
 export interface AgentSession {
   id: number;
@@ -42,27 +51,34 @@ export interface AgentSession {
   // When the session ended, or null while it is still running.
   endedAt: string | null;
   // How the session ended, empty while it is still running.
-  endState: SessionEndState | '';
+  endState: SessionEndStateEnum | '';
   // What started the session, launch for the first one and wake for the rest.
   triggeredBy: string;
 }
 
-export type RecoveryCause =
-  | 'turn_cap_reached'
-  | 'background_wait_terminated'
-  | 'usage_limit'
-  | 'provider_failure'
-  | 'process_killed'
-  | 'no_pull_request'
-  | 'overdue'
-  | 'workspace_inconsistent';
+/**
+ * The causes of a node recovery sent between the console and the api.
+ */
+export enum RecoveryCauseEnum {
+  TURN_CAP_REACHED = 'turn_cap_reached',
+  BACKGROUND_WAIT_TERMINATED = 'background_wait_terminated',
+  USAGE_LIMIT = 'usage_limit',
+  PROVIDER_FAILURE = 'provider_failure',
+  PROCESS_KILLED = 'process_killed',
+  NO_PULL_REQUEST = 'no_pull_request',
+  OVERDUE = 'overdue',
+  WORKSPACE_INCONSISTENT = 'workspace_inconsistent',
+}
+
+export const RECOVERY_CAUSES: readonly RecoveryCauseEnum[] =
+  Object.values(RecoveryCauseEnum);
 
 export interface NodeRecovery {
   id: number;
   // The session that ended in this failure.
   sessionId: number;
   detectedAt: string;
-  cause: RecoveryCause;
+  cause: RecoveryCauseEnum;
   recoverable: boolean;
   // When the node becomes eligible for recovery.
   recoverAt: string;
@@ -82,7 +98,7 @@ export interface NodeDetail {
   id: string;
   title: string;
   agentName: string;
-  state: NodeState;
+  state: NodeStateEnum;
   // The ids of the nodes this node waits for.
   dependsOn: string[];
   // The time this node's state was last written, null when it never was.

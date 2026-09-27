@@ -2,26 +2,27 @@
 
 import { createTheme } from '@mui/material/styles';
 
+import { NodeStateEnum } from '@/entities/nodeState';
 import { SCREEN_ENTRANCE_MS } from '@/theme/constants';
 
 const LIGHT_STATE = {
-  pending: '#8c887c',
-  in_progress: '#0e7490',
-  resting: '#b45309',
-  merged: '#15803d',
-  needs_human: '#c2362b',
-  errored: '#8a241c',
-  skipped: '#4f46c0',
+  [NodeStateEnum.PENDING]: '#8c887c',
+  [NodeStateEnum.IN_PROGRESS]: '#0e7490',
+  [NodeStateEnum.RESTING]: '#b45309',
+  [NodeStateEnum.MERGED]: '#15803d',
+  [NodeStateEnum.NEEDS_HUMAN]: '#c2362b',
+  [NodeStateEnum.ERRORED]: '#8a241c',
+  [NodeStateEnum.SKIPPED]: '#4f46c0',
 };
 
 const DARK_STATE = {
-  pending: '#7a766a',
-  in_progress: '#67c3d4',
-  resting: '#d99a4e',
-  merged: '#5fbb82',
-  needs_human: '#f87171',
-  errored: '#c4564f',
-  skipped: '#948ce4',
+  [NodeStateEnum.PENDING]: '#7a766a',
+  [NodeStateEnum.IN_PROGRESS]: '#67c3d4',
+  [NodeStateEnum.RESTING]: '#d99a4e',
+  [NodeStateEnum.MERGED]: '#5fbb82',
+  [NodeStateEnum.NEEDS_HUMAN]: '#f87171',
+  [NodeStateEnum.ERRORED]: '#c4564f',
+  [NodeStateEnum.SKIPPED]: '#948ce4',
 };
 
 export const theme = createTheme({
@@ -86,6 +87,9 @@ export const theme = createTheme({
     },
     MuiCard: {
       defaultProps: { variant: 'outlined' },
+    },
+    MuiDialog: {
+      styleOverrides: { paper: { backgroundImage: 'none' } },
     },
     MuiSkeleton: {
       defaultProps: { variant: 'rounded' },

@@ -12,12 +12,15 @@ export interface DagContextValue {
   dagDetail: DagDetail | null;
   // True where the last request to the api failed.
   hasFailed: boolean;
+  // Requests the current dag's detail immediately and restarts its poll interval.
+  refreshDagDetail: () => void;
 }
 
 const NO_DAG: DagContextValue = {
   dagSummaries: null,
   dagDetail: null,
   hasFailed: false,
+  refreshDagDetail: () => {},
 };
 
 export const DagContext = createContext<DagContextValue>(NO_DAG);

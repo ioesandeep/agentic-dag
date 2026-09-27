@@ -1,4 +1,4 @@
-import type { NodeState } from '@/entities/nodeState';
+import type { NodeStateEnum } from '@/entities/nodeState';
 
 export interface DagNode {
   id: string;
@@ -6,7 +6,7 @@ export interface DagNode {
   agentName: string;
   // The ids of the nodes this node waits for.
   dependsOn: string[];
-  state: NodeState;
+  state: NodeStateEnum;
   // The time this node's state was last written, null when it never was.
   updatedAt: string | null;
   // The number of sessions started for this node.
@@ -25,7 +25,7 @@ export interface DagNode {
 export interface AuditLine {
   nodeId: string;
   // The state the node moved to.
-  state: NodeState;
+  state: NodeStateEnum;
   // The reason recorded for the state change.
   note: string;
   createdAt: string;

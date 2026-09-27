@@ -12,7 +12,7 @@ import type { NodeDetail, NodeLink } from '@/entities/nodeDetail';
 import { LABELS } from '@/labels/en';
 import { getDagRoute } from '@/utils/route';
 
-const PAPER_STYLE = { bgcolor: 'background.default', backgroundImage: 'none' };
+const PAPER_STYLE = { bgcolor: 'background.default' };
 const NO_DIALOG_TRANSITION = 0;
 
 interface NodeDialogProps {
@@ -26,6 +26,7 @@ interface NodeDialogProps {
   isMissing: boolean;
   // True where the last request to the api failed.
   hasFailed: boolean;
+  onNodeActionSuccess: () => void;
 }
 
 /**
@@ -38,6 +39,7 @@ export const NodeDialog = ({
   detail,
   isMissing,
   hasFailed,
+  onNodeActionSuccess,
 }: NodeDialogProps) => {
   const router = useRouter();
   const dagRoute = getDagRoute(dagName);
@@ -66,6 +68,7 @@ export const NodeDialog = ({
         nodes={nodes}
         detail={detail}
         isMissing={isMissing}
+        onNodeActionSuccess={onNodeActionSuccess}
       />
     </Dialog>
   );

@@ -32,6 +32,7 @@ interface NodeDetailColumnsProps {
   detail: NodeDetail | null;
   isConversationWide: boolean;
   onToggleWidth: () => void;
+  onNodeActionSuccess: () => void;
 }
 
 /**
@@ -44,6 +45,7 @@ export const NodeDetailColumns = ({
   detail,
   isConversationWide,
   onToggleWidth,
+  onNodeActionSuccess,
 }: NodeDetailColumnsProps) => {
   const transcript = useConversationPages(dagName, nodeId);
 
@@ -55,7 +57,11 @@ export const NodeDetailColumns = ({
     <Slide direction="left" in appear>
       <Box sx={getColumnsStyle(isConversationWide)}>
         <Box sx={CONVERSATION_STYLE}>
-          <NodeStatus detail={detail} />
+          <NodeStatus
+            dagName={dagName}
+            detail={detail}
+            onNodeActionSuccess={onNodeActionSuccess}
+          />
           <SessionFailure
             exitCode={detail.exitCode}
             logTail={detail.logTail}

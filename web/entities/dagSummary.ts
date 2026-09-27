@@ -1,10 +1,10 @@
-import type { NodeState } from '@/entities/nodeState';
+import type { NodeStateEnum } from '@/entities/nodeState';
 
 export interface NodePreview {
   id: string;
   title: string;
   agentName: string;
-  state: NodeState;
+  state: NodeStateEnum;
   updatedAt: string | null;
 }
 
