@@ -9,6 +9,8 @@ export interface DagNode {
   state: NodeStateEnum;
   // The time this node's state was last written, null when it never was.
   updatedAt: string | null;
+  // The node's start time, null when the node does not wait for its cooldown.
+  startsAt: string | null;
   // The number of sessions started for this node.
   wakes: number;
   // The agent session this node resumes, empty when none is recorded.

@@ -10,6 +10,7 @@ import type { MouseEvent } from 'react';
 
 import { LastActivity } from '@/components/dagList/dagCard/lastActivity/lastActivity';
 import { SoftChip } from '@/components/softChip/softChip';
+import { StartTimeChip } from '@/components/startTimeChip/startTimeChip';
 import type { DagNode } from '@/entities/dagDetail';
 import { LABELS, NODE_STATE_LABELS } from '@/labels/en';
 import { createEntryFromDagPage } from '@/utils/dagPageEntry';
@@ -36,10 +37,13 @@ export const NodeTableRow = ({ dagName, node }: NodeTableRowProps) => {
   return (
     <TableRow hover>
       <TableCell>
-        <SoftChip
-          color={getStateColor(node.state)}
-          label={NODE_STATE_LABELS[node.state]}
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          <SoftChip
+            color={getStateColor(node.state)}
+            label={NODE_STATE_LABELS[node.state]}
+          />
+          {node.startsAt !== null && <StartTimeChip startsAt={node.startsAt} />}
+        </Box>
       </TableCell>
       <TableCell
         sx={{ fontFamily: (theme) => theme.typography.fontFamilyMono }}

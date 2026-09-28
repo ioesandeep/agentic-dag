@@ -103,6 +103,8 @@ export interface NodeDetail {
   dependsOn: string[];
   // The time this node's state was last written, null when it never was.
   updatedAt: string | null;
+  // The node's start time, null when the node does not wait for its cooldown.
+  startsAt: string | null;
   wakes: number;
   // The agent session this node resumes, empty when none is recorded.
   sessionId: string;

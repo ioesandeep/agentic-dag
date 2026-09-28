@@ -7,6 +7,8 @@ import { NodeStateEnum } from '@/entities/nodeState';
 import { DagState } from '@/utils/dagState';
 import { RecoverySessionState } from '@/utils/recoverySessionState';
 
+export const LOCALE = 'en';
+
 export const NODE_STATE_LABELS: Record<NodeStateEnum, string> = {
   [NodeStateEnum.PENDING]: 'Pending',
   [NodeStateEnum.IN_PROGRESS]: 'In progress',
@@ -145,6 +147,8 @@ export const LABELS = {
   nodeUnknown: 'This dag records no node with that id.',
   nodeWakes: 'wake {wakes}',
   nodeUpdatedAt: 'updated {time}',
+  nodeStartsAt: 'starts {time}',
+  nodeStartTime: 'starts {startTime}, {time}',
   nodePullRequestLink: 'Pull request',
   nodeNoPullRequest: 'No pull request opened yet',
   nodeRetry: 'Retry',

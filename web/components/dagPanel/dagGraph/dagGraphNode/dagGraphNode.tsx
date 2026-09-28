@@ -19,6 +19,7 @@ import {
 import type { DagFlowNode } from '@/components/dagPanel/dagGraph/types';
 import { PullRequestChip } from '@/components/pullRequestChip/pullRequestChip';
 import { SoftChip } from '@/components/softChip/softChip';
+import { StartTimeChip } from '@/components/startTimeChip/startTimeChip';
 import { NODE_STATE_LABELS } from '@/labels/en';
 import { createEntryFromDagPage } from '@/utils/dagPageEntry';
 import { getStateColor } from '@/utils/getStateColor';
@@ -88,6 +89,7 @@ export const DagGraphNode = ({ data }: NodeProps<DagFlowNode>) => {
             color={getStateColor(node.state)}
             label={NODE_STATE_LABELS[node.state]}
           />
+          {node.startsAt !== null && <StartTimeChip startsAt={node.startsAt} />}
           <Typography variant="caption" color="text.secondary" noWrap>
             {node.agentName}
           </Typography>

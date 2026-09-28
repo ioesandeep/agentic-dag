@@ -4,6 +4,7 @@ import Typography from '@mui/material/Typography';
 
 import { INFO_MAIN_COLOR } from '@/components/nodeDialog/constants';
 import { NodeActionByState } from '@/components/nodeDialog/nodeStatus/nodeActionByState/nodeActionByState';
+import { NodeStartTime } from '@/components/nodeDialog/nodeStatus/nodeStartTime/nodeStartTime';
 import { NodeUpdatedTime } from '@/components/nodeDialog/nodeStatus/nodeUpdatedTime/nodeUpdatedTime';
 import { PullRequestLink } from '@/components/nodeDialog/nodeStatus/pullRequestLink/pullRequestLink';
 import { NodeStateChip } from '@/components/nodeStateChip/nodeStateChip';
@@ -19,7 +20,7 @@ interface NodeStatusProps {
 }
 
 /**
- * Renders the node's state, agent, wake count, pull request link, last update, and the actions its state allows.
+ * Renders the node's state, agent, wake count, pull request link, last update, start time, and the actions its state allows.
  */
 export const NodeStatus = ({
   dagName,
@@ -50,6 +51,7 @@ export const NodeStatus = ({
       <Box sx={{ flexGrow: 1 }} />
       <PullRequestLink url={detail.prUrl} />
       <NodeUpdatedTime at={detail.updatedAt} />
+      <NodeStartTime startsAt={detail.startsAt} />
       <NodeActionByState
         dagName={dagName}
         nodeId={detail.id}
