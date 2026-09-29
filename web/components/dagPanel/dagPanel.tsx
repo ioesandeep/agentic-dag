@@ -2,15 +2,24 @@
 
 import Box from '@mui/material/Box';
 import Slide from '@mui/material/Slide';
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 import { PANEL_HEIGHT } from '@/components/dagPanel/constants';
 import { DagPanelBody } from '@/components/dagPanel/dagPanelBody/dagPanelBody';
 import { DagSidebar } from '@/components/dagPanel/dagSidebar/dagSidebar';
+import { slideInFromLeft } from '@/components/dagPanel/utils';
 import { RequestFailureAlert } from '@/components/requestFailureAlert/requestFailureAlert';
 import type { DagDetail } from '@/entities/dagDetail';
 import type { DagSummary } from '@/entities/dagSummary';
 import { useEntryFromDagList } from '@/hooks/useEntryFromDagList';
+import {
+  createExitFromDagPage,
+  deleteExitFromDagPage,
+} from '@/utils/dagPageExit';
+import {
+  deleteExitFromNodePage,
+  isExitFromNodePage,
+} from '@/utils/nodePageExit';
 
 const ROW_STYLE = { display: 'flex', height: PANEL_HEIGHT, overflow: 'hidden' };
 
@@ -42,14 +51,29 @@ export const DagPanel = ({
   dag,
   hasFailed,
 }: DagPanelProps) => {
+  const panelRef = useRef<HTMLDivElement>(null);
   const dagsFromList = useEntryFromDagList();
   const isEntering = dagsFromList !== null;
   const [hasSettled, setHasSettled] = useState(!isEntering);
 
   const handleSettle = () => setHasSettled(true);
 
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    const isReturningFromNodePage = isExitFromNodePage();
+
+    if (isReturningFromNodePage && panel !== null) {
+      slideInFromLeft(panel);
+    }
+
+    deleteExitFromNodePage();
+    deleteExitFromDagPage();
+
+    return createExitFromDagPage;
+  }, []);
+
   return (
-    <Box sx={ROW_STYLE}>
+    <Box ref={panelRef} sx={ROW_STYLE}>
       <DagSidebar
         dags={dags ?? dagsFromList}
         currentName={currentName}

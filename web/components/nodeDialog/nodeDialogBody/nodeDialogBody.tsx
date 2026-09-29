@@ -1,7 +1,7 @@
 'use client';
 
 import Box from '@mui/material/Box';
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 
 import { SIDEBAR_COLLAPSE_KEY } from '@/components/dagPanel/dagSidebar/constants';
 import { EmptyState } from '@/components/emptyState/emptyState';
@@ -16,6 +16,11 @@ import type { NodeDetail, NodeLink } from '@/entities/nodeDetail';
 import { useEntryFromDagPage } from '@/hooks/useEntryFromDagPage';
 import { useStoredFlag } from '@/hooks/useStoredFlag';
 import { LABELS } from '@/labels/en';
+import { deleteExitFromDagPage } from '@/utils/dagPageExit';
+import {
+  createExitFromNodePage,
+  deleteExitFromNodePage,
+} from '@/utils/nodePageExit';
 
 const MISSING_STYLE = { p: { xs: 2, md: 4 } };
 
@@ -59,6 +64,13 @@ export const NodeDialogBody = ({
 
   const handleToggleWidth = () => setIsConversationWide((isWide) => !isWide);
   const nodeDetail = findDetailOfNode(detail, nodeId);
+
+  useLayoutEffect(() => {
+    deleteExitFromNodePage();
+    deleteExitFromDagPage();
+
+    return createExitFromNodePage;
+  }, []);
 
   if (isMissing) {
     return (

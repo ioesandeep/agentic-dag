@@ -9,12 +9,11 @@ import {
   COLLAPSED_GRAPH_LEFT_EDGE,
   GRAPH_LEFT_EDGE,
   NODE_DETAILS_SIDEBAR_WIDTH,
-  REDUCED_MOTION_QUERY,
   REDUCED_MOTION_SELECTOR,
   SCROLL_BLOCK,
   SESSION_ANCHOR_PREFIX,
 } from '@/components/nodeDialog/constants';
-import { SCREEN_ENTRANCE_MS } from '@/theme/constants';
+import { REDUCED_MOTION_QUERY, SCREEN_ENTRANCE_MS } from '@/theme/constants';
 
 const readScrollBehavior = (): ScrollBehavior => {
   if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
