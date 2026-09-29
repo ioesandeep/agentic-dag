@@ -183,7 +183,12 @@ blocks, such as a push over the network, is an escalation that Codex's automatic
 decides. Only run trusted graph instructions in an environment where that access is appropriate.
 
 `caps.session_timeout_seconds` applies to both providers. `caps.session_turns` applies only to
-Claude; Codex exec has no corresponding turn-limit flag. Both receive the run's saved learnings.
+Claude; Codex exec has no corresponding turn-limit flag. Claude appends the run's saved learnings
+to the system prompt through `--append-system-prompt-file`. By default, the Claude CLI records the
+system prompt on a conversation's first request and sends the recorded prompt on every later
+request and resume. Because the launcher passes `--system-prompt-snapshot off`, a woken Claude
+session receives the current learnings file. Codex receives the learnings appended to the prompt
+of every launch and wake.
 
 A conversation cannot move between providers. After changing a stopped node's executor, use
 `dagctl retry NODE --reset --dag DAG` to start a fresh conversation in its existing worktree.

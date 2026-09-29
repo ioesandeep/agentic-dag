@@ -17,8 +17,6 @@ from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
 from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSession
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
-from virgo_agentic_dag.labels.en import LABELS
-from virgo_agentic_dag.utils.format_label import format_label
 from virgo_agentic_dag.utils.process import is_process_alive
 
 logger = logging.getLogger(__name__)
@@ -32,6 +30,8 @@ _AGENT_FLAGS: tuple[str, ...] = (
     "claude-opus-5-5",
     "--effort",
     "max",
+    "--system-prompt-snapshot",
+    "off",
 )
 _SHELL = "sh"
 _RECORD_EXIT_CODE_SCRIPT = 'exit_path="$1"; shift; "$@"; echo "$?" > "$exit_path"'
@@ -109,43 +109,41 @@ class ClaudeAgentLauncher(AgentLauncher):
 
     def _build_launch_argv(self, brief: str, resume_token: str) -> tuple[str, ...]:
         turns = self._build_turns()
-        prompt = self._get_prompt_with_learnings(brief)
+        learnings_flags = self._list_learnings_flags()
 
         return (
             self._BINARY,
             *_AGENT_FLAGS,
+            *learnings_flags,
             "--session-id",
             resume_token,
             *turns,
-            prompt,
+            brief,
         )
 
     def _build_wake_argv(self, news: str, resume_token: str) -> tuple[str, ...]:
         turns = self._build_turns()
-        prompt = self._get_prompt_with_learnings(news)
+        learnings_flags = self._list_learnings_flags()
 
         return (
             self._BINARY,
             *_AGENT_FLAGS,
+            *learnings_flags,
             "--resume",
             resume_token,
             *turns,
-            prompt,
+            news,
         )
 
     def _build_turns(self) -> tuple[str, ...]:
         return ("--max-turns", str(self._max_turns))
 
-    def _get_prompt_with_learnings(self, prompt: str) -> str:
+    def _list_learnings_flags(self) -> list[str]:
         learnings = self._get_learnings()
         if not learnings:
-            return prompt
+            return []
 
-        learnings_section = format_label(
-            LABELS["runLearnings"], {"learnings": learnings}
-        )
-
-        return prompt + learnings_section
+        return ["--append-system-prompt-file", str(self._learnings_path)]
 
     def _get_learnings(self) -> str:
         try:

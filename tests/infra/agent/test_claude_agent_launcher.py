@@ -121,7 +121,7 @@ async def test_wake_records_the_worktree_marks_from_the_previous_session(
     assert session.marks_before == '{"pr": "412"}'
 
 
-async def test_launch_appends_the_run_learnings_to_the_prompt(
+async def test_launch_passes_the_learnings_file_only_as_an_appended_system_prompt(
     agent: NodeAgent, popen: MagicMock, learnings_path: Path
 ) -> None:
     learnings_path.write_text("Name a test after its subject.\n")
@@ -132,5 +132,46 @@ async def test_launch_appends_the_run_learnings_to_the_prompt(
     await launcher.launch(GraphNode(id="A"), "do the work", agent)
 
     argv = popen.call_args.args[0]
-    assert argv[-1].startswith("do the work")
-    assert "Name a test after its subject." in argv[-1]
+    assert argv[argv.index("--append-system-prompt-file") + 1] == str(learnings_path)
+    assert argv[-1] == "do the work"
+
+
+async def test_launch_omits_append_system_prompt_file_from_the_command_line_when_the_learnings_file_does_not_exist(
+    agent: NodeAgent, popen: MagicMock, learnings_path: Path
+) -> None:
+    launcher = ClaudeAgentLauncher(
+        timeout_seconds=1800, max_turns=40, learnings_path=learnings_path
+    )
+
+    await launcher.launch(GraphNode(id="A"), "do the work", agent)
+
+    argv = popen.call_args.args[0]
+    assert "--append-system-prompt-file" not in argv
+
+
+async def test_wake_passes_the_learnings_file_only_as_an_appended_system_prompt(
+    agent: NodeAgent, popen: MagicMock, learnings_path: Path
+) -> None:
+    learnings_path.write_text("Name a test after its subject.\n")
+    launcher = ClaudeAgentLauncher(
+        timeout_seconds=1800, max_turns=40, learnings_path=learnings_path
+    )
+
+    await launcher.wake(GraphNode(id="A"), "the check failed", agent)
+
+    argv = popen.call_args.args[0]
+    assert argv[argv.index("--append-system-prompt-file") + 1] == str(learnings_path)
+    assert argv[-1] == "the check failed"
+
+
+async def test_wake_omits_append_system_prompt_file_from_the_command_line_when_the_learnings_file_does_not_exist(
+    agent: NodeAgent, popen: MagicMock, learnings_path: Path
+) -> None:
+    launcher = ClaudeAgentLauncher(
+        timeout_seconds=1800, max_turns=40, learnings_path=learnings_path
+    )
+
+    await launcher.wake(GraphNode(id="A"), "the check failed", agent)
+
+    argv = popen.call_args.args[0]
+    assert "--append-system-prompt-file" not in argv
