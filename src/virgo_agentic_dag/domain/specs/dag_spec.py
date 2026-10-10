@@ -8,6 +8,7 @@ from pathlib import Path
 from virgo_agentic_dag.domain.notifications.notification_dispatcher_type import (
     NotificationDispatcherType,
 )
+from virgo_agentic_dag.domain.specs.codex_spec import CodexSpec
 from virgo_agentic_dag.domain.specs.executor_agent import ExecutorAgent
 from virgo_agentic_dag.domain.specs.node_spec import NodeSpec
 from virgo_agentic_dag.domain.states.attempt_budget import AttemptBudget
@@ -41,6 +42,7 @@ class DagSpec:
     sse_url: str = ""
     # to be inferred from the account the agent's credentials act as
     agent_account: str = ""
+    codex: CodexSpec = CodexSpec()
 
     def get_db_path(self) -> Path:
         """Return where this dag's run keeps its database, its choice or the run's home."""

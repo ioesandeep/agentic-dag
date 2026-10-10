@@ -174,8 +174,18 @@ top-level value is absent, it is `claude`, so a graph written before Codex suppo
 
 Install and authenticate each selected CLI on the machine running the graph, and make its binary
 available on the scheduled job's `PATH`. Codex runs through `codex exec --json` and resumes the
-thread ID it emits. The launcher selects `gpt-6-sol` with `xhigh` reasoning effort and Fast mode
-for new and resumed Codex sessions. Claude runs unattended with its
+thread ID it emits. By default, the launcher selects `gpt-6-sol` with `xhigh` reasoning effort
+and Fast mode for new and resumed Codex sessions. Set the DAG's `[codex]` table to override
+the model and effort for every Codex session, including recovery and learning extraction:
+
+```toml
+[codex]
+model = "gpt-6.1-sol"
+reasoning_effort = "max"
+```
+
+Omitted fields use their defaults. Codex validates whether the selected model and effort are
+supported. Claude runs unattended with its
 permission checks bypassed. The launcher sets effort to `max` for new and resumed Claude
 sessions. Codex runs in its `workspace-write` sandbox with `approval_policy`
 set to `on-request` and `approvals_reviewer` set to `auto_review`, so a command the sandbox

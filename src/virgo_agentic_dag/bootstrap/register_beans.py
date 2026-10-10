@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.ext.asyncio import create_async_engine
+
 from virgo_agentic_dag.api.cli.handlers.abort_command_handler import (
     AbortCommandHandler,
 )
@@ -693,6 +694,7 @@ def _build_agent_launchers(
             dag_spec.caps.session_timeout_seconds,
             learnings_path,
             CodexTranscriptLocator(),
+            codex_spec=dag_spec.codex,
         ),
     }
 

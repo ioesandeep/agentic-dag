@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+
 from virgo_agentic_dag.domain.exceptions.manifest.spec_error import SpecError
 from virgo_agentic_dag.domain.notifications.notification_dispatcher_type import (
     NotificationDispatcherType,
@@ -221,3 +222,16 @@ def test_defaults_the_dag_executor_to_claude_when_the_data_omits_it() -> None:
     spec = TomlDagLoader().parse(data)
 
     assert spec.executor_agent is ExecutorAgent.CLAUDE
+
+
+@pytest.mark.parametrize(
+    "settings", ["gpt-6.1-sol", {"model": 42}, {"reasoning_effort": ""}]
+)
+def test_parse_rejects_codex_settings_when_the_table_or_values_are_invalid(
+    settings: object,
+) -> None:
+    data = {"name": "demo", "nodes": [{"id": "A"}], "codex": settings}
+    loader = TomlDagLoader()
+
+    with pytest.raises(SpecError, match="dag.codex"):
+        loader.parse(data)

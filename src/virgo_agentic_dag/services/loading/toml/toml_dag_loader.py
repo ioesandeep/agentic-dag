@@ -10,6 +10,7 @@ from virgo_agentic_dag.domain.infra.spec.dag_loader import DagLoader
 from virgo_agentic_dag.domain.notifications.notification_dispatcher_type import (
     NotificationDispatcherType,
 )
+from virgo_agentic_dag.domain.specs.codex_spec import CodexSpec
 from virgo_agentic_dag.domain.specs.dag_spec import DagSpec
 from virgo_agentic_dag.domain.specs.executor_agent import ExecutorAgent
 from virgo_agentic_dag.domain.states.attempt_budget import (
@@ -49,6 +50,7 @@ class TomlDagLoader(DagLoader):
         )
 
         dag_executor_agent = self._nodes.get_executor_agent(data, f"dag {name!r}")
+        codex_spec = self._parse_codex_spec(data)
 
         return DagSpec(
             name=name,
@@ -56,6 +58,7 @@ class TomlDagLoader(DagLoader):
             project_root=self._get_path(data, "project_root"),
             workspace_path=self._get_path(data, "workspace_path"),
             executor_agent=dag_executor_agent or ExecutorAgent.CLAUDE,
+            codex=codex_spec,
             base_branch=str(data.get("base_branch", "")),
             cooldown_seconds=self._reader.get_non_negative_int(
                 data, "cooldown_seconds", 0, "dag"
@@ -72,6 +75,22 @@ class TomlDagLoader(DagLoader):
             sse_url=str(data.get("sse_url", "")),
             agent_account=str(data.get("agent_account", "")),
         )
+
+    def _parse_codex_spec(self, dag_table: dict[str, object]) -> CodexSpec:
+        raw_codex_spec = dag_table.get("codex", {})
+        codex_table = self._reader.require_table(raw_codex_spec, "dag.codex")
+        default_codex_spec = CodexSpec()
+        codex_values = {
+            "model": default_codex_spec.model,
+            "reasoning_effort": default_codex_spec.reasoning_effort,
+            **codex_table,
+        }
+        model = self._reader.require_str(codex_values, "model", "dag.codex")
+        reasoning_effort = self._reader.require_str(
+            codex_values, "reasoning_effort", "dag.codex"
+        )
+
+        return CodexSpec(model=model, reasoning_effort=reasoning_effort)
 
     def _get_path(self, data: dict[str, object], key: str) -> Path | None:
         raw = str(data.get(key, ""))

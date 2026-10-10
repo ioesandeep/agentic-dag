@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.api.web.mappers.codex_transcript_mapper import (
     to_conversation_message_responses,
 )
@@ -22,6 +23,7 @@ from virgo_agentic_dag.infra.agent.codex_transcript_locator import (
 from virgo_agentic_dag.infra.persistence.sqlite.sqlite_database import (
     SqliteDatabase,  # noqa: F401
 )
+from virgo_agentic_dag.services.loading.toml.toml_dag_loader import TomlDagLoader
 
 pytestmark = pytest.mark.integration
 
@@ -52,9 +54,24 @@ def agent(tmp_path: Path) -> NodeAgent:
     )
 
 
+@pytest.mark.parametrize(
+    ("settings", "model", "effort"),
+    [
+        ({}, "gpt-6-sol", "xhigh"),
+        ({"model": "gpt-6.1-sol", "reasoning_effort": "max"}, "gpt-6.1-sol", "max"),
+        ({"reasoning_effort": "max"}, "gpt-6-sol", "max"),
+    ],
+)
 async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_the_agent(
-    mocker: MockerFixture, tmp_path: Path, agent: NodeAgent
+    mocker: MockerFixture,
+    tmp_path: Path,
+    agent: NodeAgent,
+    settings: dict[str, object],
+    model: str,
+    effort: str,
 ) -> None:
+    loader = TomlDagLoader()
+    spec = loader.parse({"name": "demo", "nodes": [{"id": "A"}], "codex": settings})
     binary = tmp_path / "codex"
     binary.write_text(f"#!{sys.executable}\n{CODEX_SCRIPT}")
     binary.chmod(0o755)
@@ -66,6 +83,7 @@ async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_
         timeout_seconds=30,
         learnings_path=learnings_path,
         transcript_locator=transcript_locator,
+        codex_spec=spec.codex,
     )
     graph_node = GraphNode(id="A")
     launched_session = await launcher.launch(graph_node, "Implement the feature", agent)
@@ -75,6 +93,7 @@ async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_
         timeout_seconds=30,
         learnings_path=learnings_path,
         transcript_locator=transcript_locator,
+        codex_spec=spec.codex,
     )
 
     woken_session = await restarted_launcher.wake(graph_node, "Fix the review", agent)
@@ -85,8 +104,17 @@ async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_
     messages = to_conversation_message_responses(transcript_lines)
     arguments = json.loads(messages[-1].text)
     assert arguments[:2] == ["exec", "resume"]
-    assert 'model="gpt-6-sol"' in arguments
-    assert 'model_reasoning_effort="xhigh"' in arguments
+    for message in messages[1::2]:
+        execution_arguments = json.loads(message.text)
+        assert [arg for arg in execution_arguments if arg.startswith("model=")] == [
+            f'model="{model}"'
+        ]
+        assert [
+            arg
+            for arg in execution_arguments
+            if arg.startswith("model_reasoning_effort=")
+        ] == [f'model_reasoning_effort="{effort}"']
+
     assert 'service_tier="fast"' in arguments
     assert "features.fast_mode=true" in arguments
     assert arguments[-2] == THREAD_ID

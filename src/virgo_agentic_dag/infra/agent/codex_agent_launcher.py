@@ -19,6 +19,7 @@ from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
 from virgo_agentic_dag.domain.infra.agent.transcript_locator import TranscriptLocator
 from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSession
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
+from virgo_agentic_dag.domain.specs.codex_spec import CodexSpec
 from virgo_agentic_dag.labels.en import LABELS
 from virgo_agentic_dag.utils.format_label import format_label
 from virgo_agentic_dag.utils.process import is_process_alive
@@ -41,10 +42,6 @@ class CodexAgentLauncher(AgentLauncher):
         "-c",
         'approvals_reviewer="auto_review"',
         "-c",
-        'model="gpt-6-sol"',
-        "-c",
-        'model_reasoning_effort="xhigh"',
-        "-c",
         'service_tier="fast"',
         "-c",
         "features.fast_mode=true",
@@ -56,17 +53,28 @@ class CodexAgentLauncher(AgentLauncher):
         timeout_seconds: int,
         learnings_path: Path,
         transcript_locator: TranscriptLocator,
+        codex_spec: CodexSpec = CodexSpec(),
     ) -> None:
         self._timeout_seconds = timeout_seconds
         self._learnings_path = learnings_path
         self._transcript_locator = transcript_locator
+
+        model = json.dumps(codex_spec.model, ensure_ascii=False)
+        reasoning_effort = json.dumps(codex_spec.reasoning_effort, ensure_ascii=False)
+        self._agent_flags = [
+            *self._AGENT_FLAGS,
+            "-c",
+            f"model={model}",
+            "-c",
+            f"model_reasoning_effort={reasoning_effort}",
+        ]
 
     async def launch(
         self, graph_node: GraphNode, brief: str, agent: NodeAgent
     ) -> AgentSession:
         """Start a Codex conversation with the node's instructions."""
         prompt = await asyncio.to_thread(self._get_prompt_with_learnings, brief)
-        argv = [self._BINARY, "exec", *self._AGENT_FLAGS, prompt]
+        argv = [self._BINARY, "exec", *self._agent_flags, prompt]
         started_at = datetime.now(UTC)
         pid = await asyncio.to_thread(self._spawn, argv, agent)
 
@@ -80,7 +88,7 @@ class CodexAgentLauncher(AgentLauncher):
         """Resume the node's Codex conversation with new work."""
         resume_id = await asyncio.to_thread(self._get_resume_id, agent)
         prompt = await asyncio.to_thread(self._get_prompt_with_learnings, news)
-        argv = [self._BINARY, "exec", "resume", *self._AGENT_FLAGS, resume_id, prompt]
+        argv = [self._BINARY, "exec", "resume", *self._agent_flags, resume_id, prompt]
         started_at = datetime.now(UTC)
         pid = await asyncio.to_thread(self._spawn, argv, agent)
 
