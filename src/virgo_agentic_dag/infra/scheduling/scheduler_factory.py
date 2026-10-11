@@ -12,12 +12,13 @@ from virgo_agentic_dag.domain.infra.scheduling.host_platform import HostPlatform
 from virgo_agentic_dag.domain.infra.scheduling.scheduler import Scheduler
 from virgo_agentic_dag.domain.infra.scheduling.scheduler_type import SchedulerType
 from virgo_agentic_dag.infra.scheduling.launchd_scheduler import LaunchdScheduler
+from virgo_agentic_dag.infra.scheduling.systemd_scheduler import SystemdScheduler
 
 LAUNCH_AGENTS_HOME = Path.home() / "Library" / "LaunchAgents"
 
 _SCHEDULER_TYPES: Mapping[HostPlatform, SchedulerType] = {
     HostPlatform.MAC: SchedulerType.LAUNCHD,
-    HostPlatform.LINUX: SchedulerType.CRON,
+    HostPlatform.LINUX: SchedulerType.SYSTEMD,
 }
 
 
@@ -39,5 +40,8 @@ class SchedulerFactory:
             return LaunchdScheduler(
                 self._command_runner, LAUNCH_AGENTS_HOME, os.getuid()
             )
+
+        if scheduler_type is SchedulerType.SYSTEMD:
+            return SystemdScheduler(self._command_runner)
 
         raise ConfigError(f"the {scheduler_type.value} scheduler is not built yet")

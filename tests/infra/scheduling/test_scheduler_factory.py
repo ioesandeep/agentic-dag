@@ -2,11 +2,13 @@ import sys
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.domain.exceptions.manifest.config_error import ConfigError
 from virgo_agentic_dag.domain.infra.host.command_runner import CommandRunner
 from virgo_agentic_dag.domain.infra.scheduling.host_platform import HostPlatform
 from virgo_agentic_dag.infra.scheduling.launchd_scheduler import LaunchdScheduler
 from virgo_agentic_dag.infra.scheduling.scheduler_factory import SchedulerFactory
+from virgo_agentic_dag.infra.scheduling.systemd_scheduler import SystemdScheduler
 
 pytestmark = pytest.mark.unit
 
@@ -26,14 +28,15 @@ def test_returns_the_launchd_scheduler_when_the_host_is_a_mac(
     assert isinstance(scheduler, LaunchdScheduler)
 
 
-def test_names_the_missing_scheduler_when_the_host_has_one_we_have_not_built(
-    monkeypatch: pytest.MonkeyPatch, mocker: MockerFixture
+def test_returns_the_systemd_scheduler_when_the_host_is_linux(
+    mocker: MockerFixture,
 ) -> None:
-    stand_on(monkeypatch, HostPlatform.LINUX)
+    mocker.patch.object(sys, "platform", HostPlatform.LINUX.value)
     factory = SchedulerFactory(command_runner=mocker.MagicMock(spec=CommandRunner))
 
-    with pytest.raises(ConfigError, match="cron scheduler is not built yet"):
-        factory.get_scheduler()
+    scheduler = factory.get_scheduler()
+
+    assert isinstance(scheduler, SystemdScheduler)
 
 
 def test_says_no_job_system_is_known_when_the_host_has_none(

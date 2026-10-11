@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from virgo_agentic_dag.domain.command.start_command import StartCommand
+from virgo_agentic_dag.domain.infra.scheduling.host_platform import HostPlatform
 from virgo_agentic_dag.domain.infra.scheduling.scheduled_job import ScheduledJob
 from virgo_agentic_dag.domain.specs.dag_spec import DagSpec
 
@@ -28,6 +29,7 @@ class ScheduledJobBuilder:
     def build(self, command: StartCommand, current_time: datetime) -> ScheduledJob:
         """Return the job that runs this dag's next pass, and every pass after it."""
         home = command.dag_path.parent.resolve()
+        environment_json = self._get_environment_json()
 
         return ScheduledJob(
             dag_name=self._dag_spec.name,
@@ -36,7 +38,7 @@ class ScheduledJobBuilder:
             interval_seconds=self._dag_spec.tick_interval_seconds,
             working_directory=str(home),
             log_path=str(home / LOG_FILE_NAME),
-            environment=json.dumps({"PATH": os.environ.get("PATH", "")}),
+            environment=environment_json,
             created_at=current_time,
         )
 
@@ -47,3 +49,20 @@ class ScheduledJobBuilder:
             "--dag",
             str(command.dag_path.resolve()),
         ]
+
+    def _get_environment_json(self) -> str:
+        environment = {"PATH": os.environ.get("PATH", "")}
+        host_platform = HostPlatform.current()
+        if host_platform is HostPlatform.LINUX:
+            home = Path.home()
+            config_home = os.getenv("XDG_CONFIG_HOME", "")
+            config_path = Path(config_home)
+            is_absolute = config_path.is_absolute()
+            if not is_absolute:
+                config_path = home / ".config"
+
+            home_text = str(home)
+            config_home_text = str(config_path)
+            environment.update(HOME=home_text, XDG_CONFIG_HOME=config_home_text)
+
+        return json.dumps(environment)

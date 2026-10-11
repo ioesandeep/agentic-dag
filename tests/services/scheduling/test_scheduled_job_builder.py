@@ -1,8 +1,12 @@
 import json
+import os
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.domain.command.start_command import StartCommand
 from virgo_agentic_dag.domain.specs.dag_spec import DagSpec
 from virgo_agentic_dag.domain.specs.node_spec import NodeSpec
@@ -59,11 +63,33 @@ def test_waits_as_long_as_the_configuration_asks_between_passes(tmp_path: Path) 
     assert job.label == "fyi.virgo.dag.demo"
 
 
-def test_carries_the_path_it_was_started_with_when_building_the_job(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("platform", "config_home"),
+    [("darwin", "/custom"), ("linux", "/custom"), ("linux", "relative")],
+)
+def test_job_preserves_the_environment_for_the_host_scheduler(
+    platform: str, config_home: str, tmp_path: Path, mocker: MockerFixture
 ) -> None:
-    monkeypatch.setenv("PATH", "/opt/homebrew/bin:/usr/bin")
+    mocker.patch.object(sys, "platform", platform)
+    mocker.patch.dict(
+        os.environ,
+        {
+            "HOME": str(tmp_path),
+            "XDG_CONFIG_HOME": config_home,
+            "PATH": "/usr/bin",
+            "GH_TOKEN": "credential",
+        },
+    )
 
     job = build_builder().build(build_command(tmp_path), NOW)
 
-    assert json.loads(job.environment) == {"PATH": "/opt/homebrew/bin:/usr/bin"}
+    expected_environment = {"PATH": "/usr/bin"}
+    if platform == "linux":
+        effective_config_home = (
+            "/custom" if config_home == "/custom" else str(tmp_path / ".config")
+        )
+        expected_environment.update(
+            HOME=str(tmp_path), XDG_CONFIG_HOME=effective_config_home
+        )
+
+    assert json.loads(job.environment) == expected_environment

@@ -94,6 +94,17 @@ LABELS: dict[str, str] = {
     "runScheduled": "this host will run {job} until the run settles\n",
     "runUnscheduled": "this host will no longer run {job}\n",
     "runNotScheduled": "no host is running {dag}; there is nothing to abort\n",
+    "systemdCommandFailed": "Command {command} fails with error {error}.",
+    "systemdFileFailed": "The systemd unit file operation for {job} fails with error {error}.",
+    "systemdRegisterFailed": "Systemd registration for {job} fails with error {error}.",
+    "systemdRollbackFailed": (
+        "Systemd rollback for {job} after error {error} fails with error {cleanup_error}."
+    ),
+    "systemdStateMissing": "Systemd returns no unit state for {unit}.",
+    "systemdTemplateFailed": "Systemd unit template {template} fails with error {error}.",
+    "systemdPathInvalid": (
+        "systemd paths cannot contain line breaks, NUL, or a final backslash"
+    ),
     "dagUnknown": "no dag named {dag} lives on this host",
     "nodeUnknown": "no node named {node} is in dag {dag} on this host",
     "transcriptCursorPastEnd": (

@@ -252,6 +252,73 @@ uv run dagctl --help
 The package requires Python 3.13.12 or a later Python 3.13 release. uv installs a compatible
 interpreter when needed. Run the commands below with `uv run dagctl` from this checkout.
 
+### Ubuntu scheduling
+
+Ubuntu hosts with systemd are the supported Linux environment. Install `git`, `gh`, uv,
+and each selected agent CLI under the Unix account that runs the graph. Authenticate those
+tools under the same account. Follow the installation commands above and verify user manager
+access before starting a graph:
+
+```sh
+systemctl --user show --property=Version
+uv run dagctl start --dag /absolute/path/dag.toml
+```
+
+`start` checks systemd access before launching agents. It performs the first tick, then enables
+a user timer for subsequent ticks. The timer runs the absolute `dagctl start` executable from
+the installation, with the absolute manifest path. Keep that installation available while the
+run is scheduled. macOS continues to use launchd.
+
+The units are installed in `~/.config/systemd/user`, or `$XDG_CONFIG_HOME/systemd/user` when
+`XDG_CONFIG_HOME` is absolute. The job records `HOME`, the effective `XDG_CONFIG_HOME`, and
+`PATH`. A scheduled invocation uses the same configuration directory for retirement. systemd
+links units into its search path when the installation directory differs from the user manager's
+configuration directory. Put credentials in the run's `.env.local`. Generated units contain
+the execution environment, without copying credentials from the calling shell.
+
+Logout and boot scheduling require an available user manager. An administrator can configure
+lingering for the execution account, such as `sandeep`:
+
+```sh
+sudo loginctl enable-linger sandeep
+loginctl show-user sandeep --property=Linger
+```
+
+Lingering starts that account's user manager at boot and keeps it available after logout.
+The framework does not configure lingering or request administrator privileges. Run `dagctl`
+from a session with working `systemctl --user` access. Resolve user bus access errors before
+starting the graph.
+
+The timer uses `OnActiveSec` and `OnUnitActiveSec` in seconds, with `AccuracySec=1s`.
+Intervals below a minute remain valid. A failed tick does not disable the timer. A tick that
+exceeds its interval completes before systemd activates the service again. The run lock still
+serializes manual, timer, and watcher ticks. An enabled timer resumes when its user manager
+starts, without replaying ticks missed while the manager was unavailable.
+
+The tick service uses `Type=oneshot` and `KillMode=process`. Detached agents and the watcher
+must continue after the tick process exits because the framework controls their termination.
+Starting a new Unix session does not remove a process from its systemd control group.
+Exit codes `3` and `75` count as success. Exit code `1` remains a service failure.
+The service does not restart automatically or stay active after a tick.
+
+For a run named `demo`, inspect its units and output with:
+
+```sh
+systemctl --user list-timers 'fyi.virgo.dag.*'
+systemctl --user status fyi.virgo.dag.demo.timer fyi.virgo.dag.demo.service
+systemctl --user cat fyi.virgo.dag.demo.service fyi.virgo.dag.demo.timer
+journalctl --user -u fyi.virgo.dag.demo.service
+tail -f /absolute/path/start.log
+uv run dagctl abort demo
+```
+
+Unit identifiers escape special characters in the run's label using systemd syntax.
+Tick stdout and stderr append to `start.log` beside the manifest. The watcher uses `watch.log`
+in the run directory. Completion and `abort` disable the timer and remove both units.
+Retirement requests a timer stop without waiting for a service that is performing that cleanup.
+This change has mocked systemd process tests. Real Ubuntu container validation belongs to the
+next change. No Ubuntu release has been verified by these tests.
+
 ## dagctl
 
 `dagctl` is the whole framework. There is no daemon and no service to install: every verb reads the

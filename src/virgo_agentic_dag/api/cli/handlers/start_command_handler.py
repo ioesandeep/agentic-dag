@@ -55,6 +55,11 @@ class StartCommandHandler(CommandHandler[StartCommand]):
         self._notification_publisher = notification_publisher
 
     async def handle(self, command: StartCommand) -> ExitCode:
+        current_time = datetime.now(UTC)
+        job = self._scheduled_job_builder.build(command, current_time)
+        scheduler = self._scheduler_factory.get_scheduler()
+        await scheduler.is_registered(job)
+
         exit_code = await self._tick_command_handler.handle(command)
         # TODO: count consecutive failures and retire the job past a threshold
         if exit_code is ExitCode.FAILURE:

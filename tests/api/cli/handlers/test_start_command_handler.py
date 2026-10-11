@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.api.cli.handlers.start_command_handler import StartCommandHandler
 from virgo_agentic_dag.bootstrap.application_context import (
     ApplicationContext,
@@ -16,8 +17,9 @@ from virgo_agentic_dag.bootstrap.application_context import (
 from virgo_agentic_dag.domain.command.command_handler import CommandHandler
 from virgo_agentic_dag.domain.command.exit_code import ExitCode
 from virgo_agentic_dag.domain.command.start_command import StartCommand
-from virgo_agentic_dag.domain.infra.scheduling.scheduled_job import ScheduledJob
+from virgo_agentic_dag.domain.exceptions.host.scheduling_error import SchedulingError
 from virgo_agentic_dag.domain.infra.messaging.json_poster import JsonPoster
+from virgo_agentic_dag.domain.infra.scheduling.scheduled_job import ScheduledJob
 from virgo_agentic_dag.domain.infra.scheduling.scheduler import Scheduler
 from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.persistence.entities.node import Node
@@ -97,6 +99,12 @@ async def test_leaves_the_host_waking_the_run_when_a_first_pass_succeeds(
 
     scheduled_job_repo = mocker.MagicMock(spec=ScheduledJobRepo)
 
+    call_order = mocker.MagicMock()
+    call_order.attach_mock(scheduler.is_registered, "lookup")
+    call_order.attach_mock(tick_command_handler.handle, "tick")
+    call_order.attach_mock(scheduler.register, "register")
+    call_order.attach_mock(scheduled_job_repo.save, "save")
+
     handler = StartCommandHandler(
         tick_command_handler=tick_command_handler,
         scheduler_factory=scheduler_factory,
@@ -118,9 +126,54 @@ async def test_leaves_the_host_waking_the_run_when_a_first_pass_succeeds(
         unbind_context(token)
 
     assert exit_code is ExitCode.SUCCESS
-    scheduler.register.assert_awaited_once_with(job)
-    scheduled_job_repo.save.assert_awaited_once_with(job)
+    assert call_order.mock_calls == [
+        mocker.call.lookup(job),
+        mocker.call.tick(command),
+        mocker.call.lookup(job),
+        mocker.call.register(job),
+        mocker.call.save(job),
+    ]
     assert out.getvalue().endswith("\n")
+
+
+@pytest.mark.parametrize("failed_operation", ["is_registered", "register"])
+async def test_start_propagates_scheduling_errors_without_saving_a_job(
+    failed_operation: str, mocker: MockerFixture, job: ScheduledJob, tmp_path: Path
+) -> None:
+    tick_command_handler = mocker.MagicMock(spec=CommandHandler)
+    tick_command_handler.handle.return_value = ExitCode.SUCCESS
+
+    scheduled_job_builder = mocker.MagicMock(spec=ScheduledJobBuilder)
+    scheduled_job_builder.build.return_value = job
+
+    scheduler = mocker.MagicMock(spec=Scheduler)
+    scheduler.is_registered.return_value = False
+    failed_method = getattr(scheduler, failed_operation)
+    failed_method.side_effect = SchedulingError("user manager unavailable")
+    scheduler_factory = mocker.MagicMock(spec=SchedulerFactory)
+    scheduler_factory.get_scheduler.return_value = scheduler
+
+    scheduled_job_repo = mocker.MagicMock(spec=ScheduledJobRepo)
+
+    handler = StartCommandHandler(
+        tick_command_handler=tick_command_handler,
+        scheduler_factory=scheduler_factory,
+        scheduled_job_repo=scheduled_job_repo,
+        node_repo=mocker.MagicMock(spec=NodeRepo),
+        scheduled_job_builder=scheduled_job_builder,
+        watcher_service=mocker.MagicMock(spec=WatcherService),
+        dag_spec=DagSpec(name="demo", nodes=()),
+        notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
+    )
+
+    command = StartCommand(dag_path=tmp_path / "dag.toml")
+
+    with pytest.raises(SchedulingError, match="user manager unavailable"):
+        await handler.handle(command)
+
+    scheduled_job_repo.save.assert_not_awaited()
+    if failed_operation == "is_registered":
+        tick_command_handler.handle.assert_not_awaited()
 
 
 async def test_registers_nothing_when_the_host_already_wakes_the_run(
@@ -385,9 +438,12 @@ async def test_stops_the_watcher_when_the_run_completes(
     watcher_service = mocker.MagicMock(spec=WatcherService)
     watcher_service.forget.return_value = watcher
 
+    scheduler_factory = mocker.MagicMock(spec=SchedulerFactory)
+    scheduler_factory.get_scheduler.return_value = mocker.MagicMock(spec=Scheduler)
+
     handler = StartCommandHandler(
         tick_command_handler=tick_command_handler,
-        scheduler_factory=mocker.MagicMock(spec=SchedulerFactory),
+        scheduler_factory=scheduler_factory,
         scheduled_job_repo=scheduled_job_repo,
         node_repo=mocker.MagicMock(spec=NodeRepo),
         scheduled_job_builder=scheduled_job_builder,
@@ -565,9 +621,12 @@ async def test_posts_the_dag_completed_message_when_the_run_completes(
 
     notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
 
+    scheduler_factory = mocker.MagicMock(spec=SchedulerFactory)
+    scheduler_factory.get_scheduler.return_value = mocker.MagicMock(spec=Scheduler)
+
     handler = StartCommandHandler(
         tick_command_handler=tick_command_handler,
-        scheduler_factory=mocker.MagicMock(spec=SchedulerFactory),
+        scheduler_factory=scheduler_factory,
         scheduled_job_repo=scheduled_job_repo,
         node_repo=node_repo,
         scheduled_job_builder=scheduled_job_builder,

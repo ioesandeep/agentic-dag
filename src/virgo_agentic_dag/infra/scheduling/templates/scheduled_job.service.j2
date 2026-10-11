@@ -1,0 +1,12 @@
+[Unit]
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=:{{ command }}
+WorkingDirectory={{ working_directory }}
+Environment={{ environment }}
+StandardOutput=append:{{ log_path }}
+StandardError=append:{{ log_path }}
+SuccessExitStatus=3 75
+KillMode=process
