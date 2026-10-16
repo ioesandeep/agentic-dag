@@ -11,6 +11,10 @@ from virgo_agentic_dag.domain.execution.run_result import RunResult
 from virgo_agentic_dag.domain.infra.host.command_runner import CommandRunner
 from virgo_agentic_dag.domain.infra.scheduling.scheduled_job import ScheduledJob
 from virgo_agentic_dag.domain.infra.scheduling.scheduler import Scheduler
+from virgo_agentic_dag.infra.scheduling.systemd_retirement import (
+    get_retirement_command,
+    lock_units,
+)
 from virgo_agentic_dag.infra.scheduling.systemd_unit import SystemdUnit
 from virgo_agentic_dag.labels.en import LABELS
 
@@ -33,6 +37,10 @@ class SystemdScheduler(Scheduler):
     async def register(self, job: ScheduledJob) -> None:
         """Registers a scheduled job with systemd."""
         unit_files = await asyncio.to_thread(SystemdUnit.list_for_job, job)
+        async with lock_units(unit_files[0].path):
+            await self._register(job, unit_files)
+
+    async def _register(self, job: ScheduledJob, unit_files: list[SystemdUnit]) -> None:
         was_registered = await self.is_registered(job)
         try:
             previous_files = await asyncio.to_thread(
@@ -63,15 +71,22 @@ class SystemdScheduler(Scheduler):
     async def retire(self, job: ScheduledJob) -> None:
         """Removes future ticks while the current invocation completes."""
         unit_files = await asyncio.to_thread(SystemdUnit.list_for_job, job)
+        async with lock_units(unit_files[0].path):
+            await self._retire(unit_files)
+
+    async def _retire(self, unit_files: list[SystemdUnit]) -> None:
         try:
-            await self._disable_units(unit_files)
-
-            removed_files = [SystemdUnit(unit.path, None) for unit in unit_files]
+            timer_files = unit_files[1:]
+            await self._disable_units(timer_files)
+            removed_files = [SystemdUnit(unit.path, None) for unit in timer_files]
             await asyncio.to_thread(self._write_files, removed_files)
-
             await self._run(["daemon-reload"])
+            cleanup_command = get_retirement_command(unit_files[0].path)
+            await self._run(cleanup_command, executable="systemd-run")
         except OSError as error:
-            message = LABELS["systemdFileFailed"].format(job=job.label, error=error)
+            message = LABELS["systemdFileFailed"].format(
+                job=unit_files[0].path.name, error=error
+            )
 
             raise SchedulingError(message) from error
 
@@ -126,8 +141,13 @@ class SystemdScheduler(Scheduler):
 
         return SystemdUnitState(load_state, active_state, unit_file_state)
 
-    async def _run(self, arguments: list[str], missing_ok: bool = False) -> RunResult:
-        command = ["systemctl", "--user", *arguments]
+    async def _run(
+        self,
+        arguments: list[str],
+        missing_ok: bool = False,
+        executable: str = "systemctl",
+    ) -> RunResult:
+        command = [executable, "--user", *arguments]
         command_text = " ".join(command)
         try:
             run_result = await asyncio.to_thread(self._command_runner.run, command)
@@ -173,9 +193,15 @@ class SystemdScheduler(Scheduler):
         try:
             try:
                 if not was_registered:
-                    await self.retire(job)
+                    unit_files = await asyncio.to_thread(SystemdUnit.list_for_job, job)
+                    await self._retire(unit_files)
             finally:
-                await asyncio.to_thread(self._write_files, previous_files)
+                restored_files = [
+                    unit
+                    for unit in previous_files
+                    if was_registered or unit.content is not None
+                ]
+                await asyncio.to_thread(self._write_files, restored_files)
 
             await self._run(["daemon-reload"])
             if was_registered:

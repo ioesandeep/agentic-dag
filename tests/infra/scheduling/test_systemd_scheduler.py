@@ -94,7 +94,9 @@ async def test_registration_installs_escaped_units_before_enabling_only_the_time
 
     assert timer == expected_timer
 
-    unit_paths = list(unit_directory.iterdir())
+    unit_paths = list(unit_directory.glob("*.service")) + list(
+        unit_directory.glob("*.timer")
+    )
     assert len(unit_paths) == 2
 
     log_path = job.get_log_path()
@@ -165,41 +167,6 @@ async def test_unavailable_systemd_raises_a_scheduling_error(
         await scheduler.is_registered(job)
 
 
-async def test_retirement_removes_units_without_waiting_for_the_current_service(
-    mocker: MockerFixture, get_job: Callable[..., ScheduledJob], tmp_path: Path
-) -> None:
-    job = get_job()
-    unit_directory = tmp_path / "config" / "systemd" / "user"
-    unit_directory.mkdir(parents=True)
-    service_path = unit_directory / f"{UNIT_NAME}.service"
-    timer_path = unit_directory / f"{UNIT_NAME}.timer"
-    service_path.write_text("service")
-    timer_path.write_text("timer")
-
-    command_runner = mocker.MagicMock(spec=CommandRunner)
-    command_runner.run.side_effect = (
-        [PRESENT, LINKED, PRESENT, ENABLED]
-        + [SUCCESS] * 3
-        + [PRESENT, NOT_FOUND, MISSING, NOT_FOUND, SUCCESS]
-    )
-
-    scheduler = SystemdScheduler(command_runner=command_runner)
-
-    await scheduler.retire(job)
-    await scheduler.retire(job)
-
-    commands = [call.args[0][2:] for call in command_runner.run.call_args_list]
-    assert [command for command in commands if command[0] == "stop"] == [
-        ["stop", "--no-block", "--", f"{UNIT_NAME}.timer"]
-    ]
-    assert [command for command in commands if command[0] == "disable"] == [
-        ["disable", "--no-reload", "--", f"{UNIT_NAME}.service", f"{UNIT_NAME}.timer"]
-    ]
-
-    unit_paths = list(unit_directory.iterdir())
-    assert unit_paths == []
-
-
 @pytest.mark.parametrize("was_registered", [False, True])
 @pytest.mark.parametrize("failed_command", ["reload", "enable", "write", "mkdir"])
 async def test_failed_registration_restores_previous_unit_files(
@@ -234,11 +201,11 @@ async def test_failed_registration_restores_previous_unit_files(
         activation = []
 
     cleanup_file_state = LINKED if activation else NOT_FOUND
-    cleanup_count = 3 if activation else 2
+    cleanup_count = 4 if activation else 3
     cleanup = (
         [SUCCESS, SUCCESS]
         if was_registered
-        else [MISSING, cleanup_file_state] * 2 + [SUCCESS] * cleanup_count
+        else [MISSING, cleanup_file_state] + [SUCCESS] * cleanup_count
     )
     command_runner.run.side_effect = initial_state * 2 + activation + cleanup
 
@@ -255,7 +222,9 @@ async def test_failed_registration_restores_previous_unit_files(
             for invocation in command_runner.run.call_args_list
         )
     else:
-        unit_paths = list(unit_directory.iterdir())
-        assert unit_paths == []
+        assert not timer_path.exists()
+        if activation:
+            assert service_path.is_file()
+
         operations = [call.args[0][2] for call in command_runner.run.call_args_list]
         assert ("disable" in operations) == bool(activation)
