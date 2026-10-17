@@ -73,6 +73,21 @@ export const NODE_STATE_LABELS_LOWERCASE: Record<NodeStateEnum, string> = {
 };
 
 export const LABELS = {
+  projectsHeading: 'Projects',
+  projectCreate: 'Create project',
+  projectsShowArchived: 'Show archived',
+  projectsLoading: 'Loading projects…',
+  projectsEmpty: 'No projects to show',
+  projectsEmptyHint: 'Create a project to organize repositories.',
+  projectsLoadFailed: 'Could not load projects.',
+  projectsRefreshFailed:
+    'Could not refresh projects. The previous projects are still displayed.',
+  projectsRetry: 'Retry',
+  projectDefault: 'Default project',
+  projectActive: 'Active',
+  projectArchived: 'Archived',
+  projectRepositoryCounts:
+    'Repositories: {total} · Ready: {ready} · Importing: {importing} · Failed: {failed} · Unavailable: {unavailable}',
   appTitle: 'virgo-dag',
   appDescription: 'The dags this host records.',
   apiRequestFailed:
