@@ -40,6 +40,9 @@ dev = [
 requires = ["uv_build>=0.5.0,<0.12"]
 build-backend = "uv_build"
 
+[tool.uv.build-backend]
+source-include = ["src/virgo_agentic_dag/catalog_migrations/**"]
+
 [tool.ruff]
 line-length = 88
 
