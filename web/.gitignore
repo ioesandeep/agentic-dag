@@ -7,3 +7,5 @@ screenshots/
 recordings/
 test-results/
 playwright-report/
+.vitest/
+coverage/
