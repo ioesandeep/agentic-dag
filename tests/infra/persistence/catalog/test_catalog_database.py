@@ -121,8 +121,11 @@ async def test_catalog_initialization_preserves_run_storage(tmp_path: Path) -> N
         catalog_tables = await session.execute(schema)
 
     await database.dispose()
-    assert catalog_revisions.all() == []
-    assert catalog_tables.all() == [("alembic_version",)]
+    catalog_table_rows = catalog_tables.all()
+    catalog_table_set = set(catalog_table_rows)
+
+    assert catalog_revisions.all() == [("c001",)]
+    assert catalog_table_set == {("alembic_version",), ("projects",)}
     assert run_path.read_bytes() == original_run
     assert manifest.read_text() == 'name = "existing"\n'
 
