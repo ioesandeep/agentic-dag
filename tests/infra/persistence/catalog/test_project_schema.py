@@ -8,7 +8,7 @@ from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import MetaData, create_engine, inspect
 from sqlalchemy.exc import IntegrityError
 
 from virgo_agentic_dag.config.catalog_settings import CatalogSettings
@@ -101,6 +101,8 @@ async def test_projects_reject_duplicate_catalog_keys(
 
 
 def test_project_migration_matches_model_after_each_upgrade(tmp_path: Path) -> None:
+    project_metadata = MetaData()
+    Project.__table__.to_metadata(project_metadata)
     migrations_path = files("virgo_agentic_dag") / "catalog_migrations"
     script_location = str(migrations_path)
     config = Config()
@@ -116,7 +118,7 @@ def test_project_migration_matches_model_after_each_upgrade(tmp_path: Path) -> N
                     connection, opts={"compare_server_default": True}
                 )
                 schema_differences = compare_metadata(
-                    migration_context, Project.metadata
+                    migration_context, project_metadata
                 )
                 assert schema_differences == []
                 command.downgrade(config, "base")
