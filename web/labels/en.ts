@@ -73,6 +73,12 @@ export const NODE_STATE_LABELS_LOWERCASE: Record<NodeStateEnum, string> = {
 };
 
 export const LABELS = {
+  selectionProject: 'Choose a project',
+  selectionRepository: 'Choose a repository',
+  selectionLoading: 'Loading project and repository choices…',
+  selectionLoadFailed: 'Could not load catalog choices. Try again.',
+  selectionNoReadyRepository: 'No ready checkout is available. Add a repository, retry its import, or repair its checkout path in Repositories.',
+  selectionAddRepository: 'Add repository',
   projectsHeading: 'Projects',
   projectCreate: 'Create project',
   projectsShowArchived: 'Show archived',

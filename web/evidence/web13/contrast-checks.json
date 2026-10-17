@@ -1,0 +1,110 @@
+[
+  {
+    "colorScheme": "light",
+    "state": "multiple",
+    "interaction": "normal",
+    "contrast": 6.71
+  },
+  {
+    "colorScheme": "light",
+    "state": "multiple",
+    "interaction": "hover",
+    "contrast": 6.33
+  },
+  {
+    "colorScheme": "light",
+    "state": "multiple",
+    "interaction": "focus",
+    "contrast": 6.33
+  },
+  {
+    "colorScheme": "light",
+    "state": "error",
+    "interaction": "normal",
+    "contrast": 6.24
+  },
+  {
+    "colorScheme": "light",
+    "state": "error",
+    "interaction": "hover",
+    "contrast": 5.89
+  },
+  {
+    "colorScheme": "light",
+    "state": "error",
+    "interaction": "focus",
+    "contrast": 5.89
+  },
+  {
+    "colorScheme": "light",
+    "state": "loading",
+    "interaction": "normal",
+    "contrast": 7.18
+  },
+  {
+    "colorScheme": "light",
+    "state": "loading",
+    "interaction": "hover",
+    "contrast": 7.18
+  },
+  {
+    "colorScheme": "light",
+    "state": "loading",
+    "interaction": "focus",
+    "contrast": 7.18
+  },
+  {
+    "colorScheme": "dark",
+    "state": "multiple",
+    "interaction": "normal",
+    "contrast": 6.36
+  },
+  {
+    "colorScheme": "dark",
+    "state": "multiple",
+    "interaction": "hover",
+    "contrast": 5.76
+  },
+  {
+    "colorScheme": "dark",
+    "state": "multiple",
+    "interaction": "focus",
+    "contrast": 5.76
+  },
+  {
+    "colorScheme": "dark",
+    "state": "error",
+    "interaction": "normal",
+    "contrast": 6.44
+  },
+  {
+    "colorScheme": "dark",
+    "state": "error",
+    "interaction": "hover",
+    "contrast": 5.85
+  },
+  {
+    "colorScheme": "dark",
+    "state": "error",
+    "interaction": "focus",
+    "contrast": 5.85
+  },
+  {
+    "colorScheme": "dark",
+    "state": "loading",
+    "interaction": "normal",
+    "contrast": 7.5
+  },
+  {
+    "colorScheme": "dark",
+    "state": "loading",
+    "interaction": "hover",
+    "contrast": 7.5
+  },
+  {
+    "colorScheme": "dark",
+    "state": "loading",
+    "interaction": "focus",
+    "contrast": 7.5
+  }
+]

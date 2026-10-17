@@ -1,0 +1,5 @@
+npm test
+Test Files  5 passed (5)
+      Tests  27 passed (27)
+   Start at  20:00:39
+   Duration  2.62s (transform 312ms, setup 915ms, import 2.59s, tests 2.68s, environment 1.76s)

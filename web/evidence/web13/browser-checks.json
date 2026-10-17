@@ -1,0 +1,272 @@
+[
+  {
+    "state": "loading",
+    "scheme": "light",
+    "width": 1280,
+    "horizontalOverflow": false,
+    "selected": [
+      "Choose a project",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "empty",
+    "scheme": "light",
+    "width": 1280,
+    "horizontalOverflow": false,
+    "selected": [
+      "Default",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "single",
+    "scheme": "light",
+    "width": 1280,
+    "horizontalOverflow": false,
+    "selected": [
+      "Default",
+      "Acme/platform"
+    ],
+    "errors": []
+  },
+  {
+    "state": "multiple",
+    "scheme": "light",
+    "width": 1280,
+    "horizontalOverflow": false,
+    "selected": [
+      "Default",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "error",
+    "scheme": "light",
+    "width": 1280,
+    "horizontalOverflow": false,
+    "selected": [
+      "Choose a project",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "refresh",
+    "scheme": "light",
+    "width": 1280,
+    "horizontalOverflow": false,
+    "selected": [
+      "Default",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "loading",
+    "scheme": "light",
+    "width": 320,
+    "horizontalOverflow": false,
+    "selected": [
+      "Choose a project",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "empty",
+    "scheme": "light",
+    "width": 320,
+    "horizontalOverflow": false,
+    "selected": [
+      "Default",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "single",
+    "scheme": "light",
+    "width": 320,
+    "horizontalOverflow": false,
+    "selected": [
+      "Default",
+      "Acme/platform"
+    ],
+    "errors": []
+  },
+  {
+    "state": "multiple",
+    "scheme": "light",
+    "width": 320,
+    "horizontalOverflow": false,
+    "selected": [
+      "Default",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "error",
+    "scheme": "light",
+    "width": 320,
+    "horizontalOverflow": false,
+    "selected": [
+      "Choose a project",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "refresh",
+    "scheme": "light",
+    "width": 320,
+    "horizontalOverflow": false,
+    "selected": [
+      "Default",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "loading",
+    "scheme": "dark",
+    "width": 1280,
+    "horizontalOverflow": false,
+    "selected": [
+      "Choose a project",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "empty",
+    "scheme": "dark",
+    "width": 1280,
+    "horizontalOverflow": false,
+    "selected": [
+      "Default",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "single",
+    "scheme": "dark",
+    "width": 1280,
+    "horizontalOverflow": false,
+    "selected": [
+      "Default",
+      "Acme/platform"
+    ],
+    "errors": []
+  },
+  {
+    "state": "multiple",
+    "scheme": "dark",
+    "width": 1280,
+    "horizontalOverflow": false,
+    "selected": [
+      "Default",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "error",
+    "scheme": "dark",
+    "width": 1280,
+    "horizontalOverflow": false,
+    "selected": [
+      "Choose a project",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "refresh",
+    "scheme": "dark",
+    "width": 1280,
+    "horizontalOverflow": false,
+    "selected": [
+      "Default",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "loading",
+    "scheme": "dark",
+    "width": 320,
+    "horizontalOverflow": false,
+    "selected": [
+      "Choose a project",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "empty",
+    "scheme": "dark",
+    "width": 320,
+    "horizontalOverflow": false,
+    "selected": [
+      "Default",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "single",
+    "scheme": "dark",
+    "width": 320,
+    "horizontalOverflow": false,
+    "selected": [
+      "Default",
+      "Acme/platform"
+    ],
+    "errors": []
+  },
+  {
+    "state": "multiple",
+    "scheme": "dark",
+    "width": 320,
+    "horizontalOverflow": false,
+    "selected": [
+      "Default",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "error",
+    "scheme": "dark",
+    "width": 320,
+    "horizontalOverflow": false,
+    "selected": [
+      "Choose a project",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "state": "refresh",
+    "scheme": "dark",
+    "width": 320,
+    "horizontalOverflow": false,
+    "selected": [
+      "Default",
+      "Choose a repository"
+    ],
+    "errors": []
+  },
+  {
+    "keyboard": "Repository selection clears after a project change.",
+    "stored": {
+      "catalog.lastProjectId": "acme-id"
+    }
+  }
+]
