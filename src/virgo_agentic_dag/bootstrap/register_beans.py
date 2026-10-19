@@ -234,6 +234,9 @@ from virgo_agentic_dag.services.run.adopt_service import AdoptService
 from virgo_agentic_dag.services.run.adopted_node_importer import AdoptedNodeImporter
 from virgo_agentic_dag.services.run.node_importer import NodeImporter
 from virgo_agentic_dag.services.run.node_skip_service import NodeSkipService
+from virgo_agentic_dag.services.scheduling.run_schedule_service import (
+    RunScheduleService,
+)
 from virgo_agentic_dag.services.scheduling.scheduled_job_builder import (
     ScheduledJobBuilder,
 )
@@ -341,6 +344,7 @@ def register_beans(context: ApplicationContext) -> None:
     context.register(Renderer, lambda _context: MermaidRenderer())
     context.register(PreviewCommandHandler, _build_preview_command_handler)
     context.register(ScheduledJobBuilder, _build_scheduled_job_builder)
+    context.register(RunScheduleService, _build_run_schedule_service)
     context.register(StartCommandHandler, _build_start_command_handler)
     context.register(AbortCommandHandler, _build_abort_command_handler)
     context.register(NodeImporter, _build_node_importer)
@@ -496,6 +500,17 @@ def _build_scheduled_job_builder(context: ApplicationContext) -> ScheduledJobBui
     return ScheduledJobBuilder(context.get(DagSpec), Path(sys.argv[0]).resolve())
 
 
+def _build_run_schedule_service(context: ApplicationContext) -> RunScheduleService:
+    scheduler_factory = context.get(SchedulerFactory)
+    scheduler = scheduler_factory.get_scheduler()
+
+    return RunScheduleService(
+        scheduler=scheduler,
+        scheduled_job_repo=context.get(ScheduledJobRepo),
+        scheduled_job_builder=context.get(ScheduledJobBuilder),
+    )
+
+
 def _build_start_command_handler(context: ApplicationContext) -> StartCommandHandler:
     return StartCommandHandler(
         context.get(TickCommandHandler),
@@ -506,6 +521,7 @@ def _build_start_command_handler(context: ApplicationContext) -> StartCommandHan
         context.get(WatcherService),
         context.get(DagSpec),
         context.get(NotificationPublisher),
+        context.get(RunScheduleService),
     )
 
 

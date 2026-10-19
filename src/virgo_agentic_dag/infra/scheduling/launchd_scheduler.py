@@ -25,21 +25,40 @@ class LaunchdScheduler(Scheduler):
         self._user_id = user_id
 
     async def register(self, job: ScheduledJob) -> None:
-        """Write this job's plist and ask launchd to start running it."""
+        """Register the job with launchd, replacing any job under its label."""
+        is_registered = await self.is_registered(job)
+        if is_registered:
+            await self.retire(job)
+
+        path = await asyncio.to_thread(self._write_plist, job)
+        domain = self._get_domain()
+        argv = ("launchctl", "bootstrap", domain, str(path))
+        try:
+            result = await self._run(argv)
+        except Exception:
+            await asyncio.to_thread(path.unlink, missing_ok=True)
+
+            raise
+
+        if result.returncode != 0:
+            await asyncio.to_thread(path.unlink, missing_ok=True)
+
+            raise SchedulingError(
+                f"launchd failed to register {job.label}: {result.stderr.strip()}"
+            )
+
+    def _write_plist(self, job: ScheduledJob) -> Path:
         path = self._get_plist_path(job.label)
         path.parent.mkdir(parents=True, exist_ok=True)
-        job.get_log_path().parent.mkdir(parents=True, exist_ok=True)
 
+        log_path = job.get_log_path()
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+
+        plist = self._build_plist(job)
         with path.open("wb") as file:
-            plistlib.dump(self._build_plist(job), file)
+            plistlib.dump(plist, file)
 
-        result = await self._run(
-            ("launchctl", "bootstrap", self._get_domain(), str(path))
-        )
-        if result.returncode != 0:
-            raise SchedulingError(
-                f"launchd refused to register {job.label}: {result.stderr.strip()}"
-            )
+        return path
 
     async def retire(self, job: ScheduledJob) -> None:
         """Unregister this job from launchd, which may terminate the calling process."""

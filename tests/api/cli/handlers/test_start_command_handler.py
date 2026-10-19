@@ -45,6 +45,9 @@ from virgo_agentic_dag.infra.persistence.sqlite.sqlite_database import (  # noqa
     SqliteDatabase,
 )
 from virgo_agentic_dag.infra.scheduling.scheduler_factory import SchedulerFactory
+from virgo_agentic_dag.services.scheduling.run_schedule_service import (
+    RunScheduleService,
+)
 from virgo_agentic_dag.services.scheduling.scheduled_job_builder import (
     ScheduledJobBuilder,
 )
@@ -82,7 +85,7 @@ def build_node() -> Callable[[str, str, datetime], Node]:
     )
 
 
-async def test_leaves_the_host_waking_the_run_when_a_first_pass_succeeds(
+async def test_start_reconciles_the_host_job_after_a_successful_pass(
     mocker: MockerFixture, job: ScheduledJob, tmp_path: Path
 ) -> None:
     tick_command_handler = mocker.MagicMock(spec=CommandHandler)
@@ -98,12 +101,13 @@ async def test_leaves_the_host_waking_the_run_when_a_first_pass_succeeds(
     scheduler_factory.get_scheduler.return_value = scheduler
 
     scheduled_job_repo = mocker.MagicMock(spec=ScheduledJobRepo)
+    run_schedule_service = mocker.MagicMock(spec=RunScheduleService)
+    run_schedule_service.reconcile.return_value = job
 
     call_order = mocker.MagicMock()
     call_order.attach_mock(scheduler.is_registered, "lookup")
     call_order.attach_mock(tick_command_handler.handle, "tick")
-    call_order.attach_mock(scheduler.register, "register")
-    call_order.attach_mock(scheduled_job_repo.save, "save")
+    call_order.attach_mock(run_schedule_service.reconcile, "reconcile")
 
     handler = StartCommandHandler(
         tick_command_handler=tick_command_handler,
@@ -111,6 +115,7 @@ async def test_leaves_the_host_waking_the_run_when_a_first_pass_succeeds(
         scheduled_job_repo=scheduled_job_repo,
         node_repo=mocker.MagicMock(spec=NodeRepo),
         scheduled_job_builder=scheduled_job_builder,
+        run_schedule_service=run_schedule_service,
         watcher_service=mocker.MagicMock(spec=WatcherService),
         dag_spec=DagSpec(name="demo", nodes=()),
         notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
@@ -129,14 +134,12 @@ async def test_leaves_the_host_waking_the_run_when_a_first_pass_succeeds(
     assert call_order.mock_calls == [
         mocker.call.lookup(job),
         mocker.call.tick(command),
-        mocker.call.lookup(job),
-        mocker.call.register(job),
-        mocker.call.save(job),
+        mocker.call.reconcile(command.dag_path),
     ]
     assert out.getvalue().endswith("\n")
 
 
-@pytest.mark.parametrize("failed_operation", ["is_registered", "register"])
+@pytest.mark.parametrize("failed_operation", ["is_registered", "reconcile"])
 async def test_start_propagates_scheduling_errors_without_saving_a_job(
     failed_operation: str, mocker: MockerFixture, job: ScheduledJob, tmp_path: Path
 ) -> None:
@@ -148,12 +151,16 @@ async def test_start_propagates_scheduling_errors_without_saving_a_job(
 
     scheduler = mocker.MagicMock(spec=Scheduler)
     scheduler.is_registered.return_value = False
-    failed_method = getattr(scheduler, failed_operation)
-    failed_method.side_effect = SchedulingError("user manager unavailable")
     scheduler_factory = mocker.MagicMock(spec=SchedulerFactory)
     scheduler_factory.get_scheduler.return_value = scheduler
 
     scheduled_job_repo = mocker.MagicMock(spec=ScheduledJobRepo)
+    run_schedule_service = mocker.MagicMock(spec=RunScheduleService)
+    failed_method = scheduler.is_registered
+    if failed_operation == "reconcile":
+        failed_method = run_schedule_service.reconcile
+
+    failed_method.side_effect = SchedulingError("user manager unavailable")
 
     handler = StartCommandHandler(
         tick_command_handler=tick_command_handler,
@@ -161,6 +168,7 @@ async def test_start_propagates_scheduling_errors_without_saving_a_job(
         scheduled_job_repo=scheduled_job_repo,
         node_repo=mocker.MagicMock(spec=NodeRepo),
         scheduled_job_builder=scheduled_job_builder,
+        run_schedule_service=run_schedule_service,
         watcher_service=mocker.MagicMock(spec=WatcherService),
         dag_spec=DagSpec(name="demo", nodes=()),
         notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
@@ -193,6 +201,8 @@ async def test_registers_nothing_when_the_host_already_wakes_the_run(
 
     scheduled_job_repo = mocker.MagicMock(spec=ScheduledJobRepo)
     notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
+    run_schedule_service = mocker.MagicMock(spec=RunScheduleService)
+    run_schedule_service.reconcile.return_value = None
 
     handler = StartCommandHandler(
         tick_command_handler=tick_command_handler,
@@ -200,6 +210,7 @@ async def test_registers_nothing_when_the_host_already_wakes_the_run(
         scheduled_job_repo=scheduled_job_repo,
         node_repo=mocker.MagicMock(spec=NodeRepo),
         scheduled_job_builder=scheduled_job_builder,
+        run_schedule_service=run_schedule_service,
         watcher_service=mocker.MagicMock(spec=WatcherService),
         dag_spec=DagSpec(name="demo", nodes=()),
         notification_publisher=notification_publisher,
@@ -230,6 +241,7 @@ async def test_schedules_nothing_when_the_first_pass_fails(
     scheduler_factory.get_scheduler.return_value = scheduler
 
     scheduled_job_repo = mocker.MagicMock(spec=ScheduledJobRepo)
+    run_schedule_service = mocker.MagicMock(spec=RunScheduleService)
 
     handler = StartCommandHandler(
         tick_command_handler=tick_command_handler,
@@ -237,6 +249,7 @@ async def test_schedules_nothing_when_the_first_pass_fails(
         scheduled_job_repo=scheduled_job_repo,
         node_repo=mocker.MagicMock(spec=NodeRepo),
         scheduled_job_builder=mocker.MagicMock(spec=ScheduledJobBuilder),
+        run_schedule_service=run_schedule_service,
         watcher_service=mocker.MagicMock(spec=WatcherService),
         dag_spec=DagSpec(name="demo", nodes=()),
         notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
@@ -252,6 +265,7 @@ async def test_schedules_nothing_when_the_first_pass_fails(
         unbind_context(token)
 
     assert exit_code is ExitCode.FAILURE
+    run_schedule_service.reconcile.assert_not_awaited()
     scheduler.register.assert_not_awaited()
     scheduled_job_repo.save.assert_not_awaited()
 
@@ -281,6 +295,7 @@ async def test_stops_waking_the_run_when_it_has_settled(
         scheduled_job_repo=scheduled_job_repo,
         node_repo=mocker.MagicMock(spec=NodeRepo),
         scheduled_job_builder=scheduled_job_builder,
+        run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
         watcher_service=watcher_service,
         dag_spec=DagSpec(name="demo", nodes=()),
         notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
@@ -325,6 +340,7 @@ async def test_settles_quietly_when_no_host_was_waking_the_run(
         scheduled_job_repo=scheduled_job_repo,
         node_repo=mocker.MagicMock(spec=NodeRepo),
         scheduled_job_builder=scheduled_job_builder,
+        run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
         watcher_service=watcher_service,
         dag_spec=DagSpec(name="demo", nodes=()),
         notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
@@ -366,6 +382,7 @@ async def test_starts_the_watcher_when_a_stream_is_configured(
         scheduled_job_repo=mocker.MagicMock(spec=ScheduledJobRepo),
         node_repo=mocker.MagicMock(spec=NodeRepo),
         scheduled_job_builder=scheduled_job_builder,
+        run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
         watcher_service=watcher_service,
         dag_spec=DagSpec(name="demo", nodes=(), sse_url=SSE_URL),
         notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
@@ -406,6 +423,7 @@ async def test_starts_no_watcher_when_no_stream_is_configured(
         scheduled_job_repo=mocker.MagicMock(spec=ScheduledJobRepo),
         node_repo=mocker.MagicMock(spec=NodeRepo),
         scheduled_job_builder=scheduled_job_builder,
+        run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
         watcher_service=watcher_service,
         dag_spec=DagSpec(name="demo", nodes=(), sse_url=""),
         notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
@@ -447,6 +465,7 @@ async def test_stops_the_watcher_when_the_run_completes(
         scheduled_job_repo=scheduled_job_repo,
         node_repo=mocker.MagicMock(spec=NodeRepo),
         scheduled_job_builder=scheduled_job_builder,
+        run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
         watcher_service=watcher_service,
         dag_spec=DagSpec(name="demo", nodes=(), sse_url=SSE_URL),
         notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
@@ -501,6 +520,7 @@ async def test_concludes_in_the_order_that_survives_self_fatal_kills(
         scheduled_job_repo=scheduled_job_repo,
         node_repo=mocker.MagicMock(spec=NodeRepo),
         scheduled_job_builder=scheduled_job_builder,
+        run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
         watcher_service=watcher_service,
         dag_spec=DagSpec(name="demo", nodes=()),
         notification_publisher=notification_publisher,
@@ -557,6 +577,7 @@ async def test_posts_the_dag_started_message_when_the_host_job_is_registered(
         scheduled_job_repo=mocker.MagicMock(spec=ScheduledJobRepo),
         node_repo=node_repo,
         scheduled_job_builder=scheduled_job_builder,
+        run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
         watcher_service=mocker.MagicMock(spec=WatcherService),
         dag_spec=DagSpec(name="demo", nodes=()),
         notification_publisher=notification_publisher,
@@ -630,6 +651,7 @@ async def test_posts_the_dag_completed_message_when_the_run_completes(
         scheduled_job_repo=scheduled_job_repo,
         node_repo=node_repo,
         scheduled_job_builder=scheduled_job_builder,
+        run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
         watcher_service=watcher_service,
         dag_spec=DagSpec(name="demo", nodes=()),
         notification_publisher=notification_publisher,

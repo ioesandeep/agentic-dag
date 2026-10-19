@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 from pytest_mock import MockerFixture
 
-from virgo_agentic_dag.domain.command.start_command import StartCommand
 from virgo_agentic_dag.domain.specs.dag_spec import DagSpec
 from virgo_agentic_dag.domain.specs.node_spec import NodeSpec
 from virgo_agentic_dag.services.scheduling.scheduled_job_builder import (
@@ -30,14 +29,13 @@ def build_builder(tick_interval_seconds: int = 300) -> ScheduledJobBuilder:
     return ScheduledJobBuilder(spec, EXECUTABLE)
 
 
-def build_command(tmp_path: Path) -> StartCommand:
-    return StartCommand(dag_path=tmp_path / "dag.toml")
-
-
 def test_runs_the_same_dagctl_that_started_it_when_building_the_job(
     tmp_path: Path,
 ) -> None:
-    job = build_builder().build(build_command(tmp_path), NOW)
+    builder = build_builder()
+    dag_path = tmp_path / "dag.toml"
+
+    job = builder.build(dag_path, NOW)
 
     assert job.get_argv() == [
         str(EXECUTABLE),
@@ -50,14 +48,20 @@ def test_runs_the_same_dagctl_that_started_it_when_building_the_job(
 def test_works_where_the_graph_lives_when_building_the_job(
     tmp_path: Path,
 ) -> None:
-    job = build_builder().build(build_command(tmp_path), NOW)
+    builder = build_builder()
+    dag_path = tmp_path / "dag.toml"
+
+    job = builder.build(dag_path, NOW)
 
     assert job.get_working_directory() == tmp_path
     assert job.get_log_path() == tmp_path / "start.log"
 
 
 def test_waits_as_long_as_the_configuration_asks_between_passes(tmp_path: Path) -> None:
-    job = build_builder(tick_interval_seconds=600).build(build_command(tmp_path), NOW)
+    builder = build_builder(tick_interval_seconds=600)
+    dag_path = tmp_path / "dag.toml"
+
+    job = builder.build(dag_path, NOW)
 
     assert job.interval_seconds == 600
     assert job.label == "fyi.virgo.dag.demo"
@@ -81,7 +85,10 @@ def test_job_preserves_the_environment_for_the_host_scheduler(
         },
     )
 
-    job = build_builder().build(build_command(tmp_path), NOW)
+    builder = build_builder()
+    dag_path = tmp_path / "dag.toml"
+
+    job = builder.build(dag_path, NOW)
 
     expected_environment = {"PATH": "/usr/bin"}
     if platform == "linux":

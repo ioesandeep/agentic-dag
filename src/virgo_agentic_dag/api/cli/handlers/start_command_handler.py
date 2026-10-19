@@ -24,6 +24,9 @@ from virgo_agentic_dag.domain.service.notification_publisher import (
 from virgo_agentic_dag.domain.specs.dag_spec import DagSpec
 from virgo_agentic_dag.infra.scheduling.scheduler_factory import SchedulerFactory
 from virgo_agentic_dag.labels.en import LABELS
+from virgo_agentic_dag.services.scheduling.run_schedule_service import (
+    RunScheduleService,
+)
 from virgo_agentic_dag.services.scheduling.scheduled_job_builder import (
     ScheduledJobBuilder,
 )
@@ -44,6 +47,7 @@ class StartCommandHandler(CommandHandler[StartCommand]):
         watcher_service: WatcherService,
         dag_spec: DagSpec,
         notification_publisher: NotificationPublisher,
+        run_schedule_service: RunScheduleService,
     ) -> None:
         self._tick_command_handler = tick_command_handler
         self._scheduler_factory = scheduler_factory
@@ -53,10 +57,11 @@ class StartCommandHandler(CommandHandler[StartCommand]):
         self._watcher_service = watcher_service
         self._dag_spec = dag_spec
         self._notification_publisher = notification_publisher
+        self._run_schedule_service = run_schedule_service
 
     async def handle(self, command: StartCommand) -> ExitCode:
         current_time = datetime.now(UTC)
-        job = self._scheduled_job_builder.build(command, current_time)
+        job = self._scheduled_job_builder.build(command.dag_path, current_time)
         scheduler = self._scheduler_factory.get_scheduler()
         await scheduler.is_registered(job)
 
@@ -92,15 +97,9 @@ class StartCommandHandler(CommandHandler[StartCommand]):
             self._watcher_service.kill(watcher)
 
     async def _register(self, command: StartCommand) -> ScheduledJob | None:
-        """Register the host job that wakes this run, or return None when the host already wakes it."""
-        job = self._scheduled_job_builder.build(command, datetime.now(UTC))
-        scheduler = self._scheduler_factory.get_scheduler()
-        if await scheduler.is_registered(job):
-            return None
-
-        await scheduler.register(job)
-        await self._scheduled_job_repo.save(job)
-        emit(format_label(LABELS["runScheduled"], {"job": job.label}) + "\n")
+        job = await self._run_schedule_service.reconcile(command.dag_path)
+        if job is not None:
+            emit(format_label(LABELS["runScheduled"], {"job": job.label}) + "\n")
 
         return job
 

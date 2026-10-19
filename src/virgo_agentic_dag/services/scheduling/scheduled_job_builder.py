@@ -7,7 +7,6 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from virgo_agentic_dag.domain.command.start_command import StartCommand
 from virgo_agentic_dag.domain.infra.scheduling.host_platform import HostPlatform
 from virgo_agentic_dag.domain.infra.scheduling.scheduled_job import ScheduledJob
 from virgo_agentic_dag.domain.specs.dag_spec import DagSpec
@@ -26,15 +25,16 @@ class ScheduledJobBuilder:
         """Return the dag this builder describes jobs for."""
         return self._dag_spec.name
 
-    def build(self, command: StartCommand, current_time: datetime) -> ScheduledJob:
+    def build(self, dag_path: Path, current_time: datetime) -> ScheduledJob:
         """Return the job that runs this dag's next pass, and every pass after it."""
-        home = command.dag_path.parent.resolve()
+        home = dag_path.parent.resolve()
         environment_json = self._get_environment_json()
+        argv = self._build_argv(dag_path)
 
         return ScheduledJob(
             dag_name=self._dag_spec.name,
             label=ScheduledJob.get_label(self._dag_spec.name),
-            argv=json.dumps(self._build_argv(command)),
+            argv=json.dumps(argv),
             interval_seconds=self._dag_spec.tick_interval_seconds,
             working_directory=str(home),
             log_path=str(home / LOG_FILE_NAME),
@@ -42,12 +42,14 @@ class ScheduledJobBuilder:
             created_at=current_time,
         )
 
-    def _build_argv(self, command: StartCommand) -> list[str]:
+    def _build_argv(self, dag_path: Path) -> list[str]:
+        resolved_dag_path = dag_path.resolve()
+
         return [
             str(self._executable),
             "start",
             "--dag",
-            str(command.dag_path.resolve()),
+            str(resolved_dag_path),
         ]
 
     def _get_environment_json(self) -> str:

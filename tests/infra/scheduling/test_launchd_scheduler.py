@@ -6,6 +6,7 @@ from unittest.mock import call
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.domain.exceptions.host.scheduling_error import SchedulingError
 from virgo_agentic_dag.domain.execution.run_result import RunResult
 from virgo_agentic_dag.domain.infra.host.command_runner import CommandRunner
@@ -38,11 +39,17 @@ def read_plist(agents_directory: Path) -> dict[str, object]:
         return dict(plistlib.load(file))
 
 
-async def test_bootstraps_into_this_users_domain_when_registering(
-    mocker: MockerFixture, job: ScheduledJob, tmp_path: Path
+@pytest.mark.parametrize("is_loaded", [False, True])
+async def test_register_replaces_a_loaded_label_before_bootstrap(
+    is_loaded: bool, mocker: MockerFixture, job: ScheduledJob, tmp_path: Path
 ) -> None:
     command_runner = mocker.MagicMock(spec=CommandRunner)
     command_runner.run.return_value = RunResult(returncode=0)
+    command_runner.run.side_effect = [
+        RunResult(returncode=0 if is_loaded else 1),
+        RunResult(returncode=0),
+        RunResult(returncode=0),
+    ]
 
     scheduler = LaunchdScheduler(
         command_runner=command_runner, agents_directory=tmp_path, user_id=USER_ID
@@ -50,9 +57,16 @@ async def test_bootstraps_into_this_users_domain_when_registering(
 
     await scheduler.register(job)
 
-    command_runner.run.assert_called_once_with(
+    expected_calls = [call(("launchctl", "list", LABEL))]
+    if is_loaded:
+        bootout_call = call(("launchctl", "bootout", f"gui/{USER_ID}/{LABEL}"))
+        expected_calls.append(bootout_call)
+
+    bootstrap_call = call(
         ("launchctl", "bootstrap", f"gui/{USER_ID}", str(tmp_path / f"{LABEL}.plist"))
     )
+    expected_calls.append(bootstrap_call)
+    assert command_runner.run.call_args_list == expected_calls
 
 
 async def test_asks_the_host_to_wait_between_runs_when_the_schedule_is_an_interval(
@@ -116,18 +130,28 @@ async def test_carries_the_command_and_its_environment_when_writing_the_plist(
     assert plist["StandardOutPath"] == str(tmp_path / "start.log")
 
 
-async def test_raises_when_launchd_refuses_to_register(
-    mocker: MockerFixture, job: ScheduledJob, tmp_path: Path
+@pytest.mark.parametrize("raises_exception", [False, True])
+async def test_register_deletes_the_plist_when_bootstrap_fails(
+    raises_exception: bool, mocker: MockerFixture, job: ScheduledJob, tmp_path: Path
 ) -> None:
     command_runner = mocker.MagicMock(spec=CommandRunner)
-    command_runner.run.return_value = RunResult(returncode=1, stderr="launchd said no")
+    bootstrap_failure: RunResult | OSError = RunResult(
+        returncode=1, stderr="bootstrap fails"
+    )
+    if raises_exception:
+        bootstrap_failure = OSError("bootstrap fails")
+
+    command_runner.run.side_effect = [RunResult(returncode=1), bootstrap_failure]
 
     scheduler = LaunchdScheduler(
         command_runner=command_runner, agents_directory=tmp_path, user_id=USER_ID
     )
 
-    with pytest.raises(SchedulingError, match="launchd said no"):
+    error_type = OSError if raises_exception else SchedulingError
+    with pytest.raises(error_type, match="bootstrap fails"):
         await scheduler.register(job)
+
+    assert not (tmp_path / f"{LABEL}.plist").exists()
 
 
 async def test_boots_it_out_and_deletes_the_plist_when_retiring(
@@ -140,10 +164,11 @@ async def test_boots_it_out_and_deletes_the_plist_when_retiring(
         command_runner=command_runner, agents_directory=tmp_path, user_id=USER_ID
     )
     await scheduler.register(job)
+    command_runner.run.reset_mock()
 
     await scheduler.retire(job)
 
-    assert command_runner.run.call_args_list[1] == call(
+    command_runner.run.assert_called_once_with(
         ("launchctl", "bootout", f"gui/{USER_ID}/{LABEL}")
     )
     assert not (tmp_path / f"{LABEL}.plist").exists()
