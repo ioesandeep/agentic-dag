@@ -1,5 +1,0 @@
-Command: npm test
-Location: independent CI package export after npm ci.
-Test Files 3 passed (3)
-Tests 11 passed (11)
-Duration 4.25s

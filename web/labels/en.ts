@@ -73,27 +73,6 @@ export const NODE_STATE_LABELS_LOWERCASE: Record<NodeStateEnum, string> = {
 };
 
 export const LABELS = {
-  selectionProject: 'Choose a project',
-  selectionRepository: 'Choose a repository',
-  selectionLoading: 'Loading project and repository choices…',
-  selectionLoadFailed: 'Could not load catalog choices. Try again.',
-  selectionNoReadyRepository: 'No ready checkout is available. Add a repository, retry its import, or repair its checkout path in Repositories.',
-  selectionAddRepository: 'Add repository',
-  projectsHeading: 'Projects',
-  projectCreate: 'Create project',
-  projectsShowArchived: 'Show archived',
-  projectsLoading: 'Loading projects…',
-  projectsEmpty: 'No projects to show',
-  projectsEmptyHint: 'Create a project to organize repositories.',
-  projectsLoadFailed: 'Could not load projects.',
-  projectsRefreshFailed:
-    'Could not refresh projects. The previous projects are still displayed.',
-  projectsRetry: 'Retry',
-  projectDefault: 'Default project',
-  projectActive: 'Active',
-  projectArchived: 'Archived',
-  projectRepositoryCounts:
-    'Repositories: {total} · Ready: {ready} · Importing: {importing} · Failed: {failed} · Unavailable: {unavailable}',
   appTitle: 'virgo-dag',
   appDescription: 'The dags this host records.',
   apiRequestFailed:
@@ -162,14 +141,6 @@ export const LABELS = {
   durationSeconds: '{count} seconds',
   durationMinutes: '{count} minutes',
   themeToggle: 'Switch between light and dark',
-  projectCreatePending: 'Creating project…',
-  projectCreateCancel: 'Cancel',
-  projectName: 'Name',
-  projectNameRequired: 'Enter a project name.',
-  projectNameDuplicate: 'A project with this name already exists.',
-  projectDescriptionOptional: 'Description (optional)',
-  projectCreateFieldsInvalid: 'Correct the name and description to create the project.',
-  projectCreateFailed: 'Could not create the project. Try again.',
   notBuiltTitle: 'Not built yet',
   notBuiltBody: 'This page arrives with the next node.',
   nodeBack: 'Back to the dag',

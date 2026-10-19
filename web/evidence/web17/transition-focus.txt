@@ -1,4 +1,0 @@
-light 1280px: initial focus, transition focus retention, failure values, and dismissal focus pass.
-light 320px: initial focus, transition focus retention, failure values, and dismissal focus pass.
-dark 1280px: initial focus, transition focus retention, failure values, and dismissal focus pass.
-dark 320px: initial focus, transition focus retention, failure values, and dismissal focus pass.

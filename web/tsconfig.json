@@ -1,9 +1,5 @@
 {
   "compilerOptions": {
-    "types": [
-      "node",
-      "@testing-library/jest-dom/vitest"
-    ],
     "lib": [
       "dom",
       "dom.iterable",
@@ -43,8 +39,6 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    ".vitest",
-    "coverage"
+    "node_modules"
   ]
 }
