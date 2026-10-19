@@ -58,6 +58,7 @@ from virgo_agentic_dag.domain.command.dag_command import DagCommand
 from virgo_agentic_dag.domain.command.serve_command import ServeCommand
 from virgo_agentic_dag.domain.exceptions.host.web_extra_missing import WebExtraMissing
 from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
+from virgo_agentic_dag.domain.infra.agent.process_killer import ProcessKiller
 from virgo_agentic_dag.domain.infra.agent.session_killer import SessionKiller
 from virgo_agentic_dag.domain.infra.agent.transcript_locator import TranscriptLocator
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
@@ -125,6 +126,7 @@ from virgo_agentic_dag.infra.agent.codex_agent_launcher import CodexAgentLaunche
 from virgo_agentic_dag.infra.agent.codex_transcript_locator import (
     CodexTranscriptLocator,
 )
+from virgo_agentic_dag.infra.agent.process_group_killer import ProcessGroupKiller
 from virgo_agentic_dag.infra.agent.transcript_page_reader import TranscriptPageReader
 from virgo_agentic_dag.infra.code.github_code_repo import GitHubCodeRepo
 from virgo_agentic_dag.infra.host.subprocess_command_runner import (
@@ -225,6 +227,9 @@ from virgo_agentic_dag.services.recovery.recovery_prompt_composer import (
 from virgo_agentic_dag.services.recovery.recovery_scan_service import (
     RecoveryScanService,
 )
+from virgo_agentic_dag.services.recovery.recovery_session_killer import (
+    RecoverySessionKiller,
+)
 from virgo_agentic_dag.services.run.adopt_service import AdoptService
 from virgo_agentic_dag.services.run.adopted_node_importer import AdoptedNodeImporter
 from virgo_agentic_dag.services.run.node_importer import NodeImporter
@@ -293,7 +298,10 @@ def register_beans(context: ApplicationContext) -> None:
     )
     context.register(Workspace, _build_workspace)
     context.register(CodeRepo, _build_code_repo)
+
     context.register(SessionKiller, _build_session_killer)
+    context.register(ProcessKiller, lambda _context: ProcessGroupKiller())
+
     context.register(
         SchedulerFactory, lambda _context: SchedulerFactory(SubprocessCommandRunner())
     )
@@ -356,7 +364,18 @@ def register_beans(context: ApplicationContext) -> None:
     )
     context.register(RecoveryScanService, _build_recovery_scan_service)
     context.register(RecoveryDispatchService, _build_recovery_dispatch_service)
+
+    context.register(
+        RecoverySessionKiller,
+        lambda _context: RecoverySessionKiller(
+            recovery_session_repo=_context.get(RecoverySessionRepo),
+            process_killer=_context.get(ProcessKiller),
+        ),
+    )
+
+    context.register(ExtractionLock, _build_extraction_lock)
     context.register(LearningDispatchService, _build_learning_dispatch_service)
+
     context.register(NodeExaminationService, _build_node_examination_service)
     context.register(NodeRecoveryService, _build_node_recovery_service)
     context.register(ExamineCommandHandler, _build_examine_command_handler)
@@ -577,6 +596,7 @@ def _build_session_killer(context: ApplicationContext) -> AgentSessionKiller:
         context.get(AgentSessionRepo),
         context.get(NodeRepo),
         context.get(AuditEntryRepo),
+        context.get(ProcessKiller),
     )
 
 
@@ -588,6 +608,10 @@ def _build_abort_command_handler(context: ApplicationContext) -> AbortCommandHan
         context.get(AgentSessionRepo),
         context.get(SchedulerFactory),
         context.get(ScheduledJobRepo),
+        context.get(RecoverySessionRepo),
+        context.get(RecoverySessionKiller),
+        context.get(ExtractionLock),
+        context.get(ProcessKiller),
     )
 
 
@@ -853,6 +877,13 @@ def _build_recovery_dispatch_service(
     )
 
 
+def _build_extraction_lock(context: ApplicationContext) -> ExtractionLock:
+    run_home = context.get_db_path().parent
+    lock_path = run_home / "learning_extraction.lock"
+
+    return ExtractionLock(lock_path)
+
+
 def _build_learning_dispatch_service(
     context: ApplicationContext,
 ) -> LearningDispatchService:
@@ -861,14 +892,13 @@ def _build_learning_dispatch_service(
     run_home = context.get_db_path().parent
     executor_agent = dag_spec.executor_agent
 
-    extraction_lock = ExtractionLock(run_home / "learning_extraction.lock")
     prompt_composer = LearningPromptComposer(
         learnings_path=get_learnings_file_path(dag_spec.name),
         repo_slug=context.repo_slug,
     )
 
     return LearningDispatchService(
-        extraction_lock=extraction_lock,
+        extraction_lock=context.get(ExtractionLock),
         prompt_composer=prompt_composer,
         node_repo=context.get(NodeRepo),
         audit_entry_repo=context.get(AuditEntryRepo),

@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.bootstrap.application_context import (
     ApplicationContext,
     bind_context,
@@ -25,6 +26,7 @@ from virgo_agentic_dag.infra.agent.agent_session_killer import (
     ABORTED_END_STATE,
     AgentSessionKiller,
 )
+from virgo_agentic_dag.infra.agent.process_group_killer import ProcessGroupKiller
 
 pytestmark = pytest.mark.integration
 
@@ -81,10 +83,12 @@ async def test_kills_the_whole_group_the_session_runs_as(
 
     agent_session_repo = mocker.MagicMock(spec=AgentSessionRepo)
 
+    process_killer = ProcessGroupKiller()
     killer = AgentSessionKiller(
         agent_session_repo=agent_session_repo,
         node_repo=mocker.MagicMock(spec=NodeRepo),
         audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
+        process_killer=process_killer,
     )
 
     command = AbortCommand(dag_name="demo")
@@ -107,10 +111,12 @@ async def test_records_the_full_ending_when_killing(
     node_repo = mocker.MagicMock(spec=NodeRepo)
     audit_entry_repo = mocker.MagicMock(spec=AuditEntryRepo)
 
+    process_killer = ProcessGroupKiller()
     killer = AgentSessionKiller(
         agent_session_repo=agent_session_repo,
         node_repo=node_repo,
         audit_entry_repo=audit_entry_repo,
+        process_killer=process_killer,
     )
 
     out = io.StringIO()
@@ -142,10 +148,12 @@ async def test_still_records_the_ending_when_the_group_is_already_gone(
 
     agent_session_repo = mocker.MagicMock(spec=AgentSessionRepo)
 
+    process_killer = ProcessGroupKiller()
     killer = AgentSessionKiller(
         agent_session_repo=agent_session_repo,
         node_repo=mocker.MagicMock(spec=NodeRepo),
         audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
+        process_killer=process_killer,
     )
 
     command = AbortCommand(dag_name="demo")
@@ -169,10 +177,12 @@ async def test_stays_quiet_when_the_host_refuses_the_signal(
 
     agent_session_repo = mocker.MagicMock(spec=AgentSessionRepo)
 
+    process_killer = ProcessGroupKiller()
     killer = AgentSessionKiller(
         agent_session_repo=agent_session_repo,
         node_repo=mocker.MagicMock(spec=NodeRepo),
         audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
+        process_killer=process_killer,
     )
 
     command = AbortCommand(dag_name="demo")

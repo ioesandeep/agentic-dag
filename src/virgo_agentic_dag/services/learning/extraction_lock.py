@@ -73,3 +73,15 @@ class ExtractionLock:
     def record_session_pid(self, pid: int) -> None:
         """Record the process id of the launched session, replacing the one before it."""
         self._lock_path.write_text(str(pid), encoding="utf-8")
+
+    def get_session_pid(self) -> int | None:
+        """Return the learning session's recorded process id."""
+        try:
+            lock_file_content = self._lock_path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            return None
+
+        try:
+            return int(lock_file_content)
+        except ValueError:
+            return None
