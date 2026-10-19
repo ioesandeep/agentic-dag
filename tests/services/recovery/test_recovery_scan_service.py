@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy.ext.asyncio import create_async_engine
+
+from virgo_agentic_dag.domain.agent.session_status import SessionStatus
 from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.node.recovery_cause_enum import RecoveryCauseEnum
 from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSession
@@ -96,23 +98,34 @@ def build_node_recovery(current_time: datetime) -> BuildNodeRecovery:
 
 
 @pytest.mark.parametrize(
-    ("state", "exit_code"),
+    ("state", "exit_code", "end_state"),
     [
-        (NodeState.ERRORED, None),
-        (NodeState.NEEDS_HUMAN, 0),
-        (NodeState.RESTING, 1),
+        (NodeState.ERRORED, None, SessionStatus.FINISHED.value),
+        (NodeState.NEEDS_HUMAN, 0, SessionStatus.FINISHED.value),
+        (NodeState.RESTING, 1, SessionStatus.FINISHED.value),
+        (NodeState.RESTING, None, SessionStatus.OVERDUE.value),
     ],
-    ids=["errored", "needs-human", "resting-with-a-nonzero-exit-code"],
+    ids=[
+        "errored",
+        "needs-human",
+        "resting-with-a-nonzero-exit-code",
+        "resting-with-an-overdue-session",
+    ],
 )
 async def test_get_recoverable_nodes_returns_the_node_when_its_process_is_dead_and_an_attempt_is_left(
     state: NodeState,
     exit_code: int | None,
+    end_state: str,
     database: SqliteDatabase,
     dead_pid: int,
     build_node: BuildNode,
     current_time: datetime,
 ) -> None:
     node = build_node(state, exit_code, dead_pid, 1)
+    latest_session = node.get_latest_session()
+    assert latest_session is not None
+    latest_session.end_state = end_state
+
     async with database.open_session() as db_session:
         db_session.add(node)
         await db_session.commit()
@@ -129,18 +142,20 @@ async def test_get_recoverable_nodes_returns_the_node_when_its_process_is_dead_a
 
 
 @pytest.mark.parametrize(
-    ("state", "exit_code", "is_process_alive", "node_recovery_specs"),
+    ("state", "exit_code", "is_process_alive", "node_recovery_specs", "has_agent"),
     [
-        (NodeState.RESTING, 0, False, []),
-        (NodeState.ERRORED, 1, True, []),
-        (NodeState.ERRORED, 1, False, [(True, timedelta(hours=1))]),
-        (NodeState.NEEDS_HUMAN, 0, False, [(False, timedelta())]),
+        (NodeState.RESTING, 0, False, [], True),
+        (NodeState.ERRORED, 1, True, [], True),
+        (NodeState.ERRORED, 1, False, [(True, timedelta(hours=1))], True),
+        (NodeState.NEEDS_HUMAN, 0, False, [(False, timedelta())], True),
+        (NodeState.NEEDS_HUMAN, None, False, [], False),
     ],
     ids=[
         "resting-with-a-zero-exit-code",
         "process-alive",
         "held-by-a-later-recover-at",
         "marked-unrecoverable",
+        "needs-human-without-an-agent",
     ],
 )
 async def test_get_recoverable_nodes_returns_nothing_when_the_node_is_not_due(
@@ -148,6 +163,7 @@ async def test_get_recoverable_nodes_returns_nothing_when_the_node_is_not_due(
     exit_code: int | None,
     is_process_alive: bool,
     node_recovery_specs: list[NodeRecoverySpec],
+    has_agent: bool,
     database: SqliteDatabase,
     dead_pid: int,
     build_node: BuildNode,
@@ -156,6 +172,9 @@ async def test_get_recoverable_nodes_returns_nothing_when_the_node_is_not_due(
 ) -> None:
     pid = os.getpid() if is_process_alive else dead_pid
     node = build_node(state, exit_code, pid, 3)
+    if not has_agent:
+        node.agent = None
+
     node_recoveries = [
         build_node_recovery(recoverable, delay)
         for recoverable, delay in node_recovery_specs
@@ -164,8 +183,9 @@ async def test_get_recoverable_nodes_returns_nothing_when_the_node_is_not_due(
         db_session.add_all([node, *node_recoveries])
         await db_session.commit()
 
+    node_repo = SqliteNodeRepo(database)
     service = RecoveryScanService(
-        node_repo=SqliteNodeRepo(database),
+        node_repo=node_repo,
         node_recovery_repo=SqliteNodeRecoveryRepo(database),
         audit_entry_repo=SqliteAuditEntryRepo(database),
     )
@@ -173,6 +193,9 @@ async def test_get_recoverable_nodes_returns_nothing_when_the_node_is_not_due(
     recoverable_nodes = await service.get_recoverable_nodes(current_time)
 
     assert recoverable_nodes == []
+    stored_node = await node_repo.read("A")
+    assert stored_node is not None
+    assert stored_node.recovery_attempts_allowed == 3
 
 
 async def test_get_recoverable_nodes_moves_the_node_to_needs_human_when_no_attempt_is_left(

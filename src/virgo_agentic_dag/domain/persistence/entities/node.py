@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from virgo_agentic_dag.config.constants import STOPPED_SESSION_END_STATE
+from virgo_agentic_dag.domain.agent.session_status import SessionStatus
 from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.persistence.entities.entity_base import EntityBase
 
@@ -82,7 +84,7 @@ class Node(EntityBase):
         return state not in (NodeState.IN_PROGRESS, NodeState.MERGED)
 
     def has_failed(self) -> bool:
-        """Report whether this node stopped in ERRORED or NEEDS_HUMAN, or rests on a session with a nonzero exit code."""
+        """Report whether this node has a failed state or a failed resting session."""
         state = NodeState(self.state)
         if state in (NodeState.ERRORED, NodeState.NEEDS_HUMAN):
             return True
@@ -92,7 +94,10 @@ class Node(EntityBase):
 
         latest_session = self.get_latest_session()
 
-        return latest_session is not None and latest_session.has_nonzero_exit_code()
+        return latest_session is not None and (
+            latest_session.end_state == SessionStatus.OVERDUE.value
+            or latest_session.exit_code != 0
+        )
 
     def can_attempt(self) -> bool:
         """Report whether this node has a recovery attempt left."""
@@ -101,9 +106,11 @@ class Node(EntityBase):
     def can_recover(self) -> bool:
         """Report whether a recovery agent may examine this node."""
         latest_session = self.get_latest_session()
+        if latest_session is None:
+            return False
+
         is_latest_session_stopped = (
-            latest_session is not None
-            and latest_session.end_state == STOPPED_SESSION_END_STATE
+            latest_session.end_state == STOPPED_SESSION_END_STATE
         )
 
         return (

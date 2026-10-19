@@ -6,4 +6,6 @@ next-env.d.ts
 screenshots/
 recordings/
 test-results/
+.vitest/
+coverage/
 playwright-report/

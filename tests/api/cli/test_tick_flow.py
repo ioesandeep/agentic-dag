@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+
 from virgo_agentic_dag.api.cli.dagctl import main
 from virgo_agentic_dag.infra.agent.claude_agent_launcher import ClaudeAgentLauncher
 from virgo_agentic_dag.infra.locking.dag_run_lock import DagRunLock
@@ -319,7 +320,6 @@ def test_settles_the_run_when_the_agent_published_nothing(
         ("A", "needs_human", "its session finished without opening a pull request"),
         ("B", "needs_human", "upstream node A stopped, so this one can never start"),
         ("A", "needs_human", "a recovery agent session started to examine it"),
-        ("B", "needs_human", "a recovery agent session started to examine it"),
     ]
     assert (paths["workspace"] / "A").is_dir()
 

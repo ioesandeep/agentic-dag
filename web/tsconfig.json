@@ -5,6 +5,11 @@
       "dom.iterable",
       "esnext"
     ],
+    "types": [
+      "node",
+      "vitest/globals",
+      "@testing-library/jest-dom/vitest"
+    ],
     "allowJs": false,
     "skipLibCheck": true,
     "strict": true,
