@@ -633,7 +633,6 @@ Run the package checks from the repository root:
 uv sync --extra web
 uv run ruff check .
 uv run ruff format --check .
-uv run python tools/block_padding.py src tests
 uv run mypy src/virgo_agentic_dag
 uv run pytest
 uv build
