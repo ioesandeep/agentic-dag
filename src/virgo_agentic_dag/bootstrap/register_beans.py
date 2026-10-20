@@ -261,7 +261,9 @@ def register_beans(context: ApplicationContext) -> None:
     """Declare how every collaborator is built, so booting the context is one call."""
     context.register(TomlDagLoader, lambda _context: TomlDagLoader())
     context.register(DagSpec, _build_dag_spec)
+
     context.register(RunLock, lambda _context: DagRunLock(_context.get_db_path()))
+
     context.register(SqliteDatabase, _build_database)
     context.register(
         NodeRepo, lambda _context: SqliteNodeRepo(_context.get(SqliteDatabase))
@@ -330,6 +332,7 @@ def register_beans(context: ApplicationContext) -> None:
     context.register(StreamHealthCheck, lambda _context: SseHealthCheck())
     context.register(WatcherService, _build_watcher_service)
     context.register(WatchCommandHandler, _build_watch_command_handler)
+
     context.register(
         GraphBuilder, lambda _context: GraphBuilder(context.get(TomlDagLoader))
     )
@@ -351,26 +354,37 @@ def register_beans(context: ApplicationContext) -> None:
     context.register(InProgressNodeHandler, _build_in_progress_node_handler)
     context.register(RestingNodeHandler, _build_resting_node_handler)
     context.register(MergedNodeHandler, _build_merged_node_handler)
+
     context.register(NodeStateHandlingFacade, _build_node_state_handling_facade)
     context.register(TickCommandHandler, _build_tick_command_handler)
+
     context.register(ValidateCommandHandler, _build_validate_command_handler)
     context.register(Renderer, lambda _context: MermaidRenderer())
     context.register(PreviewCommandHandler, _build_preview_command_handler)
+
     context.register(ScheduledJobBuilder, _build_scheduled_job_builder)
     context.register(RunScheduleService, _build_run_schedule_service)
+
     context.register(StartCommandHandler, _build_start_command_handler)
     context.register(AbortCommandHandler, _build_abort_command_handler)
+
     context.register(NodeImporter, _build_node_importer)
     context.register(AdoptService, _build_adopt_service)
     context.register(AdoptCommandHandler, _build_adopt_command_handler)
+
     context.register(RetryCommandHandler, _build_retry_command_handler)
+
     context.register(NodeSkipService, _build_node_skip_service)
     context.register(SkipCommandHandler, _build_skip_command_handler)
+
     context.register(NodeStopService, _build_node_stop_service)
     context.register(StopCommandHandler, _build_stop_command_handler)
+
     context.register(StatusCommandHandler, _build_status_command_handler)
     context.register(LogCommandHandler, _build_log_command_handler)
+
     context.register(DagService, _build_dag_service)
+
     context.register(
         NodeRecoveryRepo,
         lambda _context: SqliteNodeRecoveryRepo(_context.get(SqliteDatabase)),
@@ -397,6 +411,7 @@ def register_beans(context: ApplicationContext) -> None:
 
     context.register(NodeExaminationService, _build_node_examination_service)
     context.register(NodeRecoveryService, _build_node_recovery_service)
+
     context.register(ExamineCommandHandler, _build_examine_command_handler)
     context.register(RecoverCommandHandler, _build_recover_command_handler)
 
@@ -533,7 +548,7 @@ def _build_run_schedule_service(context: ApplicationContext) -> RunScheduleServi
     return RunScheduleService(
         scheduler=scheduler,
         scheduled_job_repo=context.get(ScheduledJobRepo),
-        scheduled_job_builder=context.get(ScheduledJobBuilder),
+        scheduled_job_builder_factory=lambda: context.get(ScheduledJobBuilder),
     )
 
 
@@ -541,7 +556,6 @@ def _build_start_command_handler(context: ApplicationContext) -> StartCommandHan
     return StartCommandHandler(
         context.get(TickCommandHandler),
         context.get(SchedulerFactory),
-        context.get(ScheduledJobRepo),
         context.get(NodeRepo),
         context.get(ScheduledJobBuilder),
         context.get(WatcherService),
@@ -649,8 +663,7 @@ def _build_abort_command_handler(context: ApplicationContext) -> AbortCommandHan
         context.get(WatcherService),
         context.get(SessionKiller),
         context.get(AgentSessionRepo),
-        context.get(SchedulerFactory),
-        context.get(ScheduledJobRepo),
+        context.get(RunScheduleService),
         context.get(RecoverySessionRepo),
         context.get(RecoverySessionKiller),
         context.get(ExtractionLock),
@@ -899,6 +912,7 @@ def _build_recovery_dispatch_service(
     dag_spec = context.get(DagSpec)
     agent_launchers = _build_agent_launchers(dag_spec)
     executor_agent = dag_spec.executor_agent
+
     recovery_home = context.get_db_path().parent / RECOVERY_AGENT_NAME
     recovery_home.mkdir(parents=True, exist_ok=True)
 
@@ -932,6 +946,7 @@ def _build_learning_dispatch_service(
 ) -> LearningDispatchService:
     dag_spec = context.get(DagSpec)
     agent_launchers = _build_agent_launchers(dag_spec)
+
     run_home = context.get_db_path().parent
     executor_agent = dag_spec.executor_agent
 

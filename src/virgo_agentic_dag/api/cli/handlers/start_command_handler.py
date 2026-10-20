@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections import Counter
 from datetime import UTC, datetime
 
@@ -15,9 +16,6 @@ from virgo_agentic_dag.domain.events.dag_started_event import DagStartedEvent
 from virgo_agentic_dag.domain.infra.scheduling.scheduled_job import ScheduledJob
 from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.persistence.repos.node_repo import NodeRepo
-from virgo_agentic_dag.domain.persistence.repos.scheduled_job_repo import (
-    ScheduledJobRepo,
-)
 from virgo_agentic_dag.domain.service.notification_publisher import (
     NotificationPublisher,
 )
@@ -41,7 +39,6 @@ class StartCommandHandler(CommandHandler[StartCommand]):
         self,
         tick_command_handler: CommandHandler[TickCommand],
         scheduler_factory: SchedulerFactory,
-        scheduled_job_repo: ScheduledJobRepo,
         node_repo: NodeRepo,
         scheduled_job_builder: ScheduledJobBuilder,
         watcher_service: WatcherService,
@@ -51,7 +48,6 @@ class StartCommandHandler(CommandHandler[StartCommand]):
     ) -> None:
         self._tick_command_handler = tick_command_handler
         self._scheduler_factory = scheduler_factory
-        self._scheduled_job_repo = scheduled_job_repo
         self._node_repo = node_repo
         self._scheduled_job_builder = scheduled_job_builder
         self._watcher_service = watcher_service
@@ -62,6 +58,7 @@ class StartCommandHandler(CommandHandler[StartCommand]):
     async def handle(self, command: StartCommand) -> ExitCode:
         current_time = datetime.now(UTC)
         job = self._scheduled_job_builder.build(command.dag_path, current_time)
+
         scheduler = self._scheduler_factory.get_scheduler()
         await scheduler.is_registered(job)
 
@@ -86,14 +83,23 @@ class StartCommandHandler(CommandHandler[StartCommand]):
         return exit_code
 
     async def _conclude(self, dag_name: str) -> None:
-        """Complete every durable shutdown step before any kill that could target this process."""
+        """Release the run's resources before terminating the current pass."""
         await self._publish_dag_completed(dag_name)
         await self._notification_publisher.drain()
 
         watcher = await self._watcher_service.forget(dag_name)
-        await self._retire()
 
-        if watcher is not None:
+        current_process_group = os.getpgrp()
+        is_watcher_process_group = (
+            watcher is not None and watcher.pid == current_process_group
+        )
+
+        if watcher is not None and not is_watcher_process_group:
+            self._watcher_service.kill(watcher)
+
+        await self._retire(dag_name)
+
+        if watcher is not None and is_watcher_process_group:
             self._watcher_service.kill(watcher)
 
     async def _register(self, command: StartCommand) -> ScheduledJob | None:
@@ -120,6 +126,7 @@ class StartCommandHandler(CommandHandler[StartCommand]):
     async def _publish_dag_completed(self, dag_name: str) -> None:
         nodes = await self._node_repo.get_all()
         current_time = datetime.now(UTC)
+
         created_times = [node.created_at.replace(tzinfo=UTC) for node in nodes]
         elapsed_time = current_time - min(created_times, default=current_time)
 
@@ -132,14 +139,8 @@ class StartCommandHandler(CommandHandler[StartCommand]):
 
         self._notification_publisher.publish(dag_completed_event)
 
-    async def _retire(self) -> None:
-        dag_name = self._scheduled_job_builder.get_dag_name()
-        job = await self._scheduled_job_repo.get_by_dag_name(dag_name)
-        if job is None:
-            return
+    async def _retire(self, dag_name: str) -> None:
+        label = ScheduledJob.get_label(dag_name)
+        emit(format_label(LABELS["runUnscheduled"], {"job": label}) + "\n")
 
-        await self._scheduled_job_repo.delete(job)
-        emit(format_label(LABELS["runUnscheduled"], {"job": job.label}) + "\n")
-
-        scheduler = self._scheduler_factory.get_scheduler()
-        await scheduler.retire(job)
+        await self._run_schedule_service.retire(dag_name)

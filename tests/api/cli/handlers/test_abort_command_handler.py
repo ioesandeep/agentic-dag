@@ -1,5 +1,4 @@
 import io
-import json
 import os
 import subprocess
 from collections.abc import Callable
@@ -20,8 +19,6 @@ from virgo_agentic_dag.domain.command.exit_code import ExitCode
 from virgo_agentic_dag.domain.infra.agent.process_killer import ProcessKiller
 from virgo_agentic_dag.domain.infra.agent.session_killer import SessionKiller
 from virgo_agentic_dag.domain.infra.locking.run_lock import RunLock
-from virgo_agentic_dag.domain.infra.scheduling.scheduled_job import ScheduledJob
-from virgo_agentic_dag.domain.infra.scheduling.scheduler import Scheduler
 from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSession
 from virgo_agentic_dag.domain.persistence.entities.recovery_session import (
     RecoverySession,
@@ -32,32 +29,17 @@ from virgo_agentic_dag.domain.persistence.repos.agent_session_repo import (
 from virgo_agentic_dag.domain.persistence.repos.recovery_session_repo import (
     RecoverySessionRepo,
 )
-from virgo_agentic_dag.domain.persistence.repos.scheduled_job_repo import (
-    ScheduledJobRepo,
-)
 from virgo_agentic_dag.infra.agent.process_group_killer import ProcessGroupKiller
-from virgo_agentic_dag.infra.scheduling.scheduler_factory import SchedulerFactory
 from virgo_agentic_dag.services.learning.extraction_lock import ExtractionLock
 from virgo_agentic_dag.services.recovery.recovery_session_killer import (
     RecoverySessionKiller,
 )
+from virgo_agentic_dag.services.scheduling.run_schedule_service import (
+    RunScheduleService,
+)
 from virgo_agentic_dag.services.watching.watcher_service import WatcherService
 
 NOW = datetime(2026, 8, 2, tzinfo=UTC)
-
-
-@pytest.fixture
-def job() -> ScheduledJob:
-    return ScheduledJob(
-        dag_name="demo",
-        label=ScheduledJob.get_label("demo"),
-        argv=json.dumps(["/venv/bin/dagctl", "start"]),
-        interval_seconds=300,
-        working_directory="/runs/demo",
-        log_path="/runs/demo/start.log",
-        environment="{}",
-        created_at=NOW,
-    )
 
 
 @pytest.fixture
@@ -68,59 +50,10 @@ def build_open_session() -> Callable[[int], AgentSession]:
 
 
 @pytest.mark.unit
-async def test_stops_the_host_waking_the_run_when_one_was_recorded(
-    mocker: MockerFixture, job: ScheduledJob
-) -> None:
-    scheduled_job_repo = mocker.MagicMock(spec=ScheduledJobRepo)
-    scheduled_job_repo.get_by_dag_name.return_value = job
-
-    scheduler = mocker.MagicMock(spec=Scheduler)
-    scheduler_factory = mocker.MagicMock(spec=SchedulerFactory)
-    scheduler_factory.get_scheduler.return_value = scheduler
-
-    recovery_session_repo = mocker.MagicMock(spec=RecoverySessionRepo)
-    recovery_session_repo.find_open_session.return_value = None
-
-    extraction_lock = mocker.MagicMock(spec=ExtractionLock)
-    extraction_lock.get_session_pid.return_value = None
-
-    handler = AbortCommandHandler(
-        run_lock=mocker.MagicMock(spec=RunLock),
-        watcher_service=mocker.MagicMock(spec=WatcherService),
-        session_killer=mocker.MagicMock(spec=SessionKiller),
-        agent_session_repo=mocker.MagicMock(spec=AgentSessionRepo),
-        scheduler_factory=scheduler_factory,
-        scheduled_job_repo=scheduled_job_repo,
-        recovery_session_repo=recovery_session_repo,
-        recovery_session_killer=mocker.MagicMock(spec=RecoverySessionKiller),
-        extraction_lock=extraction_lock,
-        process_killer=mocker.MagicMock(spec=ProcessKiller),
-    )
-
-    out = io.StringIO()
-    command = AbortCommand(dag_name="demo")
-    context = ApplicationContext(command, out)
-    token = bind_context(context)
-    try:
-        exit_code = await handler.handle(command)
-    finally:
-        unbind_context(token)
-
-    assert exit_code is ExitCode.SUCCESS
-    scheduler.retire.assert_awaited_once_with(job)
-    scheduled_job_repo.delete.assert_awaited_once_with(job)
-
-
-@pytest.mark.unit
-async def test_says_so_and_succeeds_when_no_host_was_waking_the_run(
+async def test_abort_retires_the_schedule_by_dag_name(
     mocker: MockerFixture,
 ) -> None:
-    scheduled_job_repo = mocker.MagicMock(spec=ScheduledJobRepo)
-    scheduled_job_repo.get_by_dag_name.return_value = None
-
-    scheduler = mocker.MagicMock(spec=Scheduler)
-    scheduler_factory = mocker.MagicMock(spec=SchedulerFactory)
-    scheduler_factory.get_scheduler.return_value = scheduler
+    run_schedule_service = mocker.MagicMock(spec=RunScheduleService)
 
     recovery_session_repo = mocker.MagicMock(spec=RecoverySessionRepo)
     recovery_session_repo.find_open_session.return_value = None
@@ -133,8 +66,7 @@ async def test_says_so_and_succeeds_when_no_host_was_waking_the_run(
         watcher_service=mocker.MagicMock(spec=WatcherService),
         session_killer=mocker.MagicMock(spec=SessionKiller),
         agent_session_repo=mocker.MagicMock(spec=AgentSessionRepo),
-        scheduler_factory=scheduler_factory,
-        scheduled_job_repo=scheduled_job_repo,
+        run_schedule_service=run_schedule_service,
         recovery_session_repo=recovery_session_repo,
         recovery_session_killer=mocker.MagicMock(spec=RecoverySessionKiller),
         extraction_lock=extraction_lock,
@@ -143,16 +75,17 @@ async def test_says_so_and_succeeds_when_no_host_was_waking_the_run(
 
     out = io.StringIO()
     command = AbortCommand(dag_name="demo")
+
     context = ApplicationContext(command, out)
     token = bind_context(context)
+
     try:
         exit_code = await handler.handle(command)
     finally:
         unbind_context(token)
 
     assert exit_code is ExitCode.SUCCESS
-    scheduler.retire.assert_not_awaited()
-    assert "demo" in out.getvalue()
+    run_schedule_service.retire.assert_awaited_once_with("demo")
 
 
 @pytest.mark.parametrize("has_background_sessions", [False, True])
@@ -168,9 +101,6 @@ async def test_abort_kills_open_sessions_before_releasing_the_run_lock(
         build_open_session(41),
         build_open_session(42),
     ]
-
-    scheduled_job_repo = mocker.MagicMock(spec=ScheduledJobRepo)
-    scheduled_job_repo.get_by_dag_name.return_value = None
 
     run_lock = mocker.MagicMock(spec=RunLock)
     watcher_service = mocker.MagicMock(spec=WatcherService)
@@ -207,9 +137,11 @@ async def test_abort_kills_open_sessions_before_releasing_the_run_lock(
     call_order = mocker.MagicMock()
     call_order.attach_mock(run_lock.acquire_waiting, "acquire_waiting")
     call_order.attach_mock(watcher_service.stop, "stop_watcher")
+
     call_order.attach_mock(session_killer.kill, "kill_session")
     call_order.attach_mock(kill_process_group, "kill_process_group")
     call_order.attach_mock(recovery_session_repo.close, "close_recovery_session")
+
     call_order.attach_mock(run_lock.release, "release")
 
     handler = AbortCommandHandler(
@@ -217,8 +149,7 @@ async def test_abort_kills_open_sessions_before_releasing_the_run_lock(
         watcher_service=watcher_service,
         session_killer=session_killer,
         agent_session_repo=agent_session_repo,
-        scheduler_factory=mocker.MagicMock(spec=SchedulerFactory),
-        scheduled_job_repo=scheduled_job_repo,
+        run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
         recovery_session_repo=recovery_session_repo,
         recovery_session_killer=recovery_session_killer,
         extraction_lock=extraction_lock,
@@ -227,8 +158,10 @@ async def test_abort_kills_open_sessions_before_releasing_the_run_lock(
 
     out = io.StringIO()
     command = AbortCommand(dag_name="demo")
+
     context = ApplicationContext(command, out)
     token = bind_context(context)
+
     try:
         exit_code = await handler.handle(command)
         if has_background_sessions:
@@ -236,8 +169,10 @@ async def test_abort_kills_open_sessions_before_releasing_the_run_lock(
             learning_process.wait(timeout=5)
     finally:
         unbind_context(token)
+
         recovery_process.kill()
         learning_process.kill()
+
         recovery_process.wait(timeout=5)
         learning_process.wait(timeout=5)
 
@@ -281,9 +216,6 @@ async def test_lets_go_of_the_run_when_the_sweep_fails(mocker: MockerFixture) ->
     agent_session_repo = mocker.MagicMock(spec=AgentSessionRepo)
     agent_session_repo.get_open_sessions.side_effect = RuntimeError("boom")
 
-    scheduled_job_repo = mocker.MagicMock(spec=ScheduledJobRepo)
-    scheduled_job_repo.get_by_dag_name.return_value = None
-
     run_lock = mocker.MagicMock(spec=RunLock)
     watcher_service = mocker.MagicMock(spec=WatcherService)
 
@@ -297,8 +229,7 @@ async def test_lets_go_of_the_run_when_the_sweep_fails(mocker: MockerFixture) ->
         watcher_service=watcher_service,
         session_killer=mocker.MagicMock(spec=SessionKiller),
         agent_session_repo=agent_session_repo,
-        scheduler_factory=mocker.MagicMock(spec=SchedulerFactory),
-        scheduled_job_repo=scheduled_job_repo,
+        run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
         recovery_session_repo=mocker.MagicMock(spec=RecoverySessionRepo),
         recovery_session_killer=mocker.MagicMock(spec=RecoverySessionKiller),
         extraction_lock=mocker.MagicMock(spec=ExtractionLock),
@@ -307,6 +238,7 @@ async def test_lets_go_of_the_run_when_the_sweep_fails(mocker: MockerFixture) ->
 
     out = io.StringIO()
     command = AbortCommand(dag_name="demo")
+
     context = ApplicationContext(command, out)
     token = bind_context(context)
 

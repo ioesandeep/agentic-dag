@@ -64,13 +64,14 @@ async def test_schedule_registers_only_when_required(
 
     created_at = NOW - timedelta(days=1)
     stored_job = create_job(created_at=created_at) if has_row else None
+
     scheduled_job_repo = mocker.MagicMock(spec=ScheduledJobRepo)
     scheduled_job_repo.get_by_dag_name.return_value = stored_job
 
     run_schedule_service = RunScheduleService(
         scheduler=scheduler,
         scheduled_job_repo=scheduled_job_repo,
-        scheduled_job_builder=scheduled_job_builder,
+        scheduled_job_builder_factory=lambda: scheduled_job_builder,
     )
 
     register = getattr(run_schedule_service, method)
@@ -124,7 +125,7 @@ async def test_schedule_replaces_changed_jobs_only_when_reconciling(
     run_schedule_service = RunScheduleService(
         scheduler=scheduler,
         scheduled_job_repo=scheduled_job_repo,
-        scheduled_job_builder=scheduled_job_builder,
+        scheduled_job_builder_factory=lambda: scheduled_job_builder,
     )
 
     register = getattr(run_schedule_service, method)
@@ -159,7 +160,7 @@ async def test_schedule_saves_nothing_when_host_registration_fails(
     run_schedule_service = RunScheduleService(
         scheduler=scheduler,
         scheduled_job_repo=scheduled_job_repo,
-        scheduled_job_builder=scheduled_job_builder,
+        scheduled_job_builder_factory=lambda: scheduled_job_builder,
     )
 
     register = getattr(run_schedule_service, method)
@@ -169,3 +170,66 @@ async def test_schedule_saves_nothing_when_host_registration_fails(
         await register(dag_path)
 
     scheduled_job_repo.save.assert_not_awaited()
+
+
+@pytest.mark.parametrize("is_registered", [False, True])
+async def test_retire_removes_the_host_job_when_the_row_is_missing(
+    is_registered: bool, mocker: MockerFixture
+) -> None:
+    scheduled_job_repo = mocker.MagicMock(spec=ScheduledJobRepo)
+    scheduled_job_repo.get_by_dag_name.return_value = None
+
+    scheduler = mocker.MagicMock(spec=Scheduler)
+    scheduler.is_registered.return_value = is_registered
+
+    run_schedule_service = RunScheduleService(
+        scheduler=scheduler,
+        scheduled_job_repo=scheduled_job_repo,
+        scheduled_job_builder_factory=mocker.MagicMock(),
+    )
+
+    await run_schedule_service.retire("demo")
+
+    scheduled_job_repo.delete.assert_not_awaited()
+    if is_registered:
+        retired_job = scheduler.retire.await_args.args[0]
+
+        assert retired_job.label == "fyi.virgo.dag.demo"
+    else:
+        scheduler.retire.assert_not_awaited()
+
+
+async def test_retire_retries_the_host_after_a_previous_retirement_fails(
+    create_job: Callable[..., ScheduledJob], mocker: MockerFixture
+) -> None:
+    scheduled_job = create_job()
+    scheduled_job_repo = mocker.MagicMock(spec=ScheduledJobRepo)
+    scheduled_job_repo.get_by_dag_name.side_effect = [scheduled_job, None]
+
+    scheduler = mocker.MagicMock(spec=Scheduler)
+    scheduler.is_registered.return_value = True
+    scheduler.retire.side_effect = [SchedulingError("user manager unavailable"), None]
+
+    call_order = mocker.MagicMock()
+    call_order.attach_mock(scheduled_job_repo.delete, "delete_job")
+    call_order.attach_mock(scheduler.retire, "retire_job")
+
+    run_schedule_service = RunScheduleService(
+        scheduler=scheduler,
+        scheduled_job_repo=scheduled_job_repo,
+        scheduled_job_builder_factory=mocker.MagicMock(),
+    )
+
+    with pytest.raises(SchedulingError, match="user manager unavailable"):
+        await run_schedule_service.retire("demo")
+
+    await run_schedule_service.retire("demo")
+
+    retired_labels = [call.args[0].label for call in scheduler.retire.await_args_list]
+
+    assert retired_labels == ["fyi.virgo.dag.demo", "fyi.virgo.dag.demo"]
+    assert [name for name, _, _ in call_order.mock_calls] == [
+        "delete_job",
+        "retire_job",
+        "retire_job",
+    ]

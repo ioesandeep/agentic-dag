@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -20,16 +21,18 @@ class RunScheduleService:
         self,
         scheduler: Scheduler,
         scheduled_job_repo: ScheduledJobRepo,
-        scheduled_job_builder: ScheduledJobBuilder,
+        scheduled_job_builder_factory: Callable[[], ScheduledJobBuilder],
     ) -> None:
         self._scheduler = scheduler
         self._scheduled_job_repo = scheduled_job_repo
-        self._scheduled_job_builder = scheduled_job_builder
+        self._scheduled_job_builder_factory = scheduled_job_builder_factory
 
     async def ensure_registered(self, dag_path: Path) -> ScheduledJob | None:
         """Register a missing host job without replacing an existing host job."""
         current_time = datetime.now(UTC)
-        scheduled_job = self._scheduled_job_builder.build(dag_path, current_time)
+        scheduled_job_builder = self._scheduled_job_builder_factory()
+        scheduled_job = scheduled_job_builder.build(dag_path, current_time)
+
         is_registered = await self._scheduler.is_registered(scheduled_job)
         if is_registered:
             stored_job = await self._scheduled_job_repo.get_by_dag_name(
@@ -46,7 +49,9 @@ class RunScheduleService:
     async def reconcile(self, dag_path: Path) -> ScheduledJob | None:
         """Update the host job when the run's schedule changes."""
         current_time = datetime.now(UTC)
-        scheduled_job = self._scheduled_job_builder.build(dag_path, current_time)
+        scheduled_job_builder = self._scheduled_job_builder_factory()
+        scheduled_job = scheduled_job_builder.build(dag_path, current_time)
+
         is_registered = await self._scheduler.is_registered(scheduled_job)
         stored_job = await self._scheduled_job_repo.get_by_dag_name(
             scheduled_job.dag_name
@@ -65,6 +70,28 @@ class RunScheduleService:
                 return None
 
         return await self._register(scheduled_job)
+
+    async def retire(self, dag_name: str) -> None:
+        """Stop future passes for a completed or aborted run."""
+        stored_job = await self._scheduled_job_repo.get_by_dag_name(dag_name)
+        if stored_job is not None:
+            await self._scheduled_job_repo.delete(stored_job)
+
+        label = ScheduledJob.get_label(dag_name)
+        environment = stored_job.environment if stored_job is not None else "{}"
+        scheduled_job = ScheduledJob(
+            dag_name=dag_name,
+            label=label,
+            argv="[]",
+            environment=environment,
+            interval_seconds=0,
+            working_directory="",
+            log_path="",
+        )
+
+        is_registered = await self._scheduler.is_registered(scheduled_job)
+        if is_registered:
+            await self._scheduler.retire(scheduled_job)
 
     async def _register(self, scheduled_job: ScheduledJob) -> ScheduledJob:
         await self._scheduler.register(scheduled_job)
