@@ -26,6 +26,7 @@ class SqliteWorkTreeRepo(WorkTreeRepo):
                     head_sha=worktree.head_sha,
                 )
             )
+
             await session.execute(statement)
             await session.commit()
 
@@ -41,6 +42,7 @@ class SqliteWorkTreeRepo(WorkTreeRepo):
                 .where(WorkTree.id == worktree.id)
                 .values(marks=worktree.marks)
             )
+
             await session.execute(statement)
             await session.commit()
 
@@ -51,6 +53,7 @@ class SqliteWorkTreeRepo(WorkTreeRepo):
                 .where(WorkTree.id == worktree.id)
                 .values(reclaimed_at=worktree.reclaimed_at)
             )
+
             await session.execute(statement)
             await session.commit()
 
@@ -59,6 +62,7 @@ class SqliteWorkTreeRepo(WorkTreeRepo):
             statement = select(WorkTree).where(
                 WorkTree.pr_number > 0, WorkTree.reclaimed_at.is_(None)
             )
+
             result = await session.execute(statement)
 
             return list(result.scalars())

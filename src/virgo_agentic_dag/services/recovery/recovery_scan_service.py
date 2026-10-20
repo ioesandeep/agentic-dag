@@ -47,6 +47,7 @@ class RecoveryScanService:
             newest_recovery = (
                 await self._node_recovery_repo.get_newest_recovery_by_node_id(node.id)
             )
+
             is_due = newest_recovery is None or newest_recovery.is_due(current_time)
             if is_due:
                 recoverable_nodes.append(node)
@@ -75,4 +76,5 @@ class RecoveryScanService:
             note=note,
             created_at=current_time,
         )
+
         await self._audit_entry_repo.save(audit_entry)

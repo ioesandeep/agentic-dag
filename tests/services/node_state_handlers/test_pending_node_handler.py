@@ -77,6 +77,7 @@ async def test_starts_the_node_when_its_dependencies_have_merged(
     graph_node = GraphNode(
         id="A", executor_agent=ExecutorAgent.CLAUDE, instructions="do it", name="Vesta"
     )
+
     graph = Graph(name="demo", nodes=[graph_node])
 
     node_repo = mocker.MagicMock(spec=NodeRepo)
@@ -140,6 +141,7 @@ async def test_resumes_the_recorded_agent_when_the_node_has_run_before(
     graph_node = GraphNode(
         id="A", executor_agent=ExecutorAgent.CLAUDE, instructions="do it"
     )
+
     graph = Graph(name="demo", nodes=[graph_node])
 
     node_repo = mocker.MagicMock(spec=NodeRepo)
@@ -155,9 +157,11 @@ async def test_resumes_the_recorded_agent_when_the_node_has_run_before(
     recorded_worktree = WorkTree(
         id=7, agent_id="agent-1", name="A", absolute_path="/ws/A", created_at=NOW
     )
+
     ended_session = AgentSession(
         id=1, agent_id="agent-1", started_at=NOW, ended_at=NOW, end_state="finished"
     )
+
     node_agent_repo = mocker.MagicMock(spec=NodeAgentRepo)
     node_agent_repo.get_by_node_id.return_value = NodeAgent(
         id="agent-1",
@@ -214,6 +218,7 @@ async def test_starts_a_new_conversation_when_the_recorded_agent_has_no_resume_t
     graph_node = GraphNode(
         id="A", executor_agent=ExecutorAgent.CLAUDE, instructions="do it"
     )
+
     graph = Graph(name="demo", nodes=[graph_node])
 
     node_repo = mocker.MagicMock(spec=NodeRepo)
@@ -229,9 +234,11 @@ async def test_starts_a_new_conversation_when_the_recorded_agent_has_no_resume_t
     recorded_worktree = WorkTree(
         id=7, agent_id="agent-1", name="A", absolute_path="/ws/A", created_at=NOW
     )
+
     ended_session = AgentSession(
         id=1, agent_id="agent-1", started_at=NOW, ended_at=NOW, end_state="finished"
     )
+
     node_agent_repo = mocker.MagicMock(spec=NodeAgentRepo)
     node_agent_repo.get_by_node_id.return_value = NodeAgent(
         id="agent-1",
@@ -289,6 +296,7 @@ async def test_leaves_the_node_pending_when_a_dependency_has_not_merged(
     graph_node = GraphNode(
         id="B", executor_agent=ExecutorAgent.CLAUDE, depends_on=("A",)
     )
+
     graph = Graph(name="demo", nodes=[dependency, graph_node])
 
     node_repo = mocker.MagicMock(spec=NodeRepo)
@@ -335,6 +343,7 @@ async def test_starts_the_node_when_its_ancestor_was_skipped(
     graph_node = GraphNode(
         id="B", executor_agent=ExecutorAgent.CLAUDE, depends_on=("A",)
     )
+
     graph = Graph(name="demo", nodes=[ancestor, graph_node])
 
     node_repo = mocker.MagicMock(spec=NodeRepo)
@@ -343,6 +352,7 @@ async def test_starts_the_node_when_its_ancestor_was_skipped(
         [build_node("A", NodeState.SKIPPED)],
         [],
     ]
+
     node_repo.read.return_value = build_node("B", NodeState.PENDING)
 
     workspace = mocker.MagicMock(spec=Workspace)
@@ -394,9 +404,11 @@ async def test_leaves_the_node_pending_when_the_skipped_ancestor_has_an_unmerged
     skipped_ancestor = GraphNode(
         id="B", executor_agent=ExecutorAgent.CLAUDE, depends_on=("A",)
     )
+
     graph_node = GraphNode(
         id="D", executor_agent=ExecutorAgent.CLAUDE, depends_on=("B",)
     )
+
     graph = Graph(name="demo", nodes=[root_ancestor, skipped_ancestor, graph_node])
 
     node_repo = mocker.MagicMock(spec=NodeRepo)
@@ -444,6 +456,7 @@ async def test_needs_a_human_when_an_upstream_node_has_stopped(
     graph_node = GraphNode(
         id="B", executor_agent=ExecutorAgent.CLAUDE, depends_on=("A",)
     )
+
     graph = Graph(name="demo", nodes=[dependency, graph_node])
 
     node_repo = mocker.MagicMock(spec=NodeRepo)
@@ -503,6 +516,7 @@ async def test_leaves_the_node_pending_when_the_worker_budget_is_spent(
         [],
         [build_node("A", NodeState.IN_PROGRESS)],
     ]
+
     node_repo.read.return_value = build_node("A", NodeState.PENDING)
 
     workspace = mocker.MagicMock(spec=Workspace)
@@ -659,6 +673,7 @@ async def test_a_started_node_names_its_agent_and_its_task(
         name="Aries",
         title="Rename the audit column",
     )
+
     graph = Graph(name="demo", nodes=[graph_node])
 
     node_repo = mocker.MagicMock(spec=NodeRepo)
@@ -723,6 +738,7 @@ async def test_an_adopted_node_announces_the_pull_request_it_was_handed(
     graph_node = GraphNode(
         id="A", executor_agent=ExecutorAgent.CLAUDE, name="Aries", pr=PR_URL
     )
+
     graph = Graph(name="demo", nodes=[graph_node])
 
     node_repo = mocker.MagicMock(spec=NodeRepo)
@@ -796,6 +812,7 @@ async def test_resumes_the_recorded_agent_when_an_adopted_node_is_retried(
     recorded_session = AgentSession(
         id=1, agent_id="agent-1", started_at=NOW, ended_at=NOW, end_state="finished"
     )
+
     node_agent_repo = mocker.MagicMock(spec=NodeAgentRepo)
     node_agent_repo.get_by_node_id.return_value = NodeAgent(
         id="agent-1",
@@ -879,6 +896,7 @@ async def test_launches_with_its_own_brief_when_it_declares_a_pull_request(
         instructions="finish what they started",
         pr=PR_URL,
     )
+
     graph = Graph(name="demo", nodes=[dependency, graph_node])
 
     node_repo = mocker.MagicMock(spec=NodeRepo)
@@ -1010,6 +1028,7 @@ async def test_skips_adoption_when_a_dependency_has_not_merged(
     graph_node = GraphNode(
         id="B", executor_agent=ExecutorAgent.CLAUDE, depends_on=("A",), pr=PR_URL
     )
+
     graph = Graph(name="demo", nodes=[dependency, graph_node])
 
     node_repo = mocker.MagicMock(spec=NodeRepo)
@@ -1059,6 +1078,7 @@ async def test_records_a_single_pending_audit_entry_when_the_node_waits_for_its_
         depends_on=("A",),
         cooldown_seconds=3600,
     )
+
     graph = Graph(name="demo", nodes=[dependency, graph_node])
 
     node_repo = InMemoryNodeRepo()
@@ -1110,4 +1130,5 @@ async def test_records_a_single_pending_audit_entry_when_the_node_waits_for_its_
         ("pending", f"it starts at {NOW + timedelta(hours=1)} when its cooldown ends"),
         ("in_progress", "B started work"),
     ]
+
     notification_publisher.publish.assert_called_once()

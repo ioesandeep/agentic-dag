@@ -55,6 +55,7 @@ class NodeExaminationService:
             "state": node.state,
             "updated_at": node.updated_at,
         }
+
         emit(format_label(LABELS["examineNode"], values))
 
     def _report_worktree(self, node: Node) -> None:
@@ -117,11 +118,13 @@ class NodeExaminationService:
             "attempts_left": node.recovery_attempts_allowed,
             "row_count": row_count,
         }
+
         emit(format_label(LABELS["examineAttempts"], values))
 
         newest_recovery = await self._node_recovery_repo.get_newest_recovery_by_node_id(
             node.id
         )
+
         if newest_recovery is None:
             return
 

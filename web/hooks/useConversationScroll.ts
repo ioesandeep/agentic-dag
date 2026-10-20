@@ -105,8 +105,10 @@ export const useConversationScroll = (
         scrollAnchorRef.current,
         isAtBottomRef.current,
       );
+
       resizeScrollTopRef.current = list.scrollTop;
     };
+
     const resizeObserver = new ResizeObserver(handleResize);
 
     resizeObserver.observe(list);
@@ -130,6 +132,7 @@ export const useConversationScroll = (
         onReachTopEdge();
       }
     };
+
     const observerOptions = { root: list };
     const observer = new IntersectionObserver(
       handleIntersection,

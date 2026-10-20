@@ -33,6 +33,7 @@ _AGENT_FLAGS: tuple[str, ...] = (
     "--system-prompt-snapshot",
     "off",
 )
+
 _SHELL = "sh"
 _RECORD_EXIT_CODE_SCRIPT = 'exit_path="$1"; shift; "$@"; echo "$?" > "$exit_path"'
 
@@ -167,6 +168,7 @@ class ClaudeAgentLauncher(AgentLauncher):
             str(exit_path),
             *argv,
         ]
+
         with open(log_path, "w") as log:
             process = subprocess.Popen(
                 wrapped_argv,

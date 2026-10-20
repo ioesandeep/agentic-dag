@@ -30,6 +30,7 @@ class SystemdUnit:
         timer = cls._render_template(
             "scheduled_job.timer.j2", interval_seconds=job.interval_seconds
         )
+
         timer_content = timer.encode()
 
         return [
@@ -91,6 +92,7 @@ class SystemdUnit:
         assignments = [
             cls._quote(f"{key}={value}") for key, value in environment.items()
         ]
+
         environment_text = " ".join(assignments)
 
         return cls._render_template(
@@ -111,6 +113,7 @@ class SystemdUnit:
                 undefined=StrictUndefined,
                 keep_trailing_newline=True,
             )
+
             template = environment.get_template(template_name)
 
             return template.render(values)

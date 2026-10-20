@@ -71,6 +71,7 @@ class NodeActionService:
             f"--action={wake_request.action}",
             f"--wake={wake_request.message}",
         ]
+
         await self._run_dagctl(dag_name, node_id, recover_arguments)
 
         return await self._dag_web_service.get_node_by_name(dag_name, node_id)
@@ -98,6 +99,7 @@ class NodeActionService:
             "--timeout",
             str(self._timeout),
         ]
+
         run_result = await self._dagctl_runner.run(dagctl_arguments, dag_path.parent)
 
         self._assert_success(run_result, dag_name, node_id)
@@ -114,6 +116,7 @@ class NodeActionService:
             "exit_code": exit_code,
             "timeout": self._timeout,
         }
+
         if exit_code == ExitCode.RUN_BUSY:
             raise NodeActionRefused(format_label(LABELS["runBusy"], values))
 

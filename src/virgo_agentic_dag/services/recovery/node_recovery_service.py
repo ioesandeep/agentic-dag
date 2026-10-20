@@ -105,6 +105,7 @@ class NodeRecoveryService:
             recover_at=recover_at,
             action=command.action,
         )
+
         await self._node_recovery_repo.add(node_recovery)
 
         if not command.recoverable and not node.needs_human():
@@ -112,6 +113,7 @@ class NodeRecoveryService:
                 LABELS["markedUnrecoverable"],
                 {"cause": command.cause.value, "action": command.action},
             )
+
             await self._move(
                 node,
                 NodeState.NEEDS_HUMAN,
@@ -126,6 +128,7 @@ class NodeRecoveryService:
             "recoverable": command.recoverable,
             "recover_at": recover_at,
         }
+
         emit(format_label(LABELS["recoveryRecorded"], values))
 
     async def _restore_marks(self, node: Node, latest_session: AgentSession) -> bool:
@@ -153,6 +156,7 @@ class NodeRecoveryService:
             created_at=worktree.created_at,
             reclaimed_at=worktree.reclaimed_at,
         )
+
         await self._work_tree_repo.advance_marks(restored_worktree)
 
         values = {"node_id": node.id, "marks": marks_before}
@@ -202,9 +206,11 @@ class NodeRecoveryService:
         note = format_label(
             LABELS["wokenByRecovery"], {"message": command.wake_message}
         )
+
         await self._move(
             node, NodeState.IN_PROGRESS, note, NotificationType.WORK_STARTED
         )
+
         emit(format_label(LABELS["nodeWoken"], {"node_id": node.id}))
 
         return True
@@ -240,6 +246,7 @@ class NodeRecoveryService:
         audit_entry = AuditEntry(
             node_id=node.id, state=state.value, note=note, created_at=current_time
         )
+
         await self._audit_entry_repo.save(audit_entry)
 
         node_event = self._get_event(node, notification_type, reason, current_time)

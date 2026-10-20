@@ -61,6 +61,7 @@ class AgentSessionKiller(SessionKiller):
             pid=session.pid,
             pid_start=session.pid_start,
         )
+
         await self._agent_session_repo.close(closed_session)
 
     async def _park_node(self, node_id: str, current_time: datetime) -> None:
@@ -72,5 +73,6 @@ class AgentSessionKiller(SessionKiller):
             note=LABELS["killedByAbort"],
             created_at=current_time,
         )
+
         await self._audit_entry_repo.save(audit_entry)
         emit(format_label(LABELS["agentKilled"], {"node": node_id}) + "\n")

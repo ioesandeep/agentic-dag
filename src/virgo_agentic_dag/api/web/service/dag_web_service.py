@@ -112,6 +112,7 @@ class DagWebService:
             scheduled_job = await gateway.scheduled_job_repo.get_by_dag_name(
                 dag_spec.name
             )
+
             watcher = await gateway.watcher_repo.get_by_dag_name(dag_spec.name)
         except SQLAlchemyError as error:
             logger.warning("%s will not read: %s", dag_spec.name, error)
@@ -145,6 +146,7 @@ class DagWebService:
             scheduled_job = await gateway.scheduled_job_repo.get_by_dag_name(
                 dag_spec.name
             )
+
             watcher = await gateway.watcher_repo.get_by_dag_name(dag_spec.name)
             audit_entries = await gateway.audit_entry_repo.get_all()
         except SQLAlchemyError as error:
@@ -190,6 +192,7 @@ class DagWebService:
         skipped_nodes = [
             node for node in nodes if node.state == NodeState.SKIPPED.value
         ]
+
         graph_service = GraphService(graph)
         dependencies = graph_service.get_effective_dependencies(
             graph_node.id, skipped_nodes
@@ -200,6 +203,7 @@ class DagWebService:
         is_every_dependency_merged = all(
             node.state == NodeState.MERGED.value for node in dependency_nodes
         )
+
         if not is_every_dependency_merged:
             return None
 
@@ -288,9 +292,11 @@ class DagWebService:
         slack_notifications = await self._get_slack_notifications(
             gateway, node_detail.id
         )
+
         node_audit_entries = self._find_node_audit_entries(
             audit_entries, node_detail.id
         )
+
         node_recovery = await gateway.node_recovery_repo.get_newest_recovery_by_node_id(
             node_detail.id
         )
@@ -354,6 +360,7 @@ class DagWebService:
             block_lines = self._transcript_reader.list_lines_before(
                 transcript_path, block_end
             )
+
             if not block_lines:
                 break
 
@@ -426,6 +433,7 @@ class DagWebService:
         slack_notification = await gateway.slack_notification_repo.get_by_node_id(
             node_id
         )
+
         if slack_notification is None:
             return []
 

@@ -20,10 +20,12 @@ def upgrade() -> None:
         AGENT_SESSIONS_TABLE_NAME,
         sa.Column(EXIT_CODE_COLUMN_NAME, sa.Integer(), nullable=True),
     )
+
     op.add_column(
         AGENT_SESSIONS_TABLE_NAME,
         sa.Column(LOG_TAIL_COLUMN_NAME, sa.String(), nullable=True),
     )
+
     op.add_column(
         AGENT_SESSIONS_TABLE_NAME,
         sa.Column(MARKS_BEFORE_COLUMN_NAME, sa.String(), nullable=True),

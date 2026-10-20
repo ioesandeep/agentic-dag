@@ -72,12 +72,14 @@ A_THREAD = [
     f"1 comment was added to {A_LINK}. Addressing them now",
     f"*skgiricorp* merged {A_LINK}. Agent *Vesta* will wind down. Thank you!",
 ]
+
 B_THREAD = [
     f"Agent *Juno* started working on `Translate the greeting`\n<{PULL_REQUEST_URL}/43>",
     f"1 comment was added to {B_LINK}. Addressing them now",
     f"Agent *Juno* pushed 2 commits to {B_LINK}",
     f"*skgiricorp* merged {B_LINK}. Agent *Juno* will wind down. Thank you!",
 ]
+
 EXPECTED_THREADS = {"A": A_THREAD, "B": B_THREAD}
 AUDIT_NOTES_WITHOUT_A_MESSAGE = {"Vesta resumed work", "its session finished on #42"}
 
@@ -97,6 +99,7 @@ def list_slack_message_texts(
         texts = [
             message["blocks"][0]["text"]["text"] for message in payload["messages"]
         ]
+
         is_complete = all(text in texts for text in expected_texts)
         if is_complete or time.monotonic() > deadline:
             return texts
@@ -145,6 +148,7 @@ async def test_start_posts_messages_to_the_channel_when_the_pull_requests_for_tw
         f"*{dag_name}* started — 2 nodes, 1 in progress",
         f"*{dag_name}* complete in 0m — 2 merged",
     ]
+
     dag_path = tmp_path / "dag.toml"
     db_path = tmp_path / "db.sqlite3"
     dag_path.write_text(
@@ -157,6 +161,7 @@ async def test_start_posts_messages_to_the_channel_when_the_pull_requests_for_tw
         ),
         encoding="utf-8",
     )
+
     start_command = StartCommand(dag_path=dag_path)
 
     bin_dir = tmp_path / "bin"
@@ -174,12 +179,15 @@ async def test_start_posts_messages_to_the_channel_when_the_pull_requests_for_tw
     merged_a = build_snapshot(
         PullRequestState.MERGED, "a1", "Change the greeting", a_url
     )
+
     open_b = build_snapshot(
         PullRequestState.OPEN, "b1", "Translate the greeting", b_url
     )
+
     pushed_b = build_snapshot(
         PullRequestState.OPEN, "b2", "Translate the greeting", b_url
     )
+
     merged_b = build_snapshot(
         PullRequestState.MERGED, "b2", "Translate the greeting", b_url
     )
@@ -188,6 +196,7 @@ async def test_start_posts_messages_to_the_channel_when_the_pull_requests_for_tw
         "A": iter([open_a, open_a, open_a, open_a, merged_a]),
         "B": iter([open_b, open_b, open_b, pushed_b, pushed_b, merged_b]),
     }
+
     pull_request_numbers = {"A": 42, "B": 43}
     review_comment = ReviewArtifact(
         kind=ReviewArtifactType.ISSUE_COMMENT,
@@ -201,16 +210,20 @@ async def test_start_posts_messages_to_the_channel_when_the_pull_requests_for_tw
     code_repo.find_pull_request.side_effect = lambda graph_node, branch: (
         pull_request_numbers[graph_node.id]
     )
+
     code_repo.get_pull_request.side_effect = lambda graph_node, number: next(
         pull_request_snapshots[graph_node.id]
     )
+
     review_artifacts = {
         "A": iter([[], [review_comment]]),
         "B": iter([[], [review_comment], [review_comment]]),
     }
+
     code_repo.get_review_artifacts.side_effect = lambda graph_node, number: next(
         review_artifacts[graph_node.id]
     )
+
     code_repo.count_commits_between.return_value = 2
 
     scheduler = mocker.MagicMock(spec=Scheduler)
@@ -236,6 +249,7 @@ async def test_start_posts_messages_to_the_channel_when_the_pull_requests_for_tw
         thread_ids = dict(
             connection.execute("select node_id, thread_id from slack_notifications")
         )
+
         audit_notes = [
             note
             for (note,) in connection.execute(
@@ -249,9 +263,11 @@ async def test_start_posts_messages_to_the_channel_when_the_pull_requests_for_tw
         token,
         dag_messages,
     )
+
     dag_texts = [
         text for text in reversed(history_texts) if text.startswith(f"*{dag_name}*")
     ]
+
     assert dag_texts == dag_messages
 
     threads = {
@@ -263,6 +279,7 @@ async def test_start_posts_messages_to_the_channel_when_the_pull_requests_for_tw
         )
         for node_id, thread_id in thread_ids.items()
     }
+
     assert threads == EXPECTED_THREADS
 
     assert AUDIT_NOTES_WITHOUT_A_MESSAGE <= set(audit_notes)

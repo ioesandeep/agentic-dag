@@ -23,6 +23,7 @@ def to_conversation_message_responses(
         for record in records
         if record["type"] in (ConversationRoleEnum.USER, ConversationRoleEnum.ASSISTANT)
     ]
+
     tool_results = _find_tool_results(message_records)
 
     conversation_messages: list[ConversationMessageResponse] = []
@@ -43,6 +44,7 @@ def to_conversation_page_messages(
     look_ahead_message_records = [
         record for record in look_ahead_records if _is_message_record(record)
     ]
+
     tool_results = _find_tool_results(
         [*page_records.values(), *look_ahead_message_records]
     )

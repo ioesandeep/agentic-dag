@@ -35,6 +35,7 @@ class RunScheduleService:
             stored_job = await self._scheduled_job_repo.get_by_dag_name(
                 scheduled_job.dag_name
             )
+
             if stored_job is None:
                 await self._scheduled_job_repo.save(scheduled_job)
 
@@ -50,6 +51,7 @@ class RunScheduleService:
         stored_job = await self._scheduled_job_repo.get_by_dag_name(
             scheduled_job.dag_name
         )
+
         if is_registered and stored_job is not None:
             is_unchanged = (
                 stored_job.argv == scheduled_job.argv
@@ -58,6 +60,7 @@ class RunScheduleService:
                 and stored_job.working_directory == scheduled_job.working_directory
                 and stored_job.log_path == scheduled_job.log_path
             )
+
             if is_unchanged:
                 return None
 

@@ -65,6 +65,7 @@ async def test_skip_marks_the_node_skipped_when_it_is_waiting_or_stopped(
     graph_builder.build_from_path.return_value = Graph(
         name="demo", nodes=[GraphNode(id="A")]
     )
+
     service = NodeSkipService(
         node_repo=node_repo,
         audit_entry_repo=audit_entry_repo,
@@ -96,6 +97,7 @@ async def test_skip_returns_the_descendant_to_pending_when_it_stopped_without_an
             GraphNode(id="E"),
         ],
     )
+
     started_agent = NodeAgent(id="agent-D", name="claude", node_id="D")
     node_repo = mocker.MagicMock(spec=NodeRepo)
     node_repo.read.return_value = build_node("A", NodeState.ERRORED)
@@ -104,6 +106,7 @@ async def test_skip_returns_the_descendant_to_pending_when_it_stopped_without_an
         build_node("D", NodeState.NEEDS_HUMAN, agent=started_agent),
         build_node("F", NodeState.PENDING),
     ]
+
     graph_builder = mocker.MagicMock(spec=GraphBuilder)
     graph_builder.build_from_path.return_value = graph
     service = NodeSkipService(

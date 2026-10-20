@@ -31,6 +31,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
+
     op.create_index(
         AUDIT_ENTRIES_NODE_ID_INDEX_NAME,
         AUDIT_ENTRIES_TABLE_NAME,
@@ -71,6 +72,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
+
     op.create_index(
         SLACK_NOTIFICATIONS_NODE_ID_INDEX_NAME,
         SLACK_NOTIFICATIONS_TABLE_NAME,
@@ -137,6 +139,7 @@ def downgrade() -> None:
         SLACK_NOTIFICATIONS_NODE_ID_INDEX_NAME,
         table_name=SLACK_NOTIFICATIONS_TABLE_NAME,
     )
+
     op.drop_table(SLACK_NOTIFICATIONS_TABLE_NAME)
     op.drop_table(SCHEDULED_JOBS_TABLE_NAME)
     op.drop_table(NODES_TABLE_NAME)

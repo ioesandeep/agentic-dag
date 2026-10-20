@@ -130,6 +130,7 @@ async def test_resubscribes_when_a_pass_leaves_the_run_running(
         ["acme/virgo#12"],
         ["acme/virgo#12", "acme/virgo#13"],
     ]
+
     first = mocker.MagicMock(spec=EventReader)
     first.get_event.side_effect = ["pull_request", None]
     second = mocker.MagicMock(spec=EventReader)
@@ -141,6 +142,7 @@ async def test_resubscribes_when_a_pass_leaves_the_run_running(
         RunResult(returncode=int(ExitCode.SUCCESS)),
         RunResult(returncode=int(ExitCode.RUN_COMPLETE)),
     ]
+
     sleeper = mocker.MagicMock(spec=Sleeper)
     watcher = build_watcher(plan_reader, subscription_factory, command_runner, sleeper)
 

@@ -74,6 +74,7 @@ def dag_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setattr(
         "virgo_agentic_dag.services.dag.dag_service.get_dag_root", lambda: tmp_path
     )
+
     monkeypatch.setattr(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", lambda: tmp_path
     )
@@ -126,6 +127,7 @@ def build_application(mocker: MockerFixture) -> Callable[[CodeRepo], FastAPI]:
                 GraphBuilder(TomlDagLoader()),
             )
         )
+
         node_action_controller = NodeActionController(
             mocker.MagicMock(spec=NodeActionService)
         )
@@ -157,6 +159,7 @@ async def test_node_detail_returns_what_the_dag_records_where_its_database_opens
         "instructions = 'Seed the accounts table.'\n"
         "[[nodes]]\nid = 'read'\ntitle = 'read the table'\ndepends_on = ['seed']\n",
     )
+
     database = await open_database("alpha")
     await SqliteNodeRepo(database).ensure_rows(
         [
@@ -165,6 +168,7 @@ async def test_node_detail_returns_what_the_dag_records_where_its_database_opens
         ],
         STARTED_AT,
     )
+
     await SqliteNodeRepo(database).update_state("seed", NodeState.RESTING, WAKE_AT)
 
     worktree = WorkTree(
@@ -175,6 +179,7 @@ async def test_node_detail_returns_what_the_dag_records_where_its_database_opens
         marks='{"pr": "412", "checks": "run-9"}',
         created_at=STARTED_AT,
     )
+
     agent_sessions = [
         AgentSession(
             started_at=STARTED_AT,
@@ -184,6 +189,7 @@ async def test_node_detail_returns_what_the_dag_records_where_its_database_opens
         ),
         AgentSession(started_at=WAKE_AT, triggered_by="wake"),
     ]
+
     node_agent = NodeAgent(
         id="agent-seed",
         name="claude",
@@ -192,6 +198,7 @@ async def test_node_detail_returns_what_the_dag_records_where_its_database_opens
         worktree=worktree,
         sessions=agent_sessions,
     )
+
     await SqliteNodeAgentRepo(database).save(node_agent)
 
     audit_entry_repo = SqliteAuditEntryRepo(database)
@@ -203,16 +210,19 @@ async def test_node_detail_returns_what_the_dag_records_where_its_database_opens
             created_at=STARTED_AT,
         )
     )
+
     await audit_entry_repo.save(
         AuditEntry(
             node_id="read", state="pending", note="waits on seed", created_at=STARTED_AT
         )
     )
+
     await audit_entry_repo.save(
         AuditEntry(
             node_id="seed", state="resting", note="opened #412", created_at=WAKE_AT
         )
     )
+
     await SqliteSlackNotificationRepo(database).save(
         SlackNotification(
             node_id="seed",
@@ -234,10 +244,12 @@ async def test_node_detail_returns_what_the_dag_records_where_its_database_opens
         "finished",
         "",
     ]
+
     assert [line["note"] for line in node_response["audits"]] == [
         "opened #412",
         "its dependencies merged",
     ]
+
     assert node_response["slackNotifications"][0]["threadId"] == "1755248400.000100"
 
 
@@ -288,11 +300,13 @@ async def test_node_detail_returns_empty_collections_where_the_node_has_no_agent
         "[[nodes]]\nid = 'seed'\ntitle = 'seed the table'\n"
         "[[nodes]]\nid = 'read'\ndepends_on = ['seed']\n",
     )
+
     database = await open_database("alpha")
     await SqliteNodeRepo(database).ensure_rows(
         [GraphNode(id="seed", title="seed the table"), GraphNode(id="read")],
         STARTED_AT,
     )
+
     code_repo = mocker.MagicMock(spec=CodeRepo)
 
     response = TestClient(build_application(code_repo)).get("/api/dags/alpha/read")
@@ -355,6 +369,7 @@ async def test_node_detail_returns_the_newest_agent_sessions_recovery_when_the_s
             log_tail="Error: Reached max turns (120)",
         ),
     ]
+
     node_agent = NodeAgent(
         id="agent-seed",
         name="claude",
@@ -362,6 +377,7 @@ async def test_node_detail_returns_the_newest_agent_sessions_recovery_when_the_s
         node_id="seed",
         sessions=agent_sessions,
     )
+
     await SqliteNodeAgentRepo(database).save(node_agent)
     node_recovery = NodeRecovery(
         node_id="seed",
@@ -372,6 +388,7 @@ async def test_node_detail_returns_the_newest_agent_sessions_recovery_when_the_s
         recover_at=RECOVER_AT,
         action="woke the node",
     )
+
     await SqliteNodeRecoveryRepo(database).add(node_recovery)
     code_repo = mocker.MagicMock(spec=CodeRepo)
 
@@ -401,6 +418,7 @@ async def test_node_detail_returns_no_recovery_when_the_newest_session_ends_clea
         exit_code=0,
         log_tail="opened #412",
     )
+
     node_agent = NodeAgent(
         id="agent-seed",
         name="claude",
@@ -408,6 +426,7 @@ async def test_node_detail_returns_no_recovery_when_the_newest_session_ends_clea
         node_id="seed",
         sessions=[agent_session],
     )
+
     await SqliteNodeAgentRepo(database).save(node_agent)
     code_repo = mocker.MagicMock(spec=CodeRepo)
 
@@ -431,6 +450,7 @@ async def test_node_detail_returns_the_start_time_when_a_node_waits_for_its_cool
         "[[nodes]]\nid = 'seed'\n"
         "[[nodes]]\nid = 'read'\ndepends_on = ['seed']\ncooldown_seconds = 3600\n",
     )
+
     database = await open_database("alpha")
     node_repo = SqliteNodeRepo(database)
     await node_repo.ensure_rows(

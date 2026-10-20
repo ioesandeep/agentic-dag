@@ -178,6 +178,7 @@ class GitHubCodeRepo(CodeRepo):
         result = await asyncio.to_thread(
             self._command_runner.run, argv, destination.parent
         )
+
         if result.returncode != 0:
             raise ObservationError(
                 format_label(

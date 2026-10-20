@@ -430,6 +430,7 @@ def _open_reporting() -> None:
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s"
     )
+
     if isinstance(sys.stdout, io.TextIOWrapper):
         sys.stdout.reconfigure(line_buffering=True)
 
@@ -461,24 +462,29 @@ def _build_parser() -> argparse.ArgumentParser:
     adopt.add_argument(
         "--pr", required=True, help="the url of the pull request to take over"
     )
+
     adopt.add_argument(
         "--dag", type=Path, required=True, help="the graph file of the run adopting it"
     )
+
     adopt.add_argument(
         "--executor",
         default=None,
         help="executor for the adopted node; defaults to the dag executor",
         choices=[agent.value for agent in ExecutorAgent],
     )
+
     adopt.add_argument("--id", default="", help="node id; coined from the pr if unset")
     adopt.add_argument(
         "--session", default="", help="an agent session to resume on the first wake"
     )
+
     adopt.add_argument(
         "--project-root",
         type=Path,
         help="the checkout the pull request lives in, when not the dag's own",
     )
+
     adopt.add_argument(
         "--workspace",
         type=Path,
@@ -490,11 +496,13 @@ def _build_parser() -> argparse.ArgumentParser:
     retry.add_argument(
         "--dag", type=Path, required=True, help="the graph file of the run holding it"
     )
+
     retry.add_argument(
         "--reset",
         action="store_true",
         help="start a new conversation instead of resuming the recorded one",
     )
+
     retry.add_argument(
         "--timeout",
         type=float,
@@ -512,6 +520,7 @@ def _build_parser() -> argparse.ArgumentParser:
     stop.add_argument(
         "--dag", type=Path, required=True, help="the graph file for the run"
     )
+
     stop.add_argument(
         "--timeout",
         type=float,
@@ -529,34 +538,41 @@ def _build_parser() -> argparse.ArgumentParser:
     recover.add_argument(
         "--dag", type=Path, required=True, help="the graph file of the run holding it"
     )
+
     recover.add_argument(
         "--cause",
         required=True,
         choices=[cause.value for cause in RecoveryCauseEnum],
         help="the classification of the failure",
     )
+
     recover.add_argument(
         "--action", required=True, help="what the recovery agent did about it"
     )
+
     recover.add_argument(
         "--recover-at",
         type=_parse_utc_timestamp,
         help="when the node is eligible again, as an ISO 8601 timestamp; now when unset",
     )
+
     recover.add_argument(
         "--restore-marks",
         action="store_true",
         help="put the worktree's watermarks back to before the latest session",
     )
+
     recover.add_argument(
         "--timeout",
         type=float,
         help="seconds to wait for the run lock, with no limit by default",
     )
+
     verdict = recover.add_mutually_exclusive_group()
     verdict.add_argument(
         "--wake", default="", help="resume the node's conversation with this message"
     )
+
     verdict.add_argument(
         "--unrecoverable",
         action="store_true",

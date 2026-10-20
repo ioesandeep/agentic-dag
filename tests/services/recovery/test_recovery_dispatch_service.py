@@ -112,6 +112,7 @@ async def test_dispatch_starts_nothing_when_the_previous_session_process_is_aliv
     recovery_session_repo.find_open_session.return_value = build_open_recovery_session(
         os.getpid()
     )
+
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
     service = RecoveryDispatchService(
         recovery_session_repo=recovery_session_repo,
@@ -142,6 +143,7 @@ async def test_dispatch_closes_the_previous_session_when_its_process_is_dead(
     recovery_session_repo.find_open_session.return_value = build_open_recovery_session(
         dead_pid
     )
+
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
     agent_launcher.launch.return_value = started_agent_session
     service = RecoveryDispatchService(
@@ -209,6 +211,7 @@ async def test_dispatch_spends_a_recovery_attempt_of_each_node_when_the_session_
     spent_node_ids = [
         call.args[0] for call in node_repo.spend_recovery_attempt.await_args_list
     ]
+
     assert spent_node_ids == ["A", "B"]
 
 

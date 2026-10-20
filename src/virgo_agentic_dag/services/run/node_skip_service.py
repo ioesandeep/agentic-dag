@@ -93,6 +93,7 @@ class NodeSkipService:
             )
             for stopped_node in stopped_nodes
         ]
+
         await asyncio.gather(*writes)
 
         return [stopped_node.id for stopped_node in stopped_nodes]
@@ -111,6 +112,7 @@ class NodeSkipService:
         audit_entry = AuditEntry(
             node_id=node.id, state=state.value, note=note, created_at=current_time
         )
+
         await self._audit_entry_repo.save(audit_entry)
 
         node_event = self._get_event(node, notification_type, current_time)

@@ -61,6 +61,7 @@ const getNodePlacements = (
 
     graph.setNode(node.id, size);
   });
+
   edges.forEach((edge) => graph.setEdge(edge.source, edge.target));
   layout(graph);
 

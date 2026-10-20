@@ -41,6 +41,7 @@ class SqliteNodeRepo(NodeRepo):
                     updated_at=now,
                     recovery_attempts_allowed=graph_node.recovery_attempts_allowed,
                 )
+
                 session.add(node)
 
             await session.commit()
@@ -76,6 +77,7 @@ class SqliteNodeRepo(NodeRepo):
                 .where(Node.id == node_id)
                 .values(state=state.value, updated_at=at)
             )
+
             await session.execute(statement)
             await session.commit()
 
@@ -86,6 +88,7 @@ class SqliteNodeRepo(NodeRepo):
                 .where(Node.id == node_id)
                 .values(recovery_attempts_allowed=Node.recovery_attempts_allowed - 1)
             )
+
             await session.execute(statement)
             await session.commit()
 
@@ -96,6 +99,7 @@ class SqliteNodeRepo(NodeRepo):
                 .where(Node.id == node.id)
                 .values(pull_request_settled_at=at)
             )
+
             await session.execute(statement)
             await session.commit()
 
@@ -120,5 +124,6 @@ class SqliteNodeRepo(NodeRepo):
                 .where(Node.id.in_(node_ids))
                 .values(learnings_extracted_at=at)
             )
+
             await session.execute(statement)
             await session.commit()

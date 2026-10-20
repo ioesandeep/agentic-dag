@@ -62,6 +62,7 @@ def dag_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setattr(
         "virgo_agentic_dag.services.dag.dag_service.get_dag_root", lambda: tmp_path
     )
+
     monkeypatch.setattr(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", lambda: tmp_path
     )
@@ -114,6 +115,7 @@ def build_application(mocker: MockerFixture) -> Callable[[CodeRepo], FastAPI]:
                 GraphBuilder(TomlDagLoader()),
             )
         )
+
         node_action_controller = NodeActionController(
             mocker.MagicMock(spec=NodeActionService)
         )
@@ -172,6 +174,7 @@ async def test_dag_detail_returns_what_a_dag_records_where_its_database_opens(
     await SqliteNodeRepo(database).ensure_rows(
         [GraphNode(id="seed", title="seed the table", name="Leo")], STARTED_AT
     )
+
     await SqliteNodeRepo(database).update_state("seed", NodeState.RESTING, WAKE_AT)
 
     worktree = WorkTree(
@@ -182,6 +185,7 @@ async def test_dag_detail_returns_what_a_dag_records_where_its_database_opens(
         pr_url="https://git.example.com/acme/virgo/pull/412",
         created_at=STARTED_AT,
     )
+
     sessions = [build_session("launch"), build_session("wake")]
     agent = build_agent("token-seed", worktree, sessions)
     await SqliteNodeAgentRepo(database).save(agent)
@@ -194,6 +198,7 @@ async def test_dag_detail_returns_what_a_dag_records_where_its_database_opens(
             created_at=STARTED_AT,
         )
     )
+
     await SqliteAuditEntryRepo(database).save(
         AuditEntry(
             node_id="seed", state="resting", note="opened #412", created_at=WAKE_AT
@@ -326,6 +331,7 @@ async def test_dag_detail_formats_the_pull_request_url_from_the_repository_url_w
         f"name = 'alpha'\nproject_root = '{dag_home / 'checkout'}'\n"
         "[[nodes]]\nid = 'seed'\n",
     )
+
     database = await open_database("alpha")
     await SqliteNodeRepo(database).ensure_rows([GraphNode(id="seed")], STARTED_AT)
     worktree = WorkTree(
@@ -334,6 +340,7 @@ async def test_dag_detail_formats_the_pull_request_url_from_the_repository_url_w
         pr_number=412,
         created_at=STARTED_AT,
     )
+
     agent = build_agent("token-seed", worktree, [])
     await SqliteNodeAgentRepo(database).save(agent)
 
@@ -412,6 +419,7 @@ async def test_dag_detail_returns_the_start_time_when_a_node_waits_for_its_coold
         "[[nodes]]\nid = 'seed'\n"
         "[[nodes]]\nid = 'read'\ndepends_on = ['seed']\n",
     )
+
     database = await open_database("alpha")
     node_repo = SqliteNodeRepo(database)
     await node_repo.ensure_rows(
@@ -455,6 +463,7 @@ async def test_dag_detail_returns_a_null_start_time_when_the_node_does_not_wait_
         "[[nodes]]\nid = 'index'\n"
         "[[nodes]]\nid = 'read'\ndepends_on = ['seed', 'index']\n",
     )
+
     database = await open_database("alpha")
     node_repo = SqliteNodeRepo(database)
     graph_nodes = [GraphNode(id="seed"), GraphNode(id="index"), GraphNode(id="read")]

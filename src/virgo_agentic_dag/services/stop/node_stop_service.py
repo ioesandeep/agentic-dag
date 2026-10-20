@@ -92,6 +92,7 @@ class NodeStopService:
             ),
             None,
         )
+
         if graph_node is None or graph_node.executor_agent is None:
             raise StopRefused(
                 format_label(LABELS["nodeNotInRun"], {"node_id": command.node_id})
@@ -117,6 +118,7 @@ class NodeStopService:
             exit_code=exit_code,
             log_tail=log_tail,
         )
+
         await self._agent_session_repo.close(closed_session)
 
     async def _move_to_needs_human(self, node: Node, current_time: datetime) -> None:
@@ -130,6 +132,7 @@ class NodeStopService:
             note=note,
             created_at=current_time,
         )
+
         await self._audit_entry_repo.save(audit_entry)
 
         node_event = AgentStoppedEvent(
@@ -141,4 +144,5 @@ class NodeStopService:
             agent_name=node.get_agent_name(),
             reason=note,
         )
+
         self._notification_publisher.publish(node_event)

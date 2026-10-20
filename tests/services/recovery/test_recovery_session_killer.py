@@ -39,6 +39,7 @@ async def test_kill_closes_the_recovery_session_when_the_process_is_alive_or_exi
         started_at=started_at,
         node_ids='["A"]',
     )
+
     current_time = datetime(2026, 8, 3, tzinfo=UTC)
 
     recovery_session_repo = mocker.MagicMock(spec=RecoverySessionRepo)

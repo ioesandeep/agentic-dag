@@ -37,6 +37,7 @@ async def test_find_open_session_returns_the_row_when_it_has_not_ended(
     recovery_session = RecoverySession(
         session_token="token-1", pid=4242, started_at=started_at, node_ids='["A", "B"]'
     )
+
     await repo.add(recovery_session)
 
     open_recovery_session = await repo.find_open_session()
@@ -54,6 +55,7 @@ async def test_find_open_session_returns_none_when_the_row_is_closed(
     recovery_session = RecoverySession(
         session_token="token-1", pid=4242, started_at=started_at, node_ids='["A"]'
     )
+
     await repo.add(recovery_session)
     closed_recovery_session = RecoverySession(
         id=recovery_session.id,
@@ -75,11 +77,13 @@ async def test_get_all_returns_recovery_sessions_newest_first_when_several_are_a
     first_recovery_session = RecoverySession(
         session_token="token-1", pid=4242, started_at=started_at, node_ids='["A"]'
     )
+
     await repo.add(first_recovery_session)
 
     second_recovery_session = RecoverySession(
         session_token="token-2", pid=4343, started_at=started_at, node_ids='["B"]'
     )
+
     await repo.add(second_recovery_session)
 
     recovery_sessions = await repo.get_all()

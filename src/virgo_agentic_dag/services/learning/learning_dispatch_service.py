@@ -69,6 +69,7 @@ class LearningDispatchService:
         audit_writes = [
             self._record_dispatch(node, current_time) for node in settled_nodes
         ]
+
         await asyncio.gather(*audit_writes)
 
         return TickResponse(sessions_started=1)
@@ -80,6 +81,7 @@ class LearningDispatchService:
             note=LABELS["learningExtractionStarted"],
             created_at=current_time,
         )
+
         await self._audit_entry_repo.save(audit_entry)
 
     async def _launch(self, prompt: str, current_time: datetime) -> AgentSession:
@@ -91,6 +93,7 @@ class LearningDispatchService:
             absolute_path=str(self._learning_home),
             created_at=current_time,
         )
+
         learning_agent = NodeAgent(
             id="learning",
             name=self._executor_agent.value,
@@ -98,6 +101,7 @@ class LearningDispatchService:
             node_id="learning",
             worktree=learning_worktree,
         )
+
         graph_node = GraphNode(id="learning", executor_agent=self._executor_agent)
 
         return await self._agent_launcher.launch(graph_node, prompt, learning_agent)

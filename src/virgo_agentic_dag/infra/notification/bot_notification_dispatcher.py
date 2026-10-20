@@ -135,6 +135,7 @@ class BotNotificationDispatcher(NotificationDispatcher):
             thread_id=posted_id,
             created_at=event.created_at,
         )
+
         await self._slack_notification_repo.save(slack_notification)
 
     async def _dispatch_dag_event(self, event: DagEvent) -> None:
@@ -149,6 +150,7 @@ class BotNotificationDispatcher(NotificationDispatcher):
             "text": message,
             "blocks": [self._get_section_block(message)],
         }
+
         await self._post(_POST_MESSAGE, payload, event.dag_name)
 
     def _compose(self, event: Event) -> str:
@@ -195,6 +197,7 @@ class BotNotificationDispatcher(NotificationDispatcher):
             "text": message,
             "blocks": self._get_blocks(event, message),
         }
+
         await self._post(_UPDATE_MESSAGE, payload, event.node_id)
 
     async def _post(self, url: str, payload: dict[str, Any], subject: str) -> str:
@@ -218,6 +221,7 @@ class BotNotificationDispatcher(NotificationDispatcher):
             "text": message,
             "blocks": self._get_blocks(event, message),
         }
+
         if thread_id:
             payload["thread_ts"] = thread_id
 
@@ -251,6 +255,7 @@ class BotNotificationDispatcher(NotificationDispatcher):
             reply = await asyncio.to_thread(
                 self._poster.post, _ADD_REACTION, payload, self._token
             )
+
             if reply.get("ok") or reply.get("error") == _ALREADY_THERE:
                 continue
 

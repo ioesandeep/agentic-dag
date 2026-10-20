@@ -173,11 +173,13 @@ async def test_get_recoverable_nodes_returns_no_nodes_when_stop_command_stops_th
         graph_builder=graph_builder,
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
     )
+
     recovery_scan_service = RecoveryScanService(
         node_repo=node_repo,
         node_recovery_repo=SqliteNodeRecoveryRepo(database),
         audit_entry_repo=audit_entry_repo,
     )
+
     await node_stop_service.stop(COMMAND, NOW)
     running_process.wait()
 

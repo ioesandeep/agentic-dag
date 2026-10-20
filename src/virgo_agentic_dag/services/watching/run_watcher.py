@@ -98,6 +98,7 @@ class RunWatcher:
         result = await asyncio.to_thread(
             self._command_runner.run, plan.argv, plan.working_directory
         )
+
         emit(format_label(LABELS["watchFired"], {"code": result.returncode}) + "\n")
 
         if result.returncode == int(ExitCode.RUN_COMPLETE):

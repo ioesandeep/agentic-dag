@@ -96,6 +96,7 @@ class RetryCommandHandler(CommandHandler[RetryCommand]):
             sessions=[*agent.sessions],
             worktree=agent.worktree,
         )
+
         await self._node_agent_repo.save(reset_agent)
 
     async def _record(self, node: Node) -> None:
@@ -110,6 +111,7 @@ class RetryCommandHandler(CommandHandler[RetryCommand]):
             note=LABELS["sentBackToWork"],
             created_at=current_time,
         )
+
         await self._audit_entry_repo.save(audit_entry)
 
         node_event = NodeRetriedEvent(
@@ -120,4 +122,5 @@ class RetryCommandHandler(CommandHandler[RetryCommand]):
             title=node.title,
             agent_name=node.get_agent_name(),
         )
+
         self._notification_publisher.publish(node_event)

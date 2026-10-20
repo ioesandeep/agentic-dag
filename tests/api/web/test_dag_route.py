@@ -49,6 +49,7 @@ def dag_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setattr(
         "virgo_agentic_dag.services.dag.dag_service.get_dag_root", lambda: tmp_path
     )
+
     monkeypatch.setattr(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", lambda: tmp_path
     )
@@ -102,9 +103,11 @@ def build_client(mocker: MockerFixture) -> Callable[[CodeRepo], TestClient]:
                 GraphBuilder(TomlDagLoader()),
             )
         )
+
         node_action_controller = NodeActionController(
             mocker.MagicMock(spec=NodeActionService)
         )
+
         application = WebApplicationFactory(
             dag_route=DagRoute(dag_controller),
             health_route=HealthRoute(HealthController()),
@@ -131,10 +134,12 @@ async def test_dag_listing_returns_what_a_dag_records_where_its_database_opens(
         "[[nodes]]\nid = 'seed'\ntitle = 'seed the table'\nname = 'Leo'\n"
         "[[nodes]]\nid = 'read'\ndepends_on = ['seed']\n",
     )
+
     gateway = await open_database("alpha")
     await gateway.node_repo.ensure_rows(
         [GraphNode(id="seed", title="seed the table", name="Leo")], STARTED_AT
     )
+
     await gateway.node_repo.update_state("seed", NodeState.IN_PROGRESS, WAKE_AT)
     await gateway.watcher_repo.save(
         Watcher(dag_name="alpha", pid=4242, started_at=STARTED_AT)
@@ -201,6 +206,7 @@ async def test_dag_listing_returns_is_readable_false_where_the_database_does_not
         ("beta", False),
         ("gamma", False),
     ]
+
     assert entries[2] == {
         "name": "gamma",
         "baseBranch": "",

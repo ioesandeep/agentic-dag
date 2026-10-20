@@ -30,6 +30,7 @@ class SqliteRecoverySessionRepo(RecoverySessionRepo):
                 .where(RecoverySession.id == recovery_session.id)
                 .values(ended_at=recovery_session.ended_at)
             )
+
             await db_session.execute(statement)
             await db_session.commit()
 

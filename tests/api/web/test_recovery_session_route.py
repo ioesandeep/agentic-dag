@@ -57,6 +57,7 @@ def dag_home(tmp_path: Path, mocker: MockerFixture) -> Path:
         "virgo_agentic_dag.services.dag.dag_service.get_dag_root",
         return_value=tmp_path,
     )
+
     mocker.patch(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", return_value=tmp_path
     )
@@ -110,9 +111,11 @@ def build_client(mocker: MockerFixture) -> Callable[[CodeRepo], TestClient]:
                 GraphBuilder(TomlDagLoader()),
             )
         )
+
         node_action_controller = NodeActionController(
             mocker.MagicMock(spec=NodeActionService)
         )
+
         application = WebApplicationFactory(
             dag_route=DagRoute(dag_controller),
             health_route=HealthRoute(HealthController()),
@@ -143,11 +146,13 @@ async def test_recovery_session_route_returns_recovery_session_node_ids_newest_f
         ended_at=ended_at,
         node_ids='["API-1", "API-2"]',
     )
+
     await gateway.recovery_session_repo.add(closed_recovery_session)
 
     open_recovery_session = RecoverySession(
         session_token="token-2", started_at=ended_at, node_ids='["API-3"]'
     )
+
     await gateway.recovery_session_repo.add(open_recovery_session)
     code_repo = mocker.MagicMock(spec=CodeRepo)
 

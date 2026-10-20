@@ -95,6 +95,7 @@ def test_job_preserves_the_environment_for_the_host_scheduler(
         effective_config_home = (
             "/custom" if config_home == "/custom" else str(tmp_path / ".config")
         )
+
         expected_environment.update(
             HOME=str(tmp_path), XDG_CONFIG_HOME=effective_config_home
         )

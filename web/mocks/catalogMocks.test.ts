@@ -24,14 +24,17 @@ const getRepositoryCounts = (repositories: Repository[]) => {
     repositories,
     RepositoryPresentationStatusEnum.READY,
   );
+
   const importing = countRepositoriesByStatus(
     repositories,
     RepositoryPresentationStatusEnum.CLONING,
   );
+
   const failed = countRepositoriesByStatus(
     repositories,
     RepositoryPresentationStatusEnum.FAILED,
   );
+
   const unavailable = repositories.length - ready - importing - failed;
 
   return { total: repositories.length, ready, importing, failed, unavailable };
@@ -66,6 +69,7 @@ test.each(MOCK_REPOSITORIES)(
     const repositoryImports = MOCK_REPOSITORY_IMPORTS.filter(
       (repositoryImport) => repositoryImport.repositoryId === repository.id,
     );
+
     const latestImport = repositoryImports.at(-1) ?? null;
 
     expect(repository.latestImport).toBe(latestImport);
@@ -91,6 +95,7 @@ test.each(MOCK_PROJECTS)(
 
       return hasMembership;
     });
+
     const repositoryCounts = getRepositoryCounts(repositories);
 
     expect(project.repositoryCounts).toEqual(repositoryCounts);

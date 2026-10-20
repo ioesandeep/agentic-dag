@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useIsTabVisible } from '@/hooks/useIsTabVisible';
 
 export const POLL_INTERVAL_MS = 5000;
+
 const NOT_FOUND_STATUS = 404;
 const NO_RESPONSE_YET = { response: null, isMissing: false, hasFailed: false };
 
@@ -94,6 +95,7 @@ export const usePolledApiResponse = <TResponse>(
 ): RefreshablePolledApiResponse<TResponse> => {
   const [polledResponse, setPolledResponse] =
     useState<PolledApiResponse<TResponse>>(NO_RESPONSE_YET);
+
   const [refreshCount, setRefreshCount] = useState(0);
   const isTabVisible = useIsTabVisible();
 
@@ -119,6 +121,7 @@ export const usePolledApiResponse = <TResponse>(
     };
 
     void refreshResponse();
+
     const timer = window.setInterval(refreshResponse, POLL_INTERVAL_MS);
 
     return () => stopPolling(timer, controller);

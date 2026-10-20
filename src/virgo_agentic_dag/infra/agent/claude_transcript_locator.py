@@ -24,6 +24,7 @@ class ClaudeTranscriptLocator(TranscriptLocator):
         project_directory = NON_ALPHANUMERIC_PATTERN.sub(
             PROJECT_DIRECTORY_SEPARATOR, agent.worktree.absolute_path
         )
+
         session_file = f"{agent.resume_token}{SESSION_FILE_SUFFIX}"
 
         return PROJECTS_HOME / project_directory / session_file

@@ -10,6 +10,7 @@ _PULL_REQUEST_EVENTS = (
     "pull_request_review",
     "pull_request_review_comment",
 )
+
 _CHECK_EVENTS = ("check_suite", "check_run")
 
 

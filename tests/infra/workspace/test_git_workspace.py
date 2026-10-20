@@ -61,6 +61,7 @@ async def test_cuts_the_worktree_at_fetch_head_when_the_fetch_succeeds(
             )
         ),
     ]
+
     assert worktree.name == "A"
 
 

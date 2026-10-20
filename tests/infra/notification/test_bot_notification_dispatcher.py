@@ -117,6 +117,7 @@ async def test_replies_in_the_thread_when_the_node_already_has_one(
     slack_notification_repo.get_by_node_id.return_value = SlackNotification(
         node_id="A", channel="#dag", thread_id="1699.0", created_at=NOW
     )
+
     composer = mocker.MagicMock(spec=NotificationComposer)
     composer.work_started.return_value = "Agent *Iris* started working on `A`"
     dispatcher = build_dispatcher(poster, slack_notification_repo, composer)
@@ -139,10 +140,12 @@ async def test_dispatch_updates_the_thread_message_when_passed_a_pull_request_op
     slack_notification_repo.get_by_node_id.return_value = SlackNotification(
         node_id="A", channel="#dag", thread_id="1699.0", created_at=NOW
     )
+
     composer = mocker.MagicMock(spec=NotificationComposer)
     composer.pull_request_opened.return_value = (
         "Agent *Iris* started working on `A`\npr#42"
     )
+
     dispatcher = build_dispatcher(poster, slack_notification_repo, composer)
     pull_request_opened = PullRequestOpenedEvent(
         **build_fields(NotificationType.PR_OPENED), pr_details=READING
@@ -156,6 +159,7 @@ async def test_dispatch_updates_the_thread_message_when_passed_a_pull_request_op
         "1699.0",
         "Agent *Iris* started working on `A`\npr#42",
     )
+
     assert "thread_ts" not in payload
     slack_notification_repo.save.assert_not_awaited()
 
@@ -194,6 +198,7 @@ async def test_marks_the_thread_when_the_event_settles_the_node(
     slack_notification_repo.get_by_node_id.return_value = SlackNotification(
         node_id="A", channel="#dag", thread_id="1699.0", created_at=NOW
     )
+
     composer = mocker.MagicMock(spec=NotificationComposer)
     dispatcher = build_dispatcher(poster, slack_notification_repo, composer)
 
@@ -204,6 +209,7 @@ async def test_marks_the_thread_when_the_event_settles_the_node(
         for call in poster.post.call_args_list
         if "reactions.add" in call.args[0]
     ]
+
     assert reactions == expected_reactions
 
 
@@ -396,6 +402,7 @@ async def test_broadcasts_the_reply_to_the_channel_only_when_the_node_stops(
     slack_notification_repo.get_by_node_id.return_value = SlackNotification(
         node_id="A", channel="#dag", thread_id="1699.0", created_at=NOW
     )
+
     composer = mocker.MagicMock(spec=NotificationComposer)
     dispatcher = build_dispatcher(poster, slack_notification_repo, composer)
 
@@ -406,6 +413,7 @@ async def test_broadcasts_the_reply_to_the_channel_only_when_the_node_stops(
         for call in poster.post.call_args_list
         if "chat.postMessage" in call.args[0]
     )
+
     assert payload.get("reply_broadcast", False) is is_broadcast
 
 

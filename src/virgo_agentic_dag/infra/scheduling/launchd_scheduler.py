@@ -67,6 +67,7 @@ class LaunchdScheduler(Scheduler):
         result = await self._run(
             ("launchctl", "bootout", f"{self._get_domain()}/{job.label}")
         )
+
         if result.returncode != 0 and await self.is_registered(job):
             raise SchedulingError(
                 f"launchd refused to retire {job.label}: {result.stderr.strip()}"
@@ -98,6 +99,7 @@ class LaunchdScheduler(Scheduler):
             "RunAtLoad": False,
             "StartInterval": job.interval_seconds,
         }
+
         if environment:
             plist["EnvironmentVariables"] = dict(environment)
 

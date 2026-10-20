@@ -57,6 +57,7 @@ class ParkedSseServer:
             connection.sendall(
                 b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n"
             )
+
             self._connections.put(connection)
 
 
@@ -118,6 +119,7 @@ def test_subscribe_yields_payload_published_by_server(server: WebhookSseServer) 
     stream = UrllibEventStream(
         f"http://127.0.0.1:{server.server_port}/events?topics=acme/virgo%2312"
     )
+
     received: queue.Queue[str] = queue.Queue()
 
     def get_first_payload() -> None:

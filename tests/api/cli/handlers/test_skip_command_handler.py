@@ -56,6 +56,7 @@ async def test_skip_releases_the_run_lock_when_the_node_cannot_be_skipped(
     node_skip_service.skip.side_effect = SkipRefused(
         "TOKENS has merged and cannot be skipped\n"
     )
+
     run_lock = mocker.MagicMock(spec=RunLock)
     handler = SkipCommandHandler(run_lock=run_lock, node_skip_service=node_skip_service)
 

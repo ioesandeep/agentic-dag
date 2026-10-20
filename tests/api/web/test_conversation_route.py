@@ -63,13 +63,16 @@ def dag_home(mocker: MockerFixture, tmp_path: Path) -> Path:
         "virgo_agentic_dag.services.dag.dag_service.get_dag_root",
         return_value=tmp_path,
     )
+
     mocker.patch(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", return_value=tmp_path
     )
+
     mocker.patch(
         "virgo_agentic_dag.infra.agent.claude_transcript_locator.PROJECTS_HOME",
         tmp_path / "projects",
     )
+
     mocker.patch(
         "virgo_agentic_dag.infra.agent.transcript_page_reader.TRANSCRIPT_BLOCK_SIZE_BYTES",
         SMALL_BLOCK_SIZE_BYTES,
@@ -84,9 +87,11 @@ async def database(dag_home: Path) -> AsyncGenerator[SqliteDatabase]:
     dag_home.joinpath("alpha", "dag.toml").write_text(
         "name = 'alpha'\n[[nodes]]\nid = 'seed'\n", encoding="utf-8"
     )
+
     engine = create_async_engine(
         f"sqlite+aiosqlite:///{dag_home / 'alpha' / 'db.sqlite3'}"
     )
+
     database = SqliteDatabase(engine)
     await database.upgrade_to_head()
     await SqliteNodeRepo(database).ensure_rows([GraphNode(id="seed")], STARTED_AT)
@@ -107,6 +112,7 @@ def save_node_agent(
             branch="feat/seed",
             created_at=STARTED_AT,
         )
+
         node_agent = NodeAgent(
             id="agent-seed",
             name=executor_agent.value,
@@ -114,6 +120,7 @@ def save_node_agent(
             node_id="seed",
             worktree=worktree,
         )
+
         await SqliteNodeAgentRepo(database).save(node_agent)
 
         return node_agent
@@ -170,9 +177,11 @@ def client(mocker: MockerFixture, dag_home: Path) -> TestClient:
             GraphBuilder(TomlDagLoader()),
         )
     )
+
     node_action_controller = NodeActionController(
         mocker.MagicMock(spec=NodeActionService)
     )
+
     application = WebApplicationFactory(
         dag_route=DagRoute(dag_controller),
         health_route=HealthRoute(HealthController()),
@@ -199,6 +208,7 @@ async def test_conversation_page_returns_the_older_page_of_the_same_session_with
             "assistant", [{"type": "text", "text": "the build passes"}]
         ),
     ]
+
     write_transcript(transcript_path, records)
 
     newest_page = client.get(CONVERSATION_PATH, params={"limit": 1}).json()
@@ -210,6 +220,7 @@ async def test_conversation_page_returns_the_older_page_of_the_same_session_with
     assert [message["text"] for message in newest_page["messages"]] == [
         "the build passes"
     ]
+
     assert [message["text"] for message in older_page["messages"]] == ["fix the build"]
     assert older_page["pagination"]["nextCursor"] is None
     assert (newest_page["sessionId"], older_page["sessionId"]) == (
@@ -256,6 +267,7 @@ async def test_conversation_page_returns_all_messages_from_the_boundary_record_w
             "assistant", [{"type": "text", "text": "the build passes"}]
         ),
     ]
+
     record_offsets = write_transcript(transcript_path, records)
 
     response = client.get(CONVERSATION_PATH, params={"limit": 2})
@@ -291,6 +303,7 @@ async def test_conversation_page_returns_the_result_of_a_tool_call_at_its_newer_
             [{"type": "tool_result", "tool_use_id": "toolu-a", "content": "3 passed"}],
         ),
     ]
+
     record_offsets = write_transcript(transcript_path, records)
 
     response = client.get(
@@ -334,6 +347,7 @@ async def test_conversation_page_returns_the_latest_state_of_each_codex_item_whe
             {"id": "item_2", "type": "agent_message", "text": "the build passes"},
         ),
     ]
+
     write_transcript(transcript_path, records)
 
     newest_page = client.get(CONVERSATION_PATH, params={"limit": 2}).json()
@@ -359,6 +373,7 @@ async def test_conversation_page_excludes_the_final_transcript_line_when_it_has_
     records = [
         build_claude_record("assistant", [{"type": "text", "text": "the build passes"}])
     ]
+
     write_transcript(transcript_path, records)
     partial_record = build_claude_record("user", [{"type": "text", "text": "and"}])
     with transcript_path.open("a", encoding="utf-8") as transcript_file:

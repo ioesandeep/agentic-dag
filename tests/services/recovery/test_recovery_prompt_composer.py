@@ -100,9 +100,11 @@ async def test_compose_prompt_quotes_every_field_of_the_node_as_evidence(
         "recovery attempts so far: 2",
         f"````\n{LOG_TAIL}\n````",
     ]
+
     missing_fragments = [
         fragment for fragment in expected_fragments if fragment not in prompt
     ]
+
     assert missing_fragments == []
 
 
@@ -123,6 +125,7 @@ async def test_compose_prompt_states_the_runbook_and_the_command_line_before_the
     causes_missing = [
         cause.value for cause in RecoveryCauseEnum if f"`{cause.value}`" not in prompt
     ]
+
     assert "`/venv/bin/dagctl <command> <node> ... --dag /runs/demo/dag.toml`" in prompt
     assert causes_missing == []
     assert prompt.index("# Recovery runbook") < prompt.index("# The batch")
@@ -139,6 +142,7 @@ async def test_compose_prompt_writes_none_for_each_field_when_the_node_has_no_ag
         dagctl_path,
         {ExecutorAgent.CLAUDE: ClaudeTranscriptLocator()},
     )
+
     node = Node(
         id="A",
         state=NodeState.ERRORED.value,

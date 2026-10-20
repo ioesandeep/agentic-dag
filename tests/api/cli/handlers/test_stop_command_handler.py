@@ -52,6 +52,7 @@ async def test_stop_command_handler_releases_the_run_lock_when_the_stop_service_
     node_stop_service.stop.side_effect = StopRefused(
         "stop fails for TOKENS because its state is resting\n"
     )
+
     run_lock = mocker.MagicMock(spec=RunLock)
     handler = StopCommandHandler(run_lock=run_lock, node_stop_service=node_stop_service)
 

@@ -179,6 +179,7 @@ async def test_get_recoverable_nodes_returns_nothing_when_the_node_is_not_due(
         build_node_recovery(recoverable, delay)
         for recoverable, delay in node_recovery_specs
     ]
+
     async with database.open_session() as db_session:
         db_session.add_all([node, *node_recoveries])
         await db_session.commit()
@@ -210,6 +211,7 @@ async def test_get_recoverable_nodes_moves_the_node_to_needs_human_when_no_attem
         build_node_recovery(True, timedelta()),
         build_node_recovery(True, timedelta()),
     ]
+
     async with database.open_session() as db_session:
         db_session.add_all([node, *node_recoveries])
         await db_session.commit()

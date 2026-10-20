@@ -24,10 +24,11 @@ _COMPOUND: tuple[type[ast.stmt], ...] = (
     ast.AsyncFunctionDef,
     ast.ClassDef,
 )
+
 if hasattr(ast, "Match"):
     _COMPOUND = (*_COMPOUND, ast.Match)
 
-_TERMINAL: tuple[type[ast.stmt], ...] = (ast.Return, ast.Raise)
+_TERMINAL: tuple[type[ast.stmt], ...] = (ast.Return,)
 
 
 def check_source(source: str, path: str) -> list[str]:
@@ -36,16 +37,20 @@ def check_source(source: str, path: str) -> list[str]:
     tree = ast.parse(source)
 
     for node in ast.walk(tree):
+        is_class_body = isinstance(node, ast.ClassDef)
         for field in ("body", "orelse", "finalbody"):
             block = getattr(node, field, None)
             if isinstance(block, list) and block and isinstance(block[0], ast.stmt):
-                _check_block(block, path, problems)
+                _check_block(block, path, problems, is_class_body)
 
     problems.sort()
+
     return problems
 
 
-def _check_block(block: Sequence[ast.stmt], path: str, problems: list[str]) -> None:
+def _check_block(
+    block: Sequence[ast.stmt], path: str, problems: list[str], is_class_body: bool
+) -> None:
     for prev, curr in zip(block, block[1:]):
         if prev is block[0] and _is_docstring(prev):
             continue
@@ -62,6 +67,15 @@ def _check_block(block: Sequence[ast.stmt], path: str, problems: list[str]) -> N
         elif isinstance(curr, _TERMINAL):
             problems.append(
                 f"{path}:{_get_start_line(curr)}: add a blank line before this {_get_node_name(curr)}"
+            )
+        elif (
+            end > prev.lineno
+            and not is_class_body
+            and not isinstance(prev, (ast.Import, ast.ImportFrom))
+        ):
+            problems.append(
+                f"{path}:{_get_start_line(curr)}: add a blank line after the preceding "
+                "multi-line statement"
             )
 
 

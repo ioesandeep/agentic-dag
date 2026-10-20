@@ -67,6 +67,7 @@ def dag_home(mocker: MockerFixture, tmp_path: Path) -> Path:
         "virgo_agentic_dag.services.dag.dag_service.get_dag_root",
         return_value=tmp_path,
     )
+
     mocker.patch(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", return_value=tmp_path
     )
@@ -84,6 +85,7 @@ async def database(dag_home: Path) -> AsyncGenerator[SqliteDatabase]:
         "[[nodes]]\nid = 'seed'\n",
         encoding="utf-8",
     )
+
     engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
     database = SqliteDatabase(engine)
     await database.upgrade_to_head()
@@ -104,12 +106,14 @@ def client(mocker: MockerFixture, dag_home: Path) -> TestClient:
         TranscriptPageReader(),
         GraphBuilder(TomlDagLoader()),
     )
+
     dag_controller = DagController(dag_web_service)
     node_action_service = NodeActionService(
         dag_web_service=dag_web_service,
         dagctl_runner=SubprocessDagctlRunner(),
         timeout=1,
     )
+
     application = WebApplicationFactory(
         dag_route=DagRoute(dag_controller),
         health_route=HealthRoute(HealthController()),
@@ -144,6 +148,7 @@ async def test_retry_responds_with_a_pending_node_and_retains_or_clears_the_sess
     node_agent = NodeAgent(
         id="agent-seed", name="claude", resume_token="token-seed", node_id="seed"
     )
+
     await SqliteNodeAgentRepo(database).save(node_agent)
 
     response = client.post(RETRY_PATH, json={"reset": reset})
@@ -198,6 +203,7 @@ async def test_wake_responds_with_an_in_progress_node_and_its_recovery_when_the_
         branch="feat/seed",
         created_at=STARTED_AT,
     )
+
     agent_session = AgentSession(
         started_at=STARTED_AT,
         ended_at=ENDED_AT,
@@ -205,6 +211,7 @@ async def test_wake_responds_with_an_in_progress_node_and_its_recovery_when_the_
         triggered_by="launch",
         exit_code=0,
     )
+
     node_agent = NodeAgent(
         id="agent-seed",
         name="claude",
@@ -213,6 +220,7 @@ async def test_wake_responds_with_an_in_progress_node_and_its_recovery_when_the_
         worktree=worktree,
         sessions=[agent_session],
     )
+
     await SqliteNodeAgentRepo(database).save(node_agent)
 
     stub_directory = tmp_path / "bin"
@@ -262,6 +270,7 @@ async def test_wake_responds_409_without_running_dagctl_when_the_node_is_errored
     assert response.json() == {
         "detail": "wake requires node seed in dag alpha to be resting, not errored"
     }
+
     dagctl_run.assert_not_called()
 
 
@@ -274,15 +283,18 @@ async def test_stop_responds_with_the_node_in_needs_human_state_when_its_session
     await SqliteNodeRepo(database).update_state(
         "seed", NodeState.IN_PROGRESS, STARTED_AT
     )
+
     worktree = WorkTree(
         name="alpha-seed",
         absolute_path=str(tmp_path / "ws" / "seed"),
         branch="feat/seed",
         created_at=STARTED_AT,
     )
+
     agent_session = AgentSession(
         started_at=STARTED_AT, triggered_by="launch", pid=sleeping_process.pid
     )
+
     node_agent = NodeAgent(
         id="agent-seed",
         name="claude",
@@ -291,6 +303,7 @@ async def test_stop_responds_with_the_node_in_needs_human_state_when_its_session
         worktree=worktree,
         sessions=[agent_session],
     )
+
     await SqliteNodeAgentRepo(database).save(node_agent)
 
     response = client.post(STOP_PATH)
@@ -316,6 +329,7 @@ async def test_retry_responds_409_when_another_command_has_the_run_lock_througho
             "or stop, retains the lock"
         )
     }
+
     run_lock.release()
 
 

@@ -32,6 +32,7 @@ class DagRoute:
             response_model=list[DagSummaryResponse],
             summary="List every dag on this host",
         )
+
         router.add_api_route(
             "/dags/{name}",
             self._controller.get_dag,
@@ -44,6 +45,7 @@ class DagRoute:
                 }
             },
         )
+
         router.add_api_route(
             "/dags/{dag_name}/{node_id}",
             self._controller.get_node_by_name,

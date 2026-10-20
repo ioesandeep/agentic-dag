@@ -43,6 +43,7 @@ def test_returns_the_nodes_in_graph_order_when_partitioning_by_state() -> None:
         "B",
         "C",
     ]
+
     assert [graph_node.id for graph_node in service.get_merged_nodes(nodes)] == ["A"]
     assert service.get_in_progress_nodes(nodes) == []
 

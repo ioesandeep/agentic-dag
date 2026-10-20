@@ -108,6 +108,7 @@ def test_the_validate_command_creates_no_database(
     monkeypatch.setattr(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", lambda: tmp_path
     )
+
     dag = tmp_path / "homed-dag.toml"
     dag.write_text(_VALID, encoding="utf-8")
     run_home = tmp_path / "live"

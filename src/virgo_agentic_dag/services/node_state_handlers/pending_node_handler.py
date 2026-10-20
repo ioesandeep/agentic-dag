@@ -103,16 +103,19 @@ class PendingNodeHandler(NodeStateHandler):
             (node for node in dependency_nodes if NodeState(node.state) in _STOPPED),
             None,
         )
+
         if stopped_dependency is not None:
             note = format_label(
                 LABELS["upstreamStopped"], {"node_id": stopped_dependency.id}
             )
+
             node_event = self._get_stopped_event(
                 graph_node,
                 NotificationType.NEEDS_HUMAN,
                 note,
                 current_time,
             )
+
             await self.record(node_event, NodeState.NEEDS_HUMAN, note)
 
             return TickResponse(events_applied=1)
@@ -126,6 +129,7 @@ class PendingNodeHandler(NodeStateHandler):
         start_time = node_start_time_service.get_start_time(
             graph_node, skipped_and_dependency_nodes
         )
+
         if start_time is not None and start_time > current_time:
             await self._record_wait(graph_node, start_time)
 
@@ -134,6 +138,7 @@ class PendingNodeHandler(NodeStateHandler):
         in_progress_nodes = await self._node_repo.get_nodes_by_state(
             NodeState.IN_PROGRESS
         )
+
         if len(in_progress_nodes) >= self._dag_spec.max_workers:
             return TickResponse()
 
@@ -146,6 +151,7 @@ class PendingNodeHandler(NodeStateHandler):
             node_event = self._get_stopped_event(
                 graph_node, NotificationType.NEEDS_HUMAN, note, current_time
             )
+
             await self.record(node_event, NodeState.NEEDS_HUMAN, note)
 
             return TickResponse(events_applied=1)
@@ -168,6 +174,7 @@ class PendingNodeHandler(NodeStateHandler):
         cooldown_start_time = start_time - timedelta(
             seconds=graph_node.cooldown_seconds
         )
+
         if node is None or node.is_updated_after(cooldown_start_time):
             return
 
@@ -183,6 +190,7 @@ class PendingNodeHandler(NodeStateHandler):
             note=note,
             created_at=current_time,
         )
+
         await self._audit_entry_repo.save(audit_entry)
 
     async def _adopt(self, graph_node: GraphNode) -> TickResponse:
@@ -211,6 +219,7 @@ class PendingNodeHandler(NodeStateHandler):
             agent = self._create_agent(
                 graph_node, agent_product, worktree, recorded_agent
             )
+
             session = await launcher.launch(graph_node, graph_node.instructions, agent)
 
         agent.sessions.append(session)
@@ -219,6 +228,7 @@ class PendingNodeHandler(NodeStateHandler):
         note = format_label(
             LABELS["workStarted"], {"agent_name": node.get_agent_name()}
         )
+
         node_event = WorkStartedEvent(
             node_id=graph_node.id,
             type=NotificationType.WORK_STARTED,
@@ -227,6 +237,7 @@ class PendingNodeHandler(NodeStateHandler):
             title=graph_node.title,
             agent_name=graph_node.get_agent_name(),
         )
+
         await self.record(node_event, NodeState.IN_PROGRESS, note)
 
         return TickResponse(events_applied=1, sessions_started=1)

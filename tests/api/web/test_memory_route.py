@@ -43,6 +43,7 @@ def dag_home(mocker: MockerFixture, tmp_path: Path) -> Path:
         "virgo_agentic_dag.services.dag.dag_service.get_dag_root",
         return_value=tmp_path,
     )
+
     mocker.patch(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", return_value=tmp_path
     )
@@ -74,9 +75,11 @@ def client(mocker: MockerFixture, dag_home: Path) -> TestClient:
             GraphBuilder(TomlDagLoader()),
         )
     )
+
     node_action_controller = NodeActionController(
         mocker.MagicMock(spec=NodeActionService)
     )
+
     application = WebApplicationFactory(
         dag_route=DagRoute(dag_controller),
         health_route=HealthRoute(HealthController()),

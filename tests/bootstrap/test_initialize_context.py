@@ -101,6 +101,7 @@ async def test_delivers_scheduled_notifications_when_the_context_exits(
             NotificationPublisher,
             lambda _: NotificationPublisher(notification_subscribers=[subscriber]),
         )
+
         context.get(NotificationPublisher).publish(event)
 
     delivered.assert_called_once_with(event)
@@ -127,6 +128,7 @@ async def test_delivers_scheduled_notifications_when_the_command_raises(
                 NotificationPublisher,
                 lambda _: NotificationPublisher(notification_subscribers=[subscriber]),
             )
+
             context.get(NotificationPublisher).publish(event)
 
             raise RuntimeError("boom")
@@ -149,6 +151,7 @@ async def test_admits_an_abort_while_a_pass_is_working_the_run(
     monkeypatch.setattr(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", lambda: tmp_path
     )
+
     dag_path = tmp_path / "dag.toml"
     dag_path.write_text(HOMED_DAG_TOML, encoding="utf-8")
     tick = TickCommand(dag_path=dag_path)
@@ -178,6 +181,7 @@ async def test_admits_a_pass_while_the_server_is_serving(
     monkeypatch.setattr(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", lambda: tmp_path
     )
+
     dag_path = tmp_path / "dag.toml"
     dag_path.write_text(HOMED_DAG_TOML, encoding="utf-8")
 
@@ -243,6 +247,7 @@ async def test_initialize_context_keeps_the_repository_slug_empty_when_github_co
         "get_repo_slug",
         side_effect=ObservationError("gh repo view failed"),
     )
+
     dag_path = tmp_path / "dag.toml"
     dag_path.write_text(
         CHECKED_OUT_DAG_TOML.format(

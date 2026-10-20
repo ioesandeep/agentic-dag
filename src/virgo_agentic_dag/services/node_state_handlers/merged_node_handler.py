@@ -86,6 +86,7 @@ class MergedNodeHandler(NodeStateHandler):
             created_at=worktree.created_at,
             reclaimed_at=current_time,
         )
+
         await self._work_tree_repo.mark_reclaimed(reclaimed_worktree)
         logger.info("reclaimed the worktree of %s", graph_node.id)
 

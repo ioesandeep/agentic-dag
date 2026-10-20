@@ -40,6 +40,7 @@ const DEFAULT_PROJECT: Project = {
     unavailable: 0,
   },
 };
+
 const PLATFORM_PROJECT: Project = {
   id: 'project-platform',
   name: 'Platform',
@@ -57,6 +58,7 @@ const PLATFORM_PROJECT: Project = {
     unavailable: 1,
   },
 };
+
 const RESEARCH_PROJECT: Project = {
   id: 'project-research',
   name: 'Research',
@@ -74,6 +76,7 @@ const RESEARCH_PROJECT: Project = {
     unavailable: 0,
   },
 };
+
 const LEGACY_PROJECT: Project = {
   id: 'project-legacy',
   name: 'Legacy',
@@ -131,6 +134,7 @@ const SERVICE_REPOSITORY: Repository = {
   latestImport: SUCCEEDED_SERVICE_IMPORT,
   presentationStatus: RepositoryPresentationStatusEnum.READY,
 };
+
 const WORKER_REPOSITORY: Repository = {
   ...REPOSITORY_DEFAULTS,
   id: RUNNING_WORKER_IMPORT.repositoryId,
@@ -147,6 +151,7 @@ const WORKER_REPOSITORY: Repository = {
   latestImport: RUNNING_WORKER_IMPORT,
   presentationStatus: RepositoryPresentationStatusEnum.CLONING,
 };
+
 const CONNECTOR_REPOSITORY: Repository = {
   ...REPOSITORY_DEFAULTS,
   id: FAILED_CONNECTOR_IMPORT.repositoryId,
@@ -162,6 +167,7 @@ const CONNECTOR_REPOSITORY: Repository = {
   latestImport: FAILED_CONNECTOR_IMPORT,
   presentationStatus: RepositoryPresentationStatusEnum.FAILED,
 };
+
 const CONSOLE_REPOSITORY: Repository = {
   ...REPOSITORY_DEFAULTS,
   id: 'repository-console',
@@ -176,6 +182,7 @@ const CONSOLE_REPOSITORY: Repository = {
   latestImport: null,
   presentationStatus: RepositoryPresentationStatusEnum.READY,
 };
+
 const TOOLS_REPOSITORY: Repository = {
   ...REPOSITORY_DEFAULTS,
   id: 'repository-tools',
@@ -191,6 +198,7 @@ const TOOLS_REPOSITORY: Repository = {
   latestImport: null,
   presentationStatus: RepositoryPresentationStatusEnum.MISSING,
 };
+
 const LEGACY_REPOSITORY: Repository = {
   ...REPOSITORY_DEFAULTS,
   id: SUCCEEDED_LEGACY_IMPORT.repositoryId,

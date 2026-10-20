@@ -28,6 +28,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["session_id"], ["agent_sessions.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
+
     op.create_index(
         NODE_RECOVERY_NODE_ID_INDEX_NAME,
         NODE_RECOVERY_TABLE_NAME,

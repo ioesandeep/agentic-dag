@@ -75,6 +75,7 @@ def test_node_agent_returns_whole_lines_when_the_session_file_runs_past_the_limi
         "virgo_agentic_dag.domain.persistence.entities.node_agent.TRANSCRIPT_BYTE_LIMIT",
         byte_limit,
     )
+
     write_session_file(f"{OLDER_LINE}\n" * OLDER_LINE_COUNT + TRANSCRIPT_LINE)
     agent = build_agent("claude")
 

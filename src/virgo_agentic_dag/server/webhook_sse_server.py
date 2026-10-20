@@ -43,6 +43,7 @@ def main() -> int:
         prog="dag-webhook-sse",
         description="Bridge GitHub webhooks to server-sent events for tick listeners.",
     )
+
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8787)
     arguments = parser.parse_args()
@@ -59,6 +60,7 @@ def main() -> int:
     server = WebhookSseServer(
         (arguments.host, arguments.port), hub, verifier, extractor
     )
+
     logger.info("listening on http://%s:%d", arguments.host, arguments.port)
     try:
         server.serve_forever()

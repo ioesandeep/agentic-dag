@@ -136,6 +136,7 @@ async def test_start_reconciles_the_host_job_after_a_successful_pass(
         mocker.call.tick(command),
         mocker.call.reconcile(command.dag_path),
     ]
+
     assert out.getvalue().endswith("\n")
 
 
@@ -630,6 +631,7 @@ async def test_posts_the_dag_completed_message_when_the_run_completes(
     clock = mocker.patch(
         "virgo_agentic_dag.api.cli.handlers.start_command_handler.datetime"
     )
+
     clock.now.return_value = NOW
 
     started_at = NOW.replace(tzinfo=None) - timedelta(hours=2)

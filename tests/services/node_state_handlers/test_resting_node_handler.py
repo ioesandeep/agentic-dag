@@ -147,6 +147,7 @@ async def test_settles_the_node_when_the_pull_request_reaches_a_final_state(
         marks="{}",
         created_at=NOW,
     )
+
     launch_session = AgentSession(
         id=1, agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=1
     )
@@ -187,6 +188,7 @@ async def test_settles_the_node_when_the_pull_request_reaches_a_final_state(
     clock = mocker.patch(
         "virgo_agentic_dag.services.node_state_handlers.resting_node_handler.datetime"
     )
+
     clock.now.return_value = NOW
     await handler.handle(graph, [graph_node], NOW)
 
@@ -217,6 +219,7 @@ async def test_records_no_settle_time_when_the_node_already_records_one(
         marks="{}",
         created_at=NOW,
     )
+
     launch_session = AgentSession(
         id=1, agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=1
     )
@@ -250,6 +253,7 @@ async def test_records_no_settle_time_when_the_node_already_records_one(
     clock = mocker.patch(
         "virgo_agentic_dag.services.node_state_handlers.resting_node_handler.datetime"
     )
+
     clock.now.return_value = NOW
     await handler.handle(graph, [graph_node], NOW)
 
@@ -284,9 +288,11 @@ async def test_wakes_the_agent_when_a_signal_reports_news(
         marks="{}",
         created_at=NOW,
     )
+
     launch_session = AgentSession(
         id=1, agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=1
     )
+
     agent = build_agent(worktree, [launch_session])
 
     node_agent_repo = mocker.MagicMock(spec=NodeAgentRepo)
@@ -299,6 +305,7 @@ async def test_wakes_the_agent_when_a_signal_reports_news(
         base_branch="develop",
         is_mergeable=is_mergeable,
     )
+
     code_repo.get_review_artifacts.return_value = [
         ReviewArtifact(
             kind=ReviewArtifactType.ISSUE_COMMENT,
@@ -313,6 +320,7 @@ async def test_wakes_the_agent_when_a_signal_reports_news(
     wake_session = AgentSession(
         agent_id="agent-1", started_at=NOW, triggered_by="wake", pid=777
     )
+
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
     agent_launcher.wake.return_value = wake_session
 
@@ -335,6 +343,7 @@ async def test_wakes_the_agent_when_a_signal_reports_news(
     clock = mocker.patch(
         "virgo_agentic_dag.services.node_state_handlers.resting_node_handler.datetime"
     )
+
     clock.now.return_value = NOW
     await handler.handle(graph, [graph_node], NOW)
 
@@ -374,6 +383,7 @@ async def test_leaves_the_node_resting_when_a_comment_is_not_news(
         marks=marks,
         created_at=NOW,
     )
+
     launch_session = AgentSession(
         id=1, agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=1
     )
@@ -387,6 +397,7 @@ async def test_leaves_the_node_resting_when_a_comment_is_not_news(
     code_repo.get_pull_request.return_value = PullRequestSnapshot(
         state=PullRequestState.OPEN, head_sha="sha1", base_branch="develop"
     )
+
     code_repo.get_review_artifacts.return_value = [
         ReviewArtifact(
             kind=ReviewArtifactType.ISSUE_COMMENT,
@@ -437,6 +448,7 @@ async def test_announces_without_waking_when_the_pull_request_is_approved(
         marks="{}",
         created_at=NOW,
     )
+
     launch_session = AgentSession(
         id=1, agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=1
     )
@@ -453,6 +465,7 @@ async def test_announces_without_waking_when_the_pull_request_is_approved(
         base_branch="develop",
         is_approved=True,
     )
+
     code_repo.get_review_artifacts.return_value = []
 
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
@@ -501,6 +514,7 @@ async def test_needs_a_human_when_the_wake_budget_is_spent(
         marks="{}",
         created_at=NOW,
     )
+
     sessions = [
         AgentSession(
             id=1, agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=1
@@ -520,6 +534,7 @@ async def test_needs_a_human_when_the_wake_budget_is_spent(
     code_repo.get_pull_request.return_value = PullRequestSnapshot(
         state=PullRequestState.OPEN, head_sha="sha1", base_branch="develop"
     )
+
     code_repo.get_review_artifacts.return_value = [
         ReviewArtifact(
             kind=ReviewArtifactType.ISSUE_COMMENT,
@@ -551,6 +566,7 @@ async def test_needs_a_human_when_the_wake_budget_is_spent(
     clock = mocker.patch(
         "virgo_agentic_dag.services.node_state_handlers.resting_node_handler.datetime"
     )
+
     clock.now.return_value = NOW
     await handler.handle(graph, [graph_node], NOW)
 
@@ -576,6 +592,7 @@ async def test_leaves_the_node_resting_when_the_platform_cannot_be_read(
         marks="{}",
         created_at=NOW,
     )
+
     launch_session = AgentSession(
         id=1, agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=1
     )

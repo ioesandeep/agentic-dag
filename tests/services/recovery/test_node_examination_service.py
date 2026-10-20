@@ -108,6 +108,7 @@ async def test_examine_prints_the_row_and_the_latest_session_when_the_node_has_a
         recover_at=errored_node.updated_at,
         action="woke it",
     )
+
     service = NodeExaminationService(
         node_repo=node_repo,
         node_recovery_repo=node_recovery_repo,
@@ -127,10 +128,12 @@ async def test_examine_prints_the_row_and_the_latest_session_when_the_node_has_a
         "recovery attempts left\t2\trows recorded\t1",
         "newest recovery\tturn_cap_reached\trecoverable True",
     ]
+
     output = out.getvalue()
     missing_fragments = [
         fragment for fragment in expected_fragments if fragment not in output
     ]
+
     assert exit_code is ExitCode.SUCCESS
     assert missing_fragments == []
 
@@ -146,6 +149,7 @@ async def test_examine_prints_none_for_the_worktree_and_session_when_the_node_ne
         updated_at=now,
         recovery_attempts_allowed=3,
     )
+
     node_recovery_repo = mocker.MagicMock(spec=NodeRecoveryRepo)
     node_recovery_repo.count_by_node_id.return_value = 0
     node_recovery_repo.get_newest_recovery_by_node_id.return_value = None

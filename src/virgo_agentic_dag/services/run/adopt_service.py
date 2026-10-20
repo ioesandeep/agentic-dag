@@ -68,9 +68,11 @@ class AdoptService:
             or dag_spec.workspace_path
             or WORKSPACE_HOME / dag_spec.name
         )
+
         project_root = await self._resolve_project_root(
             command, dag_spec, pr_details, workspace_path
         )
+
         graph_node = GraphNode(
             id=node_id,
             title=pr_details.title,
@@ -80,6 +82,7 @@ class AdoptService:
             workspace_path=workspace_path,
             pr=pr_details.url,
         )
+
         await self._node_importer.import_node(graph_node, pr_details, command.session)
 
         emit(

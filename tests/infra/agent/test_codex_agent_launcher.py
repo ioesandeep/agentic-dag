@@ -85,6 +85,7 @@ async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_
         transcript_locator=transcript_locator,
         codex_spec=spec.codex,
     )
+
     graph_node = GraphNode(id="A")
     launched_session = await launcher.launch(graph_node, "Implement the feature", agent)
     await asyncio.to_thread(os.waitpid, launched_session.pid, 0)
@@ -109,6 +110,7 @@ async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_
         assert [arg for arg in execution_arguments if arg.startswith("model=")] == [
             f'model="{model}"'
         ]
+
         assert [
             arg
             for arg in execution_arguments
@@ -125,6 +127,7 @@ async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_
         "user",
         "assistant",
     ]
+
     assert len({message.uuid for message in messages}) == 4
     assert woken_session.marks_before == '{"pr":"1"}'
     assert agent.worktree.find_exit_code() == 0
@@ -143,6 +146,7 @@ async def test_wake_raises_worktree_error_when_codex_exits_before_recording_a_th
         learnings_path=tmp_path / "memory.md",
         transcript_locator=transcript_locator,
     )
+
     graph_node = GraphNode(id="A")
 
     session = await launcher.launch(graph_node, "Implement the feature", agent)
@@ -170,6 +174,7 @@ async def test_wake_resumes_the_adopted_thread_when_no_prior_wake_succeeds(
         learnings_path=tmp_path / "memory.md",
         transcript_locator=transcript_locator,
     )
+
     graph_node = GraphNode(id="A")
     if first_wake_fails:
         binary.write_text("#!/bin/sh\necho 'authentication failed' >&2\nexit 9\n")
@@ -219,6 +224,7 @@ async def test_supervise_reports_overdue_when_the_deadline_passes_and_finished_w
         learnings_path=tmp_path / "memory.md",
         transcript_locator=transcript_locator,
     )
+
     session = await launcher.launch(GraphNode(id="A"), "Implement the feature", agent)
     try:
         assert await launcher.supervise(session) is SessionStatus.ALIVE

@@ -88,6 +88,7 @@ def test_scoped_subscriber_hears_only_its_own_pull_request(
     leaked = post_webhook(
         server.server_port, elsewhere, sign(elsewhere), event="pull_request_review"
     )
+
     assert leaked == 204
     assert post_webhook(server.server_port, watched, sign(watched)) == 204
 

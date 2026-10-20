@@ -34,4 +34,5 @@ class RecoverySessionKiller:
             ended_at=current_time,
             node_ids=recovery_session.node_ids,
         )
+
         await self._recovery_session_repo.close(closed_recovery_session)

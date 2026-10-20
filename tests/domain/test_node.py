@@ -36,6 +36,7 @@ def test_has_failed_returns_false_only_when_a_resting_node_has_a_finished_sessio
         end_state=end_state,
         exit_code=exit_code,
     )
+
     agent = NodeAgent(id="agent-A", node_id="A", sessions=[session])
     node = Node(id="A", state=NodeState.RESTING.value, agent=agent)
 
@@ -70,6 +71,7 @@ def test_can_recover_returns_false_when_a_person_stops_the_session() -> None:
         end_state=STOPPED_SESSION_END_STATE,
         exit_code=None,
     )
+
     agent = NodeAgent(id="agent-A", node_id="A", sessions=[session])
     node = Node(
         id="A",

@@ -106,6 +106,7 @@ class RestingNodeHandler(NodeStateHandler):
             node_event = self._get_stopped_event(
                 graph_node, NotificationType.AGENT_FAILED, LABELS["sessionNeverStarted"]
             )
+
             await self.record(
                 node_event, NodeState.ERRORED, LABELS["sessionNeverStarted"]
             )
@@ -154,6 +155,7 @@ class RestingNodeHandler(NodeStateHandler):
         snapshot = await self._code_repo.get_pull_request(
             graph_node, worktree.pr_number
         )
+
         if not snapshot.is_complete:
             return TickResponse()
 
@@ -171,6 +173,7 @@ class RestingNodeHandler(NodeStateHandler):
                 LABELS["closedUnmerged"],
                 closed_pr_details,
             )
+
             await self.record(
                 node_event, NodeState.NEEDS_HUMAN, LABELS["closedUnmerged"]
             )
@@ -202,6 +205,7 @@ class RestingNodeHandler(NodeStateHandler):
             created_at=worktree.created_at,
             reclaimed_at=worktree.reclaimed_at,
         )
+
         await self._work_tree_repo.advance_marks(marked_worktree)
         self._publish_news(graph_node, changes, pr_details)
 
@@ -300,6 +304,7 @@ class RestingNodeHandler(NodeStateHandler):
             if snapshot.is_approved
             else NotificationType.MERGED
         )
+
         note = LABELS["pullRequestMerged"]
         if snapshot.merged_by:
             note = format_label(
@@ -316,6 +321,7 @@ class RestingNodeHandler(NodeStateHandler):
             agent_name=graph_node.get_agent_name(),
             pr_details=snapshot.to_pr_details(worktree.pr_number),
         )
+
         await self.record(node_event, NodeState.MERGED, note)
 
         return TickResponse(events_applied=1)
@@ -337,6 +343,7 @@ class RestingNodeHandler(NodeStateHandler):
                 LABELS["outOfWakes"],
                 pr_details,
             )
+
             await self.record(
                 stopped_event, NodeState.NEEDS_HUMAN, LABELS["outOfWakes"]
             )
@@ -354,6 +361,7 @@ class RestingNodeHandler(NodeStateHandler):
         note = format_label(
             LABELS["workResumed"], {"agent_name": graph_node.get_agent_name()}
         )
+
         current_time = datetime.now(UTC)
         node_event = WorkResumedEvent(
             node_id=graph_node.id,
@@ -363,6 +371,7 @@ class RestingNodeHandler(NodeStateHandler):
             title=graph_node.title,
             agent_name=graph_node.get_agent_name(),
         )
+
         await self.record(node_event, NodeState.IN_PROGRESS, note)
 
         return TickResponse(events_applied=1, sessions_started=1)
@@ -381,6 +390,7 @@ class RestingNodeHandler(NodeStateHandler):
             created_at=worktree.created_at,
             reclaimed_at=worktree.reclaimed_at,
         )
+
         await self._work_tree_repo.save(woken_worktree)
 
     def _get_stopped_event(

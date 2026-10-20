@@ -34,6 +34,7 @@ class SqliteAgentSessionRepo(AgentSessionRepo):
                     log_tail=session.log_tail,
                 )
             )
+
             await db_session.execute(statement)
             await db_session.commit()
 
@@ -44,6 +45,7 @@ class SqliteAgentSessionRepo(AgentSessionRepo):
                 .options(selectinload(AgentSession.agent))
                 .where(AgentSession.ended_at.is_(None))
             )
+
             result = await db_session.execute(statement)
 
             return list(result.scalars())

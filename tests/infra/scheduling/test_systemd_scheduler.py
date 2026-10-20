@@ -54,6 +54,7 @@ async def test_registration_installs_escaped_units_before_enabling_only_the_time
         "XDG_CONFIG_HOME": str(tmp_path / "config custom"),
         "PATH": "/bin a\"'\\$%",
     }
+
     environment_json = json.dumps(environment)
     job = get_job(
         label="fyi.virgo.dag.a \"'\\$%-/é",
@@ -97,6 +98,7 @@ async def test_registration_installs_escaped_units_before_enabling_only_the_time
     unit_paths = list(unit_directory.glob("*.service")) + list(
         unit_directory.glob("*.timer")
     )
+
     assert len(unit_paths) == 2
 
     log_path = job.get_log_path()
@@ -193,6 +195,7 @@ async def test_failed_registration_restores_previous_unit_files(
         mocker.patch.object(
             Path, "replace", side_effect=PermissionError("activation failed")
         )
+
         activation = []
     elif failed_command == "mkdir":
         log_path = job.get_log_path()
@@ -207,6 +210,7 @@ async def test_failed_registration_restores_previous_unit_files(
         if was_registered
         else [MISSING, cleanup_file_state] + [SUCCESS] * cleanup_count
     )
+
     command_runner.run.side_effect = initial_state * 2 + activation + cleanup
 
     scheduler = SystemdScheduler(command_runner=command_runner)

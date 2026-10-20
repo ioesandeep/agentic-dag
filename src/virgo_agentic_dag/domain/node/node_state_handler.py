@@ -52,6 +52,7 @@ class NodeStateHandler(ABC):
             note=note,
             created_at=current_time,
         )
+
         await self._audit_entry_repo.save(audit_entry)
 
         self._notification_publisher.publish(node_event)

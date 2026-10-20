@@ -40,6 +40,7 @@ BeforeQuery = Annotated[
         description="The byte offset before which the page ends, or null for the newest page.",
     ),
 ]
+
 LimitQuery = Annotated[
     int,
     Query(
@@ -131,6 +132,7 @@ class DagController:
         recovery_session_responses = (
             await self._dag_web_service.get_recovery_sessions_by_dag_name(name)
         )
+
         if recovery_session_responses is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

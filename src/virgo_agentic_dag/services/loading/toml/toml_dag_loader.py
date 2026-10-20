@@ -85,6 +85,7 @@ class TomlDagLoader(DagLoader):
             "reasoning_effort": default_codex_spec.reasoning_effort,
             **codex_table,
         }
+
         model = self._reader.require_str(codex_values, "model", "dag.codex")
         reasoning_effort = self._reader.require_str(
             codex_values, "reasoning_effort", "dag.codex"

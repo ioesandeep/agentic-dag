@@ -74,8 +74,10 @@ export const WakeDialog = ({
     isActionMissing,
     isMessageMissing,
   ].filter((isMissing) => isMissing).length;
+
   const hasSummary =
     hasSubmitted && missingFieldCount >= SUMMARY_MIN_FIELD_COUNT;
+
   const hasFailureAlert = failureDetail !== null && missingFieldCount === 0;
 
   const titleValues = { node: nodeId };
@@ -83,8 +85,10 @@ export const WakeDialog = ({
 
   const handleCauseChange = (event: ChangeEvent<HTMLInputElement>) =>
     setCause(event.target.value);
+
   const handleActionChange = (event: ChangeEvent<HTMLInputElement>) =>
     setAction(event.target.value);
+
   const handleMessageChange = (event: ChangeEvent<HTMLInputElement>) =>
     setMessage(event.target.value);
 
@@ -102,6 +106,7 @@ export const WakeDialog = ({
       { isMissing: isActionMissing, inputRef: actionInputRef },
       { isMissing: isMessageMissing, inputRef: messageInputRef },
     ];
+
     const firstMissingField = wakeFields.find(
       (wakeField) => wakeField.isMissing,
     );
@@ -117,6 +122,7 @@ export const WakeDialog = ({
 
     if (wakeRequest === null) {
       focusFirstMissingField();
+
       return;
     }
 

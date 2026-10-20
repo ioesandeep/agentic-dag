@@ -215,6 +215,7 @@ def adopt(service: AdoptService, dag_path: Path, out: io.StringIO) -> AdoptCall:
             workspace_path=workspace_path,
             executor=executor,
         )
+
         token = bind_context(ApplicationContext(command, out))
 
         try:
@@ -261,6 +262,7 @@ async def test_adopt_launches_the_agent_in_a_worktree_cut_from_the_pull_request(
     node_repo.update_state.assert_awaited_once_with(
         "TAKEOVER", NodeState.IN_PROGRESS, ANY
     )
+
     assert agent.worktree is not None
     assert agent.worktree.pr_number == PR_NUMBER
     assert agent.worktree.pr_url == PR_URL
@@ -270,6 +272,7 @@ async def test_adopt_launches_the_agent_in_a_worktree_cut_from_the_pull_request(
     assert run_git(worktree_path, "rev-parse", "HEAD") == run_git(
         repo, "rev-parse", HEAD_BRANCH
     )
+
     assert audit_entry.state == NodeState.IN_PROGRESS.value
     assert node_event.type is NotificationType.PR_ADOPTED
     assert node_event.pr_details is not None

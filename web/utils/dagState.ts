@@ -30,10 +30,12 @@ const ACTIVE_NODE_STATES: readonly NodeStateEnum[] = [
   NodeStateEnum.RESTING,
   NodeStateEnum.PENDING,
 ];
+
 const ERRORED_NODE_STATES: readonly NodeStateEnum[] = [
   NodeStateEnum.NEEDS_HUMAN,
   NodeStateEnum.ERRORED,
 ];
+
 const COMPLETE_NODE_STATE = NodeStateEnum.MERGED;
 const NO_CURRENT_DAG_NAME = '';
 

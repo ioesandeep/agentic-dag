@@ -18,9 +18,11 @@ const formatRelative = (at: string): string => {
   if (magnitude < MINUTE) {
     return formatter.format(Math.round(seconds), 'second');
   }
+
   if (magnitude < HOUR) {
     return formatter.format(Math.round(seconds / MINUTE), 'minute');
   }
+
   if (magnitude < DAY) {
     return formatter.format(Math.round(seconds / HOUR), 'hour');
   }
@@ -57,6 +59,7 @@ export const RelativeTime = ({ at, template }: RelativeTimeProps) => {
     const refresh = () => setText(formatRelative(at));
 
     refresh();
+
     const timer = window.setInterval(refresh, 30000);
 
     return () => window.clearInterval(timer);

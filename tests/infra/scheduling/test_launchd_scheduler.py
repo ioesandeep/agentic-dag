@@ -65,6 +65,7 @@ async def test_register_replaces_a_loaded_label_before_bootstrap(
     bootstrap_call = call(
         ("launchctl", "bootstrap", f"gui/{USER_ID}", str(tmp_path / f"{LABEL}.plist"))
     )
+
     expected_calls.append(bootstrap_call)
     assert command_runner.run.call_args_list == expected_calls
 
@@ -78,6 +79,7 @@ async def test_asks_the_host_to_wait_between_runs_when_the_schedule_is_an_interv
     scheduler = LaunchdScheduler(
         command_runner=command_runner, agents_directory=tmp_path, user_id=USER_ID
     )
+
     job = ScheduledJob(
         dag_name="demo",
         label=LABEL,
@@ -105,6 +107,7 @@ async def test_carries_the_command_and_its_environment_when_writing_the_plist(
     scheduler = LaunchdScheduler(
         command_runner=command_runner, agents_directory=tmp_path, user_id=USER_ID
     )
+
     job = ScheduledJob(
         dag_name="demo",
         label=LABEL,
@@ -126,6 +129,7 @@ async def test_carries_the_command_and_its_environment_when_writing_the_plist(
         "--dag",
         "dag.toml",
     ]
+
     assert plist["EnvironmentVariables"] == {"PATH": "/usr/bin"}
     assert plist["StandardOutPath"] == str(tmp_path / "start.log")
 
@@ -138,6 +142,7 @@ async def test_register_deletes_the_plist_when_bootstrap_fails(
     bootstrap_failure: RunResult | OSError = RunResult(
         returncode=1, stderr="bootstrap fails"
     )
+
     if raises_exception:
         bootstrap_failure = OSError("bootstrap fails")
 
@@ -163,6 +168,7 @@ async def test_boots_it_out_and_deletes_the_plist_when_retiring(
     scheduler = LaunchdScheduler(
         command_runner=command_runner, agents_directory=tmp_path, user_id=USER_ID
     )
+
     await scheduler.register(job)
     command_runner.run.reset_mock()
 
@@ -171,6 +177,7 @@ async def test_boots_it_out_and_deletes_the_plist_when_retiring(
     command_runner.run.assert_called_once_with(
         ("launchctl", "bootout", f"gui/{USER_ID}/{LABEL}")
     )
+
     assert not (tmp_path / f"{LABEL}.plist").exists()
 
 

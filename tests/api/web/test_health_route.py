@@ -41,9 +41,11 @@ def test_health_route_responds_ok_where_the_server_is_up(mocker: MockerFixture) 
             GraphBuilder(TomlDagLoader()),
         )
     )
+
     node_action_controller = NodeActionController(
         mocker.MagicMock(spec=NodeActionService)
     )
+
     factory = WebApplicationFactory(
         dag_route=DagRoute(dag_controller),
         health_route=HealthRoute(HealthController()),
@@ -52,6 +54,7 @@ def test_health_route_responds_ok_where_the_server_is_up(mocker: MockerFixture) 
         node_action_route=NodeActionRoute(node_action_controller),
         recovery_session_route=RecoverySessionRoute(dag_controller),
     )
+
     client = TestClient(factory.build())
 
     response = client.get("/healthz")

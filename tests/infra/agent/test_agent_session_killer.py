@@ -78,6 +78,7 @@ async def test_kills_the_whole_group_the_session_runs_as(
         text=True,
         start_new_session=True,
     )
+
     assert leader.stdout is not None
     child_pid = int(leader.stdout.readline())
 

@@ -76,6 +76,7 @@ class StatusCommandHandler(CommandHandler[StatusCommand]):
                 "pid": session.pid,
                 "trigger": session.triggered_by,
             }
+
             emit(format_label(LABELS["statusSession"], args))
 
     def _report_watcher(self, watcher: Watcher | None) -> None:

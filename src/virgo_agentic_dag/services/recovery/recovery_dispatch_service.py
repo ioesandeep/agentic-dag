@@ -84,6 +84,7 @@ class RecoveryDispatchService:
             note=LABELS["recoveryStarted"],
             created_at=current_time,
         )
+
         await self._audit_entry_repo.save(audit_entry)
 
     async def _close(
@@ -97,6 +98,7 @@ class RecoveryDispatchService:
             ended_at=current_time,
             node_ids=open_recovery_session.node_ids,
         )
+
         await self._recovery_session_repo.close(closed_recovery_session)
 
     async def _launch(
@@ -108,6 +110,7 @@ class RecoveryDispatchService:
             absolute_path=str(self._recovery_home),
             created_at=current_time,
         )
+
         recovery_agent = NodeAgent(
             id=RECOVERY_AGENT_NAME,
             name=self._executor_agent.value,
@@ -115,9 +118,11 @@ class RecoveryDispatchService:
             node_id=RECOVERY_AGENT_NAME,
             worktree=recovery_worktree,
         )
+
         graph_node = GraphNode(
             id=RECOVERY_AGENT_NAME, executor_agent=self._executor_agent
         )
+
         agent_session = await self._agent_launcher.launch(
             graph_node, prompt, recovery_agent
         )

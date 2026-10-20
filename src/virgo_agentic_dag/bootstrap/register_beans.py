@@ -266,26 +266,32 @@ def register_beans(context: ApplicationContext) -> None:
     context.register(
         NodeRepo, lambda _context: SqliteNodeRepo(_context.get(SqliteDatabase))
     )
+
     context.register(
         AuditEntryRepo,
         lambda _context: SqliteAuditEntryRepo(_context.get(SqliteDatabase)),
     )
+
     context.register(
         NodeAgentRepo,
         lambda _context: SqliteNodeAgentRepo(_context.get(SqliteDatabase)),
     )
+
     context.register(
         AgentSessionRepo,
         lambda _context: SqliteAgentSessionRepo(_context.get(SqliteDatabase)),
     )
+
     context.register(
         WorkTreeRepo,
         lambda _context: SqliteWorkTreeRepo(_context.get(SqliteDatabase)),
     )
+
     context.register(
         SlackNotificationRepo,
         lambda _context: SqliteSlackNotificationRepo(_context.get(SqliteDatabase)),
     )
+
     context.register(BotNotificationDispatcher, _build_bot_notification_dispatcher)
     context.register(
         SlackNotificationDispatcherFactory,
@@ -294,11 +300,13 @@ def register_beans(context: ApplicationContext) -> None:
             bot_dispatcher=_context.get(BotNotificationDispatcher),
         ),
     )
+
     context.register(NotificationPublisher, _build_notification_publisher)
     context.register(
         NotificationComposer,
         lambda _context: SlackNotificationComposer(),
     )
+
     context.register(Workspace, _build_workspace)
     context.register(CodeRepo, _build_code_repo)
 
@@ -308,20 +316,24 @@ def register_beans(context: ApplicationContext) -> None:
     context.register(
         SchedulerFactory, lambda _context: SchedulerFactory(SubprocessCommandRunner())
     )
+
     context.register(
         ScheduledJobRepo,
         lambda _context: SqliteScheduledJobRepo(_context.get(SqliteDatabase)),
     )
+
     context.register(
         WatcherRepo,
         lambda _context: SqliteWatcherRepo(context.get(SqliteDatabase)),
     )
+
     context.register(StreamHealthCheck, lambda _context: SseHealthCheck())
     context.register(WatcherService, _build_watcher_service)
     context.register(WatchCommandHandler, _build_watch_command_handler)
     context.register(
         GraphBuilder, lambda _context: GraphBuilder(context.get(TomlDagLoader))
     )
+
     context.register(
         GraphValidationService,
         lambda _context: GraphValidationService(
@@ -334,6 +346,7 @@ def register_beans(context: ApplicationContext) -> None:
             ]
         ),
     )
+
     context.register(PendingNodeHandler, _build_pending_node_handler)
     context.register(InProgressNodeHandler, _build_in_progress_node_handler)
     context.register(RestingNodeHandler, _build_resting_node_handler)
@@ -362,10 +375,12 @@ def register_beans(context: ApplicationContext) -> None:
         NodeRecoveryRepo,
         lambda _context: SqliteNodeRecoveryRepo(_context.get(SqliteDatabase)),
     )
+
     context.register(
         RecoverySessionRepo,
         lambda _context: SqliteRecoverySessionRepo(_context.get(SqliteDatabase)),
     )
+
     context.register(RecoveryScanService, _build_recovery_scan_service)
     context.register(RecoveryDispatchService, _build_recovery_dispatch_service)
 
@@ -436,20 +451,25 @@ def _register_web_beans(context: ApplicationContext) -> None:
             graph_builder=_context.get(GraphBuilder),
         ),
     )
+
     context.register(
         DagController, lambda _context: DagController(_context.get(DagWebService))
     )
+
     context.register(
         HealthRoute, lambda _context: HealthRoute(_context.get(HealthController))
     )
+
     context.register(DagRoute, lambda _context: DagRoute(_context.get(DagController)))
     context.register(
         MemoryRoute, lambda _context: MemoryRoute(_context.get(DagController))
     )
+
     context.register(
         ConversationRoute,
         lambda _context: ConversationRoute(_context.get(DagController)),
     )
+
     context.register(
         NodeActionService,
         lambda _context: NodeActionService(
@@ -458,18 +478,22 @@ def _register_web_beans(context: ApplicationContext) -> None:
             timeout=NODE_ACTION_TIMEOUT_SECONDS,
         ),
     )
+
     context.register(
         NodeActionController,
         lambda _context: NodeActionController(_context.get(NodeActionService)),
     )
+
     context.register(
         NodeActionRoute,
         lambda _context: NodeActionRoute(_context.get(NodeActionController)),
     )
+
     context.register(
         RecoverySessionRoute,
         lambda _context: RecoverySessionRoute(_context.get(DagController)),
     )
+
     context.register(
         WebApplicationFactory,
         lambda _context: WebApplicationFactory(
@@ -481,12 +505,14 @@ def _register_web_beans(context: ApplicationContext) -> None:
             recovery_session_route=_context.get(RecoverySessionRoute),
         ),
     )
+
     context.register(
         WebServer,
         lambda _context: UvicornWebServer(
             application_factory=_context.get(WebApplicationFactory)
         ),
     )
+
     context.register(
         ServeCommandHandler,
         lambda _context: ServeCommandHandler(
@@ -539,6 +565,7 @@ def _build_watch_command_handler(context: ApplicationContext) -> WatchCommandHan
         context.get(CodeRepo),
         context.get(TomlDagLoader),
     )
+
     run_watcher = RunWatcher(
         plan_reader,
         SubscriptionFactory(),

@@ -29,6 +29,7 @@ def record_output(command: list[str], transcript: TextIO) -> int:
         "execution_id": execution_id,
         "text": command[-1],
     }
+
     is_resume = command[1:3] == ["exec", "resume"]
     if is_resume:
         prompt_record["thread_id"] = command[-2]

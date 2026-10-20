@@ -90,6 +90,7 @@ class InProgressNodeHandler(NodeStateHandler):
                 NotificationType.AGENT_FAILED,
                 LABELS["sessionNeverStarted"],
             )
+
             await self.record(
                 node_event, NodeState.ERRORED, LABELS["sessionNeverStarted"]
             )
@@ -207,6 +208,7 @@ class InProgressNodeHandler(NodeStateHandler):
             exit_code=exit_code,
             log_tail=log_tail,
         )
+
         await self._agent_session_repo.close(closed_session)
 
         return closed_session
@@ -222,6 +224,7 @@ class InProgressNodeHandler(NodeStateHandler):
         kind = (
             NotificationType.AGENT_FAILED if overdue else NotificationType.NEEDS_HUMAN
         )
+
         note = (
             LABELS["sessionOverdue"]
             if overdue
@@ -279,12 +282,14 @@ class InProgressNodeHandler(NodeStateHandler):
             created_at=worktree.created_at,
             reclaimed_at=worktree.reclaimed_at,
         )
+
         await self._work_tree_repo.record_publication(published_worktree)
 
         note = self._compose_resting_note(pr_number, session_status, first_publication)
         node_event = self._get_published_event(
             graph_node, pr_details, commit_count, first_publication
         )
+
         await self.record(node_event, NodeState.RESTING, note)
 
         return TickResponse(events_applied=1)

@@ -80,6 +80,7 @@ async def test_posts_only_the_pull_request_change_when_a_session_resumes_and_set
         marks="{}",
         created_at=NOW,
     )
+
     session = AgentSession(
         id=1, agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=1
     )
@@ -101,6 +102,7 @@ async def test_posts_only_the_pull_request_change_when_a_session_resumes_and_set
         base_branch="develop",
         is_mergeable=False,
     )
+
     code_repo.get_review_artifacts.return_value = []
     code_repo.find_pull_request.return_value = 12
     code_repo.count_commits_between.return_value = 3
@@ -109,6 +111,7 @@ async def test_posts_only_the_pull_request_change_when_a_session_resumes_and_set
     agent_launcher.wake.return_value = AgentSession(
         agent_id="agent-1", started_at=NOW, triggered_by="wake", pid=777
     )
+
     agent_launcher.supervise.return_value = SessionStatus.FINISHED
 
     workspace = mocker.MagicMock(spec=Workspace)
@@ -136,6 +139,7 @@ async def test_posts_only_the_pull_request_change_when_a_session_resumes_and_set
             ApprovalSignal(),
         ],
     )
+
     in_progress_handler = InProgressNodeHandler(
         node_repo=mocker.MagicMock(spec=NodeRepo),
         audit_entry_repo=audit_entry_repo,
@@ -168,6 +172,7 @@ async def test_posts_only_the_pull_request_change_when_a_session_resumes_and_set
         publication.args[0]
         for publication in notification_publisher.publish.call_args_list
     ]
+
     for published_event in published_events:
         await dispatcher.dispatch(published_event)
 

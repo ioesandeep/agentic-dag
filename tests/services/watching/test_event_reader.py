@@ -27,6 +27,7 @@ def test_get_event_delivers_payloads_across_reconnects(mocker: MockerFixture) ->
         [iter(["one"]), StreamError("connection lost"), iter(["two"])],
         repeat(StreamError("connection lost")),
     )
+
     reader = EventReader(stream, reconnect_seconds=0.01)
 
     reader.start()

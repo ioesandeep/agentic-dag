@@ -29,6 +29,7 @@ export const StartTimeChip = ({ startsAt }: StartTimeChipProps) => {
     };
 
     refresh();
+
     const timer = window.setInterval(refresh, TIME_LEFT_REFRESH_INTERVAL_MS);
 
     return () => window.clearInterval(timer);

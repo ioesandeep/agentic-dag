@@ -75,6 +75,7 @@ async def test_leaves_the_node_in_progress_when_the_session_cannot_be_settled(
     worktree = WorkTree(
         id=1, name="A", absolute_path="/ws/A", branch="", pr_number=0, created_at=NOW
     )
+
     session = AgentSession(
         id=1, agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=4242
     )
@@ -135,6 +136,7 @@ async def test_rests_the_node_when_the_session_reached_a_pull_request(
         pr_number=worktree_pr,
         created_at=NOW,
     )
+
     session = AgentSession(
         id=1, agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=4242
     )
@@ -178,6 +180,7 @@ async def test_rests_the_node_when_the_session_reached_a_pull_request(
     clock = mocker.patch(
         "virgo_agentic_dag.services.node_state_handlers.in_progress_node_handler.datetime"
     )
+
     clock.now.return_value = NOW
 
     await handler.handle(graph, [graph_node], NOW)
@@ -198,6 +201,7 @@ async def test_rests_the_node_when_the_session_reached_a_pull_request(
         "https://git.example.com/acme/virgo/pull/12",
         "8bddf07abcdef",
     )
+
     agent_session_repo.close.assert_awaited_once()
     closed = agent_session_repo.close.await_args.args[0]
     assert (closed.id, closed.end_state) == (1, "finished")
@@ -238,6 +242,7 @@ async def test_stops_the_node_when_the_session_ended_without_a_pull_request(
     worktree = WorkTree(
         id=1, name="A", absolute_path="/ws/A", branch="", pr_number=0, created_at=NOW
     )
+
     session = AgentSession(
         id=1, agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=4242
     )
@@ -270,6 +275,7 @@ async def test_stops_the_node_when_the_session_ended_without_a_pull_request(
     clock = mocker.patch(
         "virgo_agentic_dag.services.node_state_handlers.in_progress_node_handler.datetime"
     )
+
     clock.now.return_value = NOW
 
     await handler.handle(graph, [graph_node], NOW)
@@ -290,6 +296,7 @@ async def test_rests_the_node_when_an_overdue_session_had_published(
     worktree = WorkTree(
         id=1, name="A", absolute_path="/ws/A", branch="", pr_number=0, created_at=NOW
     )
+
     session = AgentSession(
         id=1, agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=4242
     )
@@ -327,6 +334,7 @@ async def test_rests_the_node_when_an_overdue_session_had_published(
     clock = mocker.patch(
         "virgo_agentic_dag.services.node_state_handlers.in_progress_node_handler.datetime"
     )
+
     clock.now.return_value = NOW
 
     await handler.handle(graph, [graph_node], NOW)
@@ -366,6 +374,7 @@ async def test_errors_the_node_when_no_agent_was_ever_recorded(
     clock = mocker.patch(
         "virgo_agentic_dag.services.node_state_handlers.in_progress_node_handler.datetime"
     )
+
     clock.now.return_value = NOW
 
     await handler.handle(graph, [graph_node], NOW)
@@ -384,6 +393,7 @@ async def test_leaves_the_node_in_progress_when_the_platform_cannot_be_read(
     worktree = WorkTree(
         id=1, name="A", absolute_path="/ws/A", branch="", pr_number=0, created_at=NOW
     )
+
     session = AgentSession(
         id=1, agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=4242
     )
@@ -445,6 +455,7 @@ async def test_publishes_the_log_tail_on_the_stop_event_only_when_the_session_pr
         pr_number=0,
         created_at=NOW,
     )
+
     (tmp_path / "A.log").write_text("Error: Reached max turns (120)")
     (tmp_path / "A.exit").write_text(exit_text)
 
@@ -509,6 +520,7 @@ async def test_closes_the_session_with_the_exit_code_and_log_tail_when_the_sessi
         pr_number=0,
         created_at=NOW,
     )
+
     (tmp_path / "A.log").write_text("\n".join(log_lines))
     if exit_text is not None:
         (tmp_path / "A.exit").write_text(exit_text)

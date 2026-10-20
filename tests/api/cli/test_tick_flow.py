@@ -60,6 +60,7 @@ def build_run_dir(
         f"{db_line}"
         'base_branch = "develop"\n'
     )
+
     dag.write_text(header + dag_toml, encoding="utf-8")
 
     return {
@@ -176,9 +177,11 @@ def test_starts_the_ready_node_when_the_run_first_ticks(
         agents = list(
             connection.execute("select node_id, name, resume_token from node_agents")
         )
+
         sessions = connection.execute("select count(*) from agent_sessions").fetchone()[
             0
         ]
+
         worktrees = list(connection.execute("select name from work_trees"))
         audits = list(connection.execute("select node_id, state from audit_entries"))
 
@@ -204,6 +207,7 @@ def test_runs_the_recovery_and_learning_agents_with_the_dag_executor_when_a_node
         '[[nodes]]\nid = "A"\nbrief = "first slice"\n'
         f'[[nodes]]\nid = "B"\nexecutor_agent = "{override}"\nbrief = "second slice"\n',
     )
+
     assert run_tick(paths) == 0
     with sqlite3.connect(paths["db"]) as connection:
         agents = dict(connection.execute("select node_id, name from node_agents"))
@@ -220,6 +224,7 @@ def test_runs_the_recovery_and_learning_agents_with_the_dag_executor_when_a_node
         recovery_pid = connection.execute(
             "select pid from recovery_session"
         ).fetchone()[0]
+
         connection.execute(
             "update nodes set state = 'merged', pull_request_settled_at = '2026-09-12 00:00:00'"
         )
@@ -307,6 +312,7 @@ def test_settles_the_run_when_the_agent_published_nothing(
         sessions = list(
             connection.execute("select end_state, ended_at from agent_sessions")
         )
+
         audits = list(
             connection.execute(
                 "select node_id, state, note from audit_entries order by rowid"
@@ -321,6 +327,7 @@ def test_settles_the_run_when_the_agent_published_nothing(
         ("B", "needs_human", "upstream node A stopped, so this one can never start"),
         ("A", "needs_human", "a recovery agent session started to examine it"),
     ]
+
     assert (paths["workspace"] / "A").is_dir()
 
 
@@ -344,11 +351,13 @@ def test_retry_resumes_the_recorded_agent_in_its_worktree(tmp_path: Path) -> Non
         triggers = list(
             connection.execute("select triggered_by from agent_sessions order by id")
         )
+
         worktree_names = list(connection.execute("select name from work_trees"))
 
     directory_names = [
         path.name for path in paths["workspace"].iterdir() if path.is_dir()
     ]
+
     assert tokens == [(first_token,)]
     assert triggers == [("launch",), ("wake",), ("wake",)]
     assert worktree_names == [("A",)]
@@ -367,6 +376,7 @@ def test_retry_starts_a_new_conversation_when_the_command_includes_the_reset_opt
     paths["dag"].write_text(
         paths["dag"].read_text().replace('"claude"', f'"{executor}"')
     )
+
     assert run_retry(paths, "A", reset=True) == 0
     assert run_tick(paths) == 0
     assert settle_agent(paths) == 3
@@ -411,11 +421,13 @@ def test_recover_resumes_the_existing_agent_when_the_command_includes_a_wake_mes
         triggers = list(
             connection.execute("select triggered_by from agent_sessions order by id")
         )
+
         notes = list(
             connection.execute(
                 "select note from audit_entries where state = 'in_progress' order by rowid"
             )
         )
+
         rows = list(connection.execute("select cause from node_recovery"))
 
     assert int(exit_code) == 0
@@ -470,6 +482,7 @@ def test_abort_kills_the_running_agent_and_stops_the_run(
     monkeypatch.setattr(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", lambda: tmp_path
     )
+
     paths = build_run_dir(tmp_path, DAG_TOML, db_in_dag=False)
     sleeping_agent(tmp_path, monkeypatch)
     assert run_tick(paths) == 0
@@ -486,6 +499,7 @@ def test_abort_kills_the_running_agent_and_stops_the_run(
         sessions = list(
             connection.execute("select end_state, ended_at from agent_sessions")
         )
+
         audits = list(
             connection.execute(
                 "select node_id, state from audit_entries order by rowid"

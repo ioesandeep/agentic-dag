@@ -11,6 +11,7 @@ def build_service(dag_home: Path, monkeypatch: pytest.MonkeyPatch) -> DagService
     monkeypatch.setattr(
         "virgo_agentic_dag.services.dag.dag_service.get_dag_root", lambda: dag_home
     )
+
     monkeypatch.setattr(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", lambda: dag_home
     )

@@ -94,6 +94,7 @@ class AbortCommandHandler(CommandHandler[AbortCommand]):
         kills = [
             self._session_killer.kill(session, current_time) for session in sessions
         ]
+
         await asyncio.gather(*kills)
 
     async def _kill_recovery_session(self, current_time: datetime) -> None:

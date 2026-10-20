@@ -149,6 +149,7 @@ async def test_names_each_published_pull_request_once_in_order(
         build_worktree(12),
         build_worktree(12, name="B"),
     ]
+
     code_repo = mocker.AsyncMock(spec=CodeRepo)
     code_repo.get_repo_slug.return_value = "acme/virgo"
     reader = build_reader(scheduled_job_repo, work_tree_repo, code_repo)

@@ -57,6 +57,7 @@ export const DagGraph = ({ dag }: DagGraphProps) => {
       width: container.clientWidth,
       height: container.clientHeight,
     };
+
     const viewport = getInitialViewport(flow.getNodes(), containerDimensions);
 
     void flow.setViewport(viewport);

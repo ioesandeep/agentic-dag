@@ -29,6 +29,7 @@ class CommentSignal(PrSignal):
             and not artifact.is_approval
             and artifact.get_timestamp() > mark
         )
+
         if not fresh:
             return None
 

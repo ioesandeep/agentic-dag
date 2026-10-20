@@ -56,6 +56,7 @@ export const DagSidebar = ({
     dagFilter.dagState,
     currentName,
   );
+
   const currentIndex = findCurrentDagIndex(visibleDags, currentName);
   const listRef = useScrollCurrentItemToTop(currentIndex);
 

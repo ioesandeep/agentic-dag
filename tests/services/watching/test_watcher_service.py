@@ -63,6 +63,7 @@ async def test_spawns_and_records_a_watcher_when_none_is_running(
     monkeypatch.setattr(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", lambda: tmp_path
     )
+
     watcher_repo = mocker.AsyncMock(spec=WatcherRepo)
     watcher_repo.get_by_dag_name.return_value = None
     watcher_service = WatcherService(watcher_repo, Path("/bin/echo"))
@@ -81,10 +82,12 @@ async def test_spawns_nothing_when_the_recorded_watcher_still_runs(
     monkeypatch.setattr(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", lambda: tmp_path
     )
+
     watcher_repo = mocker.AsyncMock(spec=WatcherRepo)
     watcher_repo.get_by_dag_name.return_value = Watcher(
         dag_name="demo", pid=os.getpid(), started_at=NOW
     )
+
     watcher_service = WatcherService(watcher_repo, Path("/bin/echo"))
 
     with bound_out():
@@ -99,12 +102,14 @@ async def test_respawns_when_the_recorded_watcher_is_dead(
     monkeypatch.setattr(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", lambda: tmp_path
     )
+
     finished = subprocess.Popen(["sleep", "0"], start_new_session=True)
     finished.wait(timeout=5)
     watcher_repo = mocker.AsyncMock(spec=WatcherRepo)
     watcher_repo.get_by_dag_name.return_value = Watcher(
         dag_name="demo", pid=finished.pid, started_at=NOW
     )
+
     watcher_service = WatcherService(watcher_repo, Path("/bin/echo"))
 
     with bound_out():

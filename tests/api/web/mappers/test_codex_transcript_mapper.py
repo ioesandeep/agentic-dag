@@ -44,6 +44,7 @@ def test_maps_a_command_execution_to_a_single_tool_message_when_start_and_comple
         "status": "completed",
         "exit_code": 0,
     }
+
     assert messages[0].tool_result == "3 passed"
 
 

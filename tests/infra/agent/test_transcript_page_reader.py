@@ -25,9 +25,11 @@ def test_transcript_page_reader_returns_each_complete_line_once_when_block_offse
         "virgo_agentic_dag.infra.agent.transcript_page_reader.TRANSCRIPT_BLOCK_SIZE_BYTES",
         SMALL_BLOCK_SIZE_BYTES,
     )
+
     transcript_path.write_bytes(
         b'{"n": 0}\n\n{"n": 2, "text": "a line past one block"}\n{"n": 3}\n{"n": 4'
     )
+
     reader = TranscriptPageReader()
 
     transcript_lines: list[TranscriptLine] = []

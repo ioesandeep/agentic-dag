@@ -124,6 +124,7 @@ class SystemdScheduler(Scheduler):
             "--",
             unit_name,
         ]
+
         run_result = await self._run(command, missing_ok=True)
         properties = run_result.stdout.splitlines()
         assignments = [line.split("=", 1) for line in properties if "=" in line]
@@ -201,6 +202,7 @@ class SystemdScheduler(Scheduler):
                     for unit in previous_files
                     if was_registered or unit.content is not None
                 ]
+
                 await asyncio.to_thread(self._write_files, restored_files)
 
             await self._run(["daemon-reload"])

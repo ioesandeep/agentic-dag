@@ -36,6 +36,7 @@ async def test_close_records_the_exit_code_and_log_tail_on_the_session_row(
     open_session = AgentSession(
         agent_id="agent-1", started_at=started_at, triggered_by="launch"
     )
+
     await repo.add(open_session)
     closed_session = AgentSession(
         id=open_session.id,

@@ -36,11 +36,13 @@ def test_transcript_mapper_attaches_a_tool_result_to_the_tool_use_message_when_i
         "name": "Bash",
         "input": {"command": "git status"},
     }
+
     tool_result_block = {
         "type": "tool_result",
         "tool_use_id": "toolu-1",
         "content": "clean",
     }
+
     transcript_lines = [
         to_transcript_line("assistant", "assistant-1", [tool_use_block]),
         to_transcript_line("user", "user-2", [tool_result_block]),

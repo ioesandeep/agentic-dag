@@ -76,6 +76,7 @@ class AdoptedNodeImporter(NodeImporter):
             pr_url=pr_details.url,
             created_at=provisioned.created_at,
         )
+
         if recorded_agent is not None and recorded_agent.worktree is not None:
             worktree.id = recorded_agent.worktree.id
 
@@ -137,6 +138,7 @@ class AdoptedNodeImporter(NodeImporter):
             note=note,
             created_at=current_time,
         )
+
         await self._audit_entry_repo.save(audit_entry)
 
         reading = PrDetails(
@@ -145,6 +147,7 @@ class AdoptedNodeImporter(NodeImporter):
             title=pr_details.title,
             url=pr_details.url,
         )
+
         node_event = PullRequestAdoptedEvent(
             node_id=graph_node.id,
             type=NotificationType.PR_ADOPTED,
@@ -154,6 +157,7 @@ class AdoptedNodeImporter(NodeImporter):
             agent_name=node.get_agent_name(),
             pr_details=reading,
         )
+
         self._notification_publisher.publish(node_event)
 
     def _compose_note(self, pr_details: PullRequestDetails, state: NodeState) -> str:

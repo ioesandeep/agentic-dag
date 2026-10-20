@@ -36,6 +36,7 @@ class NodeActionRoute:
                 },
             },
         )
+
         router.add_api_route(
             "/dags/{dag_name}/{node_id}/wake",
             self._controller.wake_node,
@@ -54,6 +55,7 @@ class NodeActionRoute:
                 },
             },
         )
+
         router.add_api_route(
             "/dags/{dag_name}/{node_id}/stop",
             self._controller.stop_node,

@@ -1,4 +1,5 @@
 export const DAGS_PATH = '/api/dags';
+
 const MEMORY_SEGMENT = 'memory';
 const RECOVERY_SESSIONS_SEGMENT = 'recovery-sessions';
 const CONVERSATION_SEGMENT = 'conversation';

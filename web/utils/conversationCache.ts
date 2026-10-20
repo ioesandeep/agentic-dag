@@ -83,6 +83,7 @@ export const mergePolledPages = (
   const overlapIndex = polledMessages.findIndex((message) =>
     cachedMessageIds.has(message.id),
   );
+
   const isSameSession =
     conversationCache.isNewestPageLoaded &&
     conversationCache.sessionId === newestPage.sessionId;
@@ -94,9 +95,11 @@ export const mergePolledPages = (
   const polledMessagesById = new Map(
     polledMessages.map((message) => [message.id, message]),
   );
+
   const cachedMessages = conversationCache.messages.map((message) =>
     getLatestMessage(message, polledMessagesById),
   );
+
   const newMessages = polledMessages.slice(0, overlapIndex).toReversed();
 
   return {
@@ -158,9 +161,11 @@ export const getNextPollCursor = (
   const hasOverlap = polledMessages.some((message) =>
     cachedMessageIds.has(message.id),
   );
+
   const canOverlap =
     cachedMessageIds.size > 0 &&
     conversationCache.sessionId === newestPage.sessionId;
+
   const hasPageLeft = polledPageList.length < MAX_POLLED_PAGES;
 
   if (hasOverlap || !canOverlap || !hasPageLeft) {

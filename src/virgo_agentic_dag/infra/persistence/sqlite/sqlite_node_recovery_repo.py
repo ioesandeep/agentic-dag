@@ -39,6 +39,7 @@ class SqliteNodeRecoveryRepo(NodeRecoveryRepo):
             newest_ids = select(func.max(NodeRecovery.id)).group_by(
                 NodeRecovery.node_id
             )
+
             statement = (
                 select(NodeRecovery)
                 .where(
@@ -48,6 +49,7 @@ class SqliteNodeRecoveryRepo(NodeRecoveryRepo):
                 )
                 .order_by(NodeRecovery.id)
             )
+
             result = await session.execute(statement)
 
             return list(result.scalars())
@@ -59,6 +61,7 @@ class SqliteNodeRecoveryRepo(NodeRecoveryRepo):
                 .select_from(NodeRecovery)
                 .where(NodeRecovery.node_id == node_id)
             )
+
             count: int = (await session.execute(statement)).scalar_one()
 
             return count

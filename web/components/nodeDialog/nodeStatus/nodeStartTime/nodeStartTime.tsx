@@ -8,6 +8,7 @@ const START_TIME_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   hour: 'numeric',
   minute: '2-digit',
 };
+
 const START_TIME_FORMAT = new Intl.DateTimeFormat(
   LOCALE,
   START_TIME_FORMAT_OPTIONS,

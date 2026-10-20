@@ -74,27 +74,32 @@ class TickCommandHandler(CommandHandler[TickCommand]):
                 graph, current_time
             )
         )
+
         tick_response = tick_response.increment_with(in_progress_response)
 
         resting_response = await self._node_state_handling_facade.handle_resting_nodes(
             graph, current_time
         )
+
         tick_response = tick_response.increment_with(resting_response)
 
         pending_response = await self._node_state_handling_facade.handle_pending_nodes(
             graph, current_time
         )
+
         tick_response = tick_response.increment_with(pending_response)
 
         merged_response = await self._node_state_handling_facade.handle_merged_nodes(
             graph, current_time
         )
+
         tick_response = tick_response.increment_with(merged_response)
 
         recovery_response, learning_response = await asyncio.gather(
             self._recover_failed_nodes(current_time),
             self._learning_dispatch_service.dispatch(current_time),
         )
+
         tick_response = tick_response.increment_with(recovery_response)
         tick_response = tick_response.increment_with(learning_response)
 
@@ -112,6 +117,7 @@ class TickCommandHandler(CommandHandler[TickCommand]):
                 "sessions": tick_response.sessions_started,
             },
         )
+
         self._out.write(summary)
 
         return ExitCode.SUCCESS

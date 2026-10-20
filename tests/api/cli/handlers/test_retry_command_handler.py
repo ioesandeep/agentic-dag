@@ -122,6 +122,7 @@ async def test_retry_clears_the_resume_token_when_reset_is_set(
     worktree = WorkTree(
         id=7, agent_id="agent-1", name=NODE_ID, absolute_path="/ws/A", created_at=NOW
     )
+
     node_agent_repo = mocker.MagicMock(spec=NodeAgentRepo)
     node_agent_repo.get_by_node_id.return_value = NodeAgent(
         id="agent-1",
@@ -130,6 +131,7 @@ async def test_retry_clears_the_resume_token_when_reset_is_set(
         node_id=NODE_ID,
         worktree=worktree,
     )
+
     handler = RetryCommandHandler(
         mocker.MagicMock(spec=RunLock),
         node_repo,

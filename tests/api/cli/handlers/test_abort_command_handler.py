@@ -186,6 +186,7 @@ async def test_abort_kills_open_sessions_before_releasing_the_run_lock(
         started_at=NOW,
         node_ids='["A"]',
     )
+
     recovery_session_repo = mocker.MagicMock(spec=RecoverySessionRepo)
     recovery_session_repo.find_open_session.return_value = (
         recovery_session if has_background_sessions else None
@@ -246,6 +247,7 @@ async def test_abort_kills_open_sessions_before_releasing_the_run_lock(
         "kill_session",
         "kill_session",
     ]
+
     if has_background_sessions:
         expected_calls.extend(
             ["kill_process_group", "close_recovery_session", "kill_process_group"]

@@ -131,6 +131,7 @@ export const useConversationPages = (
   const [conversationCache, setConversationCache] = useState(
     NO_CONVERSATION_CACHE,
   );
+
   const [olderPageCursor, setOlderPageCursor] = useState<number | null>(null);
   const [hasFailed, setHasFailed] = useState(false);
   const isTabVisible = useIsTabVisible();
@@ -138,6 +139,7 @@ export const useConversationPages = (
 
   const isLoadingNewestPage =
     !conversationCache.isNewestPageLoaded && !hasFailed;
+
   const isLoadingOlderPage = olderPageCursor !== null;
 
   const loadOlderPage = useCallback(() => {
@@ -179,6 +181,7 @@ export const useConversationPages = (
     };
 
     void refreshNewestPage();
+
     const timer = window.setInterval(refreshNewestPage, POLL_INTERVAL_MS);
 
     return () => stopPolling(timer, controller);

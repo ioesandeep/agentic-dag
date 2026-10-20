@@ -33,6 +33,7 @@ class CycleValidator(GraphValidator):
             node.id: {dep for dep in node.depends_on if dep in known}
             for node in graph.nodes
         }
+
         peeled = True
         while peeled:
             startable = {node_id for node_id, deps in remaining.items() if not deps}

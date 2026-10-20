@@ -38,6 +38,7 @@ class GitWorkspace(Workspace):
         resolve_result = await self._run_git(
             project_root, ("rev-parse", "--verify", f"{base_ref}^{{commit}}")
         )
+
         if resolve_result.returncode != 0:
             raise WorktreeError(
                 f"could not resolve {base_branch} for {node_id} in "
@@ -48,6 +49,7 @@ class GitWorkspace(Workspace):
         result = await self._run_git(
             project_root, ("worktree", "add", "--detach", str(path), commit)
         )
+
         if result.returncode != 0:
             raise WorktreeError(
                 f"could not provision a worktree for {node_id} at "
@@ -62,6 +64,7 @@ class GitWorkspace(Workspace):
         result = await self._run_git(
             Path(worktree.absolute_path), ("branch", "--show-current")
         )
+
         if result.returncode != 0:
             raise WorktreeError(
                 f"could not read the branch of {worktree.name}: {result.stderr.strip()}"
@@ -74,6 +77,7 @@ class GitWorkspace(Workspace):
             Path(worktree.absolute_path),
             ("worktree", "remove", "--force", worktree.absolute_path),
         )
+
         if result.returncode != 0:
             raise WorktreeError(
                 f"could not remove the worktree of {worktree.name}: "

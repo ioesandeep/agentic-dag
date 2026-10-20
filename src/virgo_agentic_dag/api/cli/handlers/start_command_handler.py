@@ -114,6 +114,7 @@ class StartCommandHandler(CommandHandler[StartCommand]):
             node_count=len(nodes),
             in_progress_node_count=len(in_progress_nodes),
         )
+
         self._notification_publisher.publish(dag_started_event)
 
     async def _publish_dag_completed(self, dag_name: str) -> None:
@@ -128,6 +129,7 @@ class StartCommandHandler(CommandHandler[StartCommand]):
             node_counts_by_state=node_counts_by_state,
             elapsed_time=elapsed_time,
         )
+
         self._notification_publisher.publish(dag_completed_event)
 
     async def _retire(self) -> None:

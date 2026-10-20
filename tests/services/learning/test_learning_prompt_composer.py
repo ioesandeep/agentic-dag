@@ -100,9 +100,11 @@ def test_compose_prompt_states_the_runbook_and_every_node_when_two_nodes_settle(
         "state: `needs_human`",
         "pull request: #238",
     ]
+
     missing_fragments = [
         fragment for fragment in expected_fragments if fragment not in prompt
     ]
+
     assert missing_fragments == []
 
 

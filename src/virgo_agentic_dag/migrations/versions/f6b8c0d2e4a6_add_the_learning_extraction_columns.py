@@ -15,6 +15,7 @@ def upgrade() -> None:
         "nodes",
         sa.Column("pull_request_settled_at", sa.DateTime(timezone=True), nullable=True),
     )
+
     op.add_column(
         "nodes",
         sa.Column("learnings_extracted_at", sa.DateTime(timezone=True), nullable=True),

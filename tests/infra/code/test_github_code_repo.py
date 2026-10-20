@@ -52,6 +52,7 @@ async def test_lets_gh_resolve_the_repository_when_reading_review_artifacts(
         runner_call.args[0][-1].startswith("repos/{owner}/{repo}/")
         for runner_call in runner_calls
     )
+
     assert {runner_call.args[1] for runner_call in runner_calls} == {PROJECT_ROOT}
 
 

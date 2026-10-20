@@ -67,9 +67,11 @@ async def test_retirement_defers_service_removal_without_waiting_for_its_exit(
     command_runner.run.assert_any_call(
         ["systemctl", "--user", "stop", "--no-block", "--", timer_path.name]
     )
+
     command_runner.run.assert_any_call(
         ["systemctl", "--user", "disable", "--no-reload", "--", timer_path.name]
     )
+
     commands = [call.args[0] for call in command_runner.run.call_args_list]
     cleanup_command = commands[-1]
     assert cleanup_command[:5] == [
@@ -79,6 +81,7 @@ async def test_retirement_defers_service_removal_without_waiting_for_its_exit(
         "--no-block",
         "--expand-environment=no",
     ]
+
     service_name = service_path.name.replace("\\", "\\\\")
     assert "--property=After=" + service_name in cleanup_command
     assert cleanup_command[-1] == str(service_path)
@@ -185,6 +188,7 @@ def test_cleanup_failure_keeps_service_for_retry(
         "executable": FileNotFoundError("systemctl missing"),
         "timeout": subprocess.TimeoutExpired("systemctl", 30),
     }
+
     success = RunResult(returncode=0)
     command_runner.run.side_effect = [failures[failure], success, success]
     mocker.patch(

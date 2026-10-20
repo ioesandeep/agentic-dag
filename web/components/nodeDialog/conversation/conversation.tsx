@@ -64,15 +64,18 @@ export const Conversation = ({
     transcript.messages,
     isShowingSubagents,
   );
+
   const sessionStarts = readSessionStarts(
     shownMessages,
     sessions,
     transcript.loadedSince,
   );
+
   const isEmpty =
     transcript.isNewestPageLoaded &&
     !transcript.hasOlderPage &&
     shownMessages.length === 0;
+
   const header = (
     <ConversationHeader
       isWide={isWide}

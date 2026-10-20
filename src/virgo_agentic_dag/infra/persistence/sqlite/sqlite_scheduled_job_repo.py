@@ -33,5 +33,6 @@ class SqliteScheduledJobRepo(ScheduledJobRepo):
             statement = delete(ScheduledJob).where(
                 ScheduledJob.dag_name == scheduled_job.dag_name
             )
+
             await session.execute(statement)
             await session.commit()

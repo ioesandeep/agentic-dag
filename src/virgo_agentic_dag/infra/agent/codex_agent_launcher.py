@@ -204,6 +204,7 @@ class CodexAgentLauncher(AgentLauncher):
             str(transcript_path),
             *argv,
         ]
+
         log_path = agent.worktree.get_log_path()
         with log_path.open("w") as log:
             process = subprocess.Popen(

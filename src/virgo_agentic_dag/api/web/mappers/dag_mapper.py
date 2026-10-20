@@ -90,6 +90,7 @@ def to_node_responses(dag_spec: DagSpec, rows: list[Node]) -> list[NodePreviewRe
         _to_declared_node_response(node_spec, rows_by_id.get(node_spec.id))
         for node_spec in dag_spec.nodes
     ]
+
     adopted = [
         _to_adopted_node_response(row)
         for row in rows
@@ -113,6 +114,7 @@ def to_detail_response(
     nodes = _to_node_detail_responses(
         dag_spec, rows, previews, repo_url, start_times_by_node_id
     )
+
     audit = [_to_audit_response(audit_entry) for audit_entry in audit_entries]
 
     return DagDetailResponse(
@@ -157,9 +159,11 @@ def to_node_response(
     agent_session_responses = [
         _to_agent_session_response(agent_session) for agent_session in agent_sessions
     ]
+
     audit_line_responses = [
         _to_audit_response(audit_entry) for audit_entry in audit_entries
     ]
+
     slack_notification_responses = [
         _to_slack_notification_response(slack_notification)
         for slack_notification in slack_notifications

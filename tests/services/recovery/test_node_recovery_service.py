@@ -142,10 +142,12 @@ async def test_recover_resumes_the_conversation_and_writes_the_row_when_a_messag
     node_repo.read.return_value = build_node(
         NodeState.NEEDS_HUMAN, dead_pid, "token-A", None
     )
+
     node_recovery_repo = mocker.MagicMock(spec=NodeRecoveryRepo)
     woken_session = AgentSession(
         agent_id="agent-A", started_at=now, triggered_by="wake", pid=4242
     )
+
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
     agent_launcher.wake.return_value = woken_session
     agent_session_repo = mocker.MagicMock(spec=AgentSessionRepo)
@@ -184,6 +186,7 @@ async def test_recover_writes_the_row_and_wakes_nothing_when_no_message_is_given
     node_repo.read.return_value = build_node(
         NodeState.RESTING, dead_pid, "token-A", None
     )
+
     node_recovery_repo = mocker.MagicMock(spec=NodeRecoveryRepo)
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
     service = NodeRecoveryService(
@@ -196,6 +199,7 @@ async def test_recover_writes_the_row_and_wakes_nothing_when_no_message_is_given
         graph_builder=mocker.MagicMock(spec=GraphBuilder),
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
     )
+
     reset_at = now + timedelta(hours=2)
 
     exit_code = await service.recover(
@@ -220,6 +224,7 @@ async def test_recover_moves_the_node_to_needs_human_when_it_is_unrecoverable(
     node_repo.read.return_value = build_node(
         NodeState.ERRORED, dead_pid, "token-A", None
     )
+
     audit_entry_repo = mocker.MagicMock(spec=AuditEntryRepo)
     service = NodeRecoveryService(
         node_repo=node_repo,
@@ -255,6 +260,7 @@ async def test_recover_restores_the_marks_of_the_latest_session_when_asked(
     node_repo.read.return_value = build_node(
         NodeState.RESTING, dead_pid, "token-A", '{"comment": 4}'
     )
+
     node_recovery_repo = mocker.MagicMock(spec=NodeRecoveryRepo)
     work_tree_repo = mocker.MagicMock(spec=WorkTreeRepo)
     service = NodeRecoveryService(
@@ -287,6 +293,7 @@ async def test_recover_writes_no_row_when_the_session_recorded_no_marks(
     node_repo.read.return_value = build_node(
         NodeState.RESTING, dead_pid, "token-A", None
     )
+
     node_recovery_repo = mocker.MagicMock(spec=NodeRecoveryRepo)
     work_tree_repo = mocker.MagicMock(spec=WorkTreeRepo)
     service = NodeRecoveryService(
@@ -318,6 +325,7 @@ async def test_recover_writes_no_row_when_the_process_of_the_node_is_alive(
     node_repo.read.return_value = build_node(
         NodeState.RESTING, os.getpid(), "token-A", None
     )
+
     node_recovery_repo = mocker.MagicMock(spec=NodeRecoveryRepo)
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
     service = NodeRecoveryService(

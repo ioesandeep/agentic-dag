@@ -27,10 +27,12 @@ class NodeStartTimeService:
         skipped_nodes = [
             node for node in nodes if node.state == NodeState.SKIPPED.value
         ]
+
         declared_dependencies = self._graph_service.get_dependencies(graph_node.id)
         effective_dependencies = self._graph_service.get_effective_dependencies(
             graph_node.id, skipped_nodes
         )
+
         dependency_ids = {
             dependency.id
             for dependency in [*declared_dependencies, *effective_dependencies]
@@ -41,6 +43,7 @@ class NodeStartTimeService:
             for node in nodes
             if node.id in dependency_ids and node.is_merged_or_skipped()
         ]
+
         if not merged_or_skipped_times:
             return None
 

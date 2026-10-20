@@ -49,11 +49,13 @@ class DagDatabaseGateway:
         self.recovery_session_repo: RecoverySessionRepo = SqliteRecoverySessionRepo(
             database
         )
+
         self.audit_entry_repo: AuditEntryRepo = SqliteAuditEntryRepo(database)
         self.scheduled_job_repo: ScheduledJobRepo = SqliteScheduledJobRepo(database)
         self.slack_notification_repo: SlackNotificationRepo = (
             SqliteSlackNotificationRepo(database)
         )
+
         self.watcher_repo: WatcherRepo = SqliteWatcherRepo(database)
 
     async def dispose(self) -> None:

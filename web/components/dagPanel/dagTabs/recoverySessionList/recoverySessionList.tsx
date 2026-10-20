@@ -26,6 +26,7 @@ export const RecoverySessionList = ({ dagName }: RecoverySessionListProps) => {
   const recoverySessionsPath = getRecoverySessionsPath(dagName);
   const recoverySessionsResponse =
     usePolledApiResponse<RecoverySession[]>(recoverySessionsPath);
+
   const recoverySessions = recoverySessionsResponse.response;
   const hasNoRecoverySessionsResponse = hasNoResponseToShow(
     recoverySessionsResponse,
