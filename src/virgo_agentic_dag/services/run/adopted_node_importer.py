@@ -18,6 +18,7 @@ from virgo_agentic_dag.domain.infra.code.pull_request_details import (
     PullRequestDetails,
 )
 from virgo_agentic_dag.domain.infra.workspace.workspace import Workspace
+from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.notifications.notification_type import NotificationType
 from virgo_agentic_dag.domain.persistence.entities.audit_entry import AuditEntry
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
@@ -26,7 +27,6 @@ from virgo_agentic_dag.domain.persistence.repos.audit_entry_repo import AuditEnt
 from virgo_agentic_dag.domain.persistence.repos.node_agent_repo import NodeAgentRepo
 from virgo_agentic_dag.domain.persistence.repos.node_repo import NodeRepo
 from virgo_agentic_dag.domain.run.pr_details import PrDetails
-from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.service.notification_publisher import (
     NotificationPublisher,
 )
@@ -65,6 +65,9 @@ class AdoptedNodeImporter(NodeImporter):
     ) -> None:
         adopted_node = replace(graph_node, base_branch=pr_details.head_branch)
         provisioned = await self._workspace.provision(adopted_node)
+
+        recorded_agent = await self._node_agent_repo.get_by_node_id(graph_node.id)
+
         worktree = WorkTree(
             name=provisioned.name,
             absolute_path=provisioned.absolute_path,
@@ -73,25 +76,38 @@ class AdoptedNodeImporter(NodeImporter):
             pr_url=pr_details.url,
             created_at=provisioned.created_at,
         )
+        if recorded_agent is not None and recorded_agent.worktree is not None:
+            worktree.id = recorded_agent.worktree.id
 
         if session_token:
-            handed_agent = self._build_agent(adopted_node, worktree, session_token)
+            handed_agent = self._build_agent(adopted_node, worktree, recorded_agent)
+            handed_agent.resume_token = session_token
             await self._record(
                 adopted_node, pr_details, handed_agent, NodeState.RESTING
             )
 
             return
 
-        agent = await self._launch(adopted_node, worktree)
+        agent = await self._launch(adopted_node, worktree, recorded_agent)
 
         await self._record(adopted_node, pr_details, agent, NodeState.IN_PROGRESS)
 
-    async def _launch(self, graph_node: GraphNode, worktree: WorkTree) -> NodeAgent:
-        """Start the agent on the pull request under a session id this launch creates."""
-        agent = self._build_agent(graph_node, worktree, create_session_token())
-        session = await self._get_launcher(graph_node).launch(
-            graph_node, graph_node.instructions, agent
-        )
+    async def _launch(
+        self,
+        graph_node: GraphNode,
+        worktree: WorkTree,
+        recorded_agent: NodeAgent | None,
+    ) -> NodeAgent:
+        """Starts or resumes the adopted node's agent."""
+        agent = self._build_agent(graph_node, worktree, recorded_agent)
+
+        launcher = self._get_launcher(graph_node)
+        if agent.resume_token:
+            session = await launcher.wake(graph_node, LABELS["retryMessage"], agent)
+        else:
+            agent.resume_token = create_session_token()
+            session = await launcher.launch(graph_node, graph_node.instructions, agent)
+
         agent.sessions.append(session)
 
         return agent
@@ -153,16 +169,20 @@ class AdoptedNodeImporter(NodeImporter):
         )
 
     def _build_agent(
-        self, graph_node: GraphNode, worktree: WorkTree, resume_token: str
+        self,
+        graph_node: GraphNode,
+        worktree: WorkTree,
+        recorded_agent: NodeAgent | None,
     ) -> NodeAgent:
-        """Build this node's agent, holding the worktree it works in and the session it resumes."""
         executor_agent = graph_node.executor_agent
+        resume_token = recorded_agent.resume_token if recorded_agent else ""
 
         return NodeAgent(
-            id=str(uuid.uuid4()),
+            id=recorded_agent.id if recorded_agent is not None else str(uuid.uuid4()),
             name=Path(executor_agent.value).name if executor_agent else "",
             resume_token=resume_token,
             node_id=graph_node.id,
+            sessions=[*recorded_agent.sessions] if recorded_agent is not None else [],
             worktree=worktree,
         )
 

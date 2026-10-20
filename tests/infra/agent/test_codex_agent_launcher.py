@@ -115,8 +115,8 @@ async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_
             if arg.startswith("model_reasoning_effort=")
         ] == [f'model_reasoning_effort="{effort}"']
 
-    assert 'service_tier="fast"' in arguments
-    assert "features.fast_mode=true" in arguments
+    assert 'service_tier="default"' in arguments
+    assert "features.fast_mode=false" in arguments
     assert arguments[-2] == THREAD_ID
     assert "Run the tests before pushing." in arguments[-1]
     assert [message.role for message in messages] == [

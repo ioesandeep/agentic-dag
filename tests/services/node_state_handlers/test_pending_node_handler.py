@@ -4,6 +4,7 @@ from unittest.mock import ANY
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.domain.exceptions.host.worktree_error import WorktreeError
 from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
@@ -746,6 +747,7 @@ async def test_an_adopted_node_announces_the_pull_request_it_was_handed(
     notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
 
     node_agent_repo = mocker.MagicMock(spec=NodeAgentRepo)
+    node_agent_repo.get_by_node_id.return_value = None
 
     agent_launchers = {ExecutorAgent.CLAUDE: agent_launcher}
     handler = PendingNodeHandler(
@@ -776,6 +778,92 @@ async def test_an_adopted_node_announces_the_pull_request_it_was_handed(
     assert event.type is NotificationType.PR_ADOPTED
     assert event.pr_details is not None and event.pr_details.number == PR_NUMBER
     assert entry.note.startswith(f"took over #{PR_NUMBER}")
+
+
+async def test_resumes_the_recorded_agent_when_an_adopted_node_is_retried(
+    mocker: MockerFixture,
+    pr_details: PullRequestDetails,
+    build_node: BuildNode,
+) -> None:
+    graph_node = GraphNode(id="A", executor_agent=ExecutorAgent.CLAUDE, pr=PR_URL)
+    graph = Graph(name="demo", nodes=[graph_node])
+
+    node_repo = mocker.MagicMock(spec=NodeRepo)
+    node_repo.get_nodes_by_ids.return_value = []
+    node_repo.get_nodes_by_state.return_value = []
+    node_repo.read.return_value = build_node("A", NodeState.PENDING)
+
+    recorded_session = AgentSession(
+        id=1, agent_id="agent-1", started_at=NOW, ended_at=NOW, end_state="finished"
+    )
+    node_agent_repo = mocker.MagicMock(spec=NodeAgentRepo)
+    node_agent_repo.get_by_node_id.return_value = NodeAgent(
+        id="agent-1",
+        name="claude",
+        resume_token="recorded-token",
+        node_id="A",
+        sessions=[recorded_session],
+    )
+
+    workspace = mocker.MagicMock(spec=Workspace)
+    workspace.provision.return_value = WorkTree(
+        name="A", absolute_path="/ws/retried-A", created_at=NOW
+    )
+
+    agent_launcher = mocker.MagicMock(spec=AgentLauncher)
+    agent_launcher.wake.return_value = AgentSession(
+        agent_id="agent-1", started_at=NOW, triggered_by="wake", pid=4242
+    )
+
+    code_repo = mocker.MagicMock(spec=CodeRepo)
+    code_repo.get_pr_details_from_url.return_value = pr_details
+
+    audit_entry_repo = mocker.MagicMock(spec=AuditEntryRepo)
+
+    notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
+
+    agent_launchers = {ExecutorAgent.CLAUDE: agent_launcher}
+    node_importer = AdoptedNodeImporter(
+        workspace=workspace,
+        node_repo=node_repo,
+        node_agent_repo=node_agent_repo,
+        audit_entry_repo=audit_entry_repo,
+        notification_publisher=notification_publisher,
+        agent_launchers=agent_launchers,
+    )
+
+    dag_spec = DagSpec(name="demo", nodes=(), max_workers=2)
+    handler = PendingNodeHandler(
+        node_repo=node_repo,
+        audit_entry_repo=audit_entry_repo,
+        notification_publisher=notification_publisher,
+        workspace=workspace,
+        agent_launchers=agent_launchers,
+        dag_spec=dag_spec,
+        node_agent_repo=node_agent_repo,
+        code_repo=code_repo,
+        node_importer=node_importer,
+    )
+
+    tick_response = await handler.handle(graph, [graph_node], NOW)
+
+    assert tick_response.events_applied == 1
+    assert tick_response.sessions_started == 1
+
+    agent_launcher.wake.assert_awaited_once()
+    agent_launcher.launch.assert_not_awaited()
+
+    agent = node_agent_repo.save.await_args.args[0]
+
+    assert agent.id == "agent-1"
+    assert agent.resume_token == "recorded-token"
+
+    assert agent.sessions[0] is recorded_session
+    assert len(agent.sessions) == 2
+
+    assert agent.worktree.absolute_path == "/ws/retried-A"
+
+    node_repo.update_state.assert_awaited_once_with("A", NodeState.IN_PROGRESS, ANY)
 
 
 async def test_launches_with_its_own_brief_when_it_declares_a_pull_request(
@@ -879,6 +967,7 @@ async def test_cuts_the_worktree_from_the_declared_pull_request_head(
     )
 
     node_agent_repo = mocker.MagicMock(spec=NodeAgentRepo)
+    node_agent_repo.get_by_node_id.return_value = None
 
     audit_entry_repo = mocker.MagicMock(spec=AuditEntryRepo)
     notification_publisher = mocker.MagicMock(spec=NotificationPublisher)

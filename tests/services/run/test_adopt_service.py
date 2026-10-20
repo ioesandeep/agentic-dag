@@ -7,6 +7,7 @@ from unittest.mock import ANY
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.bootstrap.application_context import (
     ApplicationContext,
     bind_context,
@@ -131,7 +132,10 @@ def node_repo(mocker: MockerFixture) -> NodeRepo:
 
 @pytest.fixture
 def node_agent_repo(mocker: MockerFixture) -> NodeAgentRepo:
-    return mocker.AsyncMock(spec=NodeAgentRepo)
+    node_agent_repo = mocker.AsyncMock(spec=NodeAgentRepo)
+    node_agent_repo.get_by_node_id.return_value = None
+
+    return node_agent_repo
 
 
 @pytest.fixture

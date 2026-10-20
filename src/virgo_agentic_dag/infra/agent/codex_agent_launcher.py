@@ -42,9 +42,9 @@ class CodexAgentLauncher(AgentLauncher):
         "-c",
         'approvals_reviewer="auto_review"',
         "-c",
-        'service_tier="fast"',
+        'service_tier="default"',
         "-c",
-        "features.fast_mode=true",
+        "features.fast_mode=false",
     )
     _SESSION_RUNNER = Path(__file__).with_name("codex_session_runner.py")
 

@@ -175,8 +175,9 @@ top-level value is absent, it is `claude`, so a graph written before Codex suppo
 Install and authenticate each selected CLI on the machine running the graph, and make its binary
 available on the scheduled job's `PATH`. Codex runs through `codex exec --json` and resumes the
 thread ID it emits. By default, the launcher selects `gpt-6-sol` with `xhigh` reasoning effort
-and Fast mode for new and resumed Codex sessions. Set the DAG's `[codex]` table to override
-the model and effort for every Codex session, including recovery and learning extraction:
+for new and resumed Codex sessions. Every Codex session runs on the default service tier with
+Fast mode off. Set the DAG's `[codex]` table to override the model and effort for every Codex
+session, including recovery and learning extraction:
 
 ```toml
 [codex]
