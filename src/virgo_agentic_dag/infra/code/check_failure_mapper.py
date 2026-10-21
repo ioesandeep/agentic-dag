@@ -21,19 +21,44 @@ class CheckFailureMapper:
     def get_failures(
         self, checks: Sequence[dict[str, Any]]
     ) -> tuple[CheckFailure, ...]:
-        return tuple(
-            CheckFailure(
-                name=str(check.get("name", "")),
-                conclusion=str(check.get("conclusion", "")),
-                run_id=self._get_run_id(str(check.get("detailsUrl", ""))),
-            )
-            for check in checks
-            if check.get("conclusion") in FAILED_CONCLUSIONS
-        )
+        """Identify checks that require a fix."""
+        failures: list[CheckFailure] = []
+        for check in checks:
+            conclusion = check.get("conclusion", "")
+            state = check.get("state", "")
+            if conclusion not in FAILED_CONCLUSIONS and state not in {
+                "FAILURE",
+                "ERROR",
+            }:
+                continue
+
+            name_value = check.get("name", "") or check.get("context", "")
+            name = str(name_value)
+
+            conclusion = conclusion or state
+            conclusion = str(conclusion)
+
+            url_value = check.get("detailsUrl", "") or check.get("targetUrl", "")
+            details_url = str(url_value)
+            run_id = self._get_run_id(details_url)
+
+            failure = CheckFailure(name=name, conclusion=conclusion, run_id=run_id)
+            failures.append(failure)
+
+        return tuple(failures)
 
     def get_settled(self, checks: Sequence[dict[str, Any]]) -> bool:
-        """Report whether every check has finished, since one still running has no verdict yet."""
-        return all(check.get("conclusion") for check in checks)
+        """Determine whether all checks have finished."""
+        for check in checks:
+            state = check.get("state")
+            conclusion = check.get("conclusion")
+
+            is_status_pending = state in {"PENDING", "EXPECTED"}
+            is_check_pending = "state" not in check and not conclusion
+            if is_status_pending or is_check_pending:
+                return False
+
+        return True
 
     def _get_run_id(self, details_url: str) -> str:
         found = _RUN_ID.search(details_url)
