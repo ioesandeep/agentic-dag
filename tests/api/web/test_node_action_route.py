@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pytest_mock import MockerFixture
 from sqlalchemy.ext.asyncio import create_async_engine
+
 from virgo_agentic_dag.api.web.controllers.dag_controller import DagController
 from virgo_agentic_dag.api.web.controllers.health_controller import HealthController
 from virgo_agentic_dag.api.web.controllers.node_action_controller import (
@@ -49,6 +50,9 @@ from virgo_agentic_dag.infra.persistence.sqlite.sqlite_node_agent_repo import (
     SqliteNodeAgentRepo,
 )
 from virgo_agentic_dag.infra.persistence.sqlite.sqlite_node_repo import SqliteNodeRepo
+from virgo_agentic_dag.infra.persistence.sqlite.sqlite_scheduled_job_repo import (
+    SqliteScheduledJobRepo,
+)
 from virgo_agentic_dag.services.dag.dag_service import DagService
 from virgo_agentic_dag.services.loading.toml.toml_dag_loader import TomlDagLoader
 
@@ -72,6 +76,28 @@ def dag_home(mocker: MockerFixture, tmp_path: Path) -> Path:
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", return_value=tmp_path
     )
 
+    scheduler_directory = tmp_path / "scheduler-bin"
+    scheduler_directory.mkdir()
+
+    launchctl = scheduler_directory / "launchctl"
+    launchctl.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    launchctl.chmod(0o755)
+
+    systemctl = scheduler_directory / "systemctl"
+    systemctl.write_text(
+        '#!/bin/sh\nif [ "$2" = "show" ]; then\n'
+        "    printf 'LoadState=loaded\\nActiveState=active\\n'\n"
+        "else\n    printf 'enabled\\n'\nfi\n",
+        encoding="utf-8",
+    )
+
+    systemctl.chmod(0o755)
+
+    mocker.patch.dict(
+        os.environ,
+        {"PATH": f"{scheduler_directory}{os.pathsep}{os.environ['PATH']}"},
+    )
+
     return tmp_path
 
 
@@ -79,6 +105,7 @@ def dag_home(mocker: MockerFixture, tmp_path: Path) -> Path:
 async def database(dag_home: Path) -> AsyncGenerator[SqliteDatabase]:
     run_home = dag_home / "alpha"
     run_home.mkdir()
+
     db_path = run_home / "db.sqlite3"
     run_home.joinpath("dag.toml").write_text(
         f"name = 'alpha'\nrepo_slug = 'acme/virgo'\ndb_path = '{db_path}'\n"
@@ -89,6 +116,7 @@ async def database(dag_home: Path) -> AsyncGenerator[SqliteDatabase]:
     engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
     database = SqliteDatabase(engine)
     await database.upgrade_to_head()
+
     await SqliteNodeRepo(database).ensure_rows([GraphNode(id="seed")], STARTED_AT)
 
     yield database
@@ -153,11 +181,16 @@ async def test_retry_responds_with_a_pending_node_and_retains_or_clears_the_sess
 
     response = client.post(RETRY_PATH, json={"reset": reset})
 
+    scheduled_job_repo = SqliteScheduledJobRepo(database)
+    scheduled_job = await scheduled_job_repo.get_by_dag_name("alpha")
+
     assert response.status_code == 200
     assert (response.json()["state"], response.json()["sessionId"]) == (
         "pending",
         session_id,
     )
+
+    assert scheduled_job is not None
 
 
 async def test_retry_responds_409_with_dagctl_refusal_when_the_node_is_resting(
@@ -195,8 +228,10 @@ async def test_wake_responds_with_an_in_progress_node_and_its_recovery_when_the_
 ) -> None:
     """Put a stub `claude` executable ahead of the real executable on `PATH` because waking the node starts `claude`."""
     await SqliteNodeRepo(database).update_state("seed", NodeState.RESTING, ENDED_AT)
+
     worktree_path = tmp_path / "ws" / "seed"
     worktree_path.mkdir(parents=True)
+
     worktree = WorkTree(
         name="alpha-seed",
         absolute_path=str(worktree_path),
@@ -225,9 +260,11 @@ async def test_wake_responds_with_an_in_progress_node_and_its_recovery_when_the_
 
     stub_directory = tmp_path / "bin"
     stub_directory.mkdir()
+
     claude_stub = stub_directory / "claude"
     claude_stub.write_text("#!/bin/sh\necho stub=claude\n", encoding="utf-8")
     claude_stub.chmod(0o755)
+
     mocker.patch.dict(
         os.environ, {"PATH": f"{stub_directory}{os.pathsep}{os.environ['PATH']}"}
     )
@@ -241,13 +278,20 @@ async def test_wake_responds_with_an_in_progress_node_and_its_recovery_when_the_
         },
     )
 
+    scheduled_job_repo = SqliteScheduledJobRepo(database)
+    scheduled_job = await scheduled_job_repo.get_by_dag_name("alpha")
+
     assert response.status_code == 200
+
     node_response = response.json()
+
     assert node_response["state"] == "in_progress"
     assert (
         node_response["nodeRecovery"]["cause"],
         node_response["nodeRecovery"]["action"],
     ) == ("usage_limit", "woke the node after the usage limit reset")
+
+    assert scheduled_job is not None
 
 
 async def test_wake_responds_409_without_running_dagctl_when_the_node_is_errored(

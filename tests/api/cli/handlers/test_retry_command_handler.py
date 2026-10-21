@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.api.cli.handlers.retry_command_handler import RetryCommandHandler
 from virgo_agentic_dag.bootstrap.application_context import (
     ApplicationContext,
@@ -14,11 +15,15 @@ from virgo_agentic_dag.domain.command.exit_code import ExitCode
 from virgo_agentic_dag.domain.command.retry_command import RetryCommand
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.infra.locking.run_lock import RunLock
-from virgo_agentic_dag.domain.notifications.notification_type import NotificationType
+from virgo_agentic_dag.domain.infra.scheduling.scheduled_job import ScheduledJob
 from virgo_agentic_dag.domain.node.node_state import NodeState
+from virgo_agentic_dag.domain.notifications.notification_type import NotificationType
+from virgo_agentic_dag.domain.persistence.entities.node import Node
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
+from virgo_agentic_dag.domain.persistence.repos.audit_entry_repo import AuditEntryRepo
 from virgo_agentic_dag.domain.persistence.repos.node_agent_repo import NodeAgentRepo
+from virgo_agentic_dag.domain.persistence.repos.node_repo import NodeRepo
 from virgo_agentic_dag.domain.service.notification_publisher import (
     NotificationPublisher,
 )
@@ -27,6 +32,9 @@ from virgo_agentic_dag.infra.persistence.memory.inmemory_audit_entry_repo import
 )
 from virgo_agentic_dag.infra.persistence.memory.inmemory_node_repo import (
     InMemoryNodeRepo,
+)
+from virgo_agentic_dag.services.scheduling.run_schedule_service import (
+    RunScheduleService,
 )
 
 pytestmark = pytest.mark.unit
@@ -68,6 +76,7 @@ def handler(
         audit_entry_repo,
         notification_publisher,
         mocker.MagicMock(spec=NodeAgentRepo),
+        mocker.MagicMock(spec=RunScheduleService),
     )
 
 
@@ -104,9 +113,11 @@ async def test_retry_returns_a_stopped_node_to_pending(
     node = await node_repo.read(NODE_ID)
     entries = await audit_entry_repo.get_all()
     node_event = notification_publisher.publish.call_args.args[0]
+
     assert exit_code is ExitCode.SUCCESS
     assert node is not None
     assert node.state == NodeState.PENDING.value
+
     assert entries[0].note == "a human sent it back to work"
     assert node_event.type is NotificationType.RETRIED
 
@@ -138,11 +149,13 @@ async def test_retry_clears_the_resume_token_when_reset_is_set(
         audit_entry_repo,
         notification_publisher,
         node_agent_repo,
+        mocker.MagicMock(spec=RunScheduleService),
     )
 
     exit_code = await retry(handler, out, reset=True)
 
     agent = node_agent_repo.save.await_args.args[0]
+
     assert exit_code is ExitCode.SUCCESS
     assert agent.id == "agent-1"
     assert agent.resume_token == ""
@@ -164,9 +177,11 @@ async def test_retry_refuses_a_node_that_has_not_stopped(
     exit_code = await retry(handler, out)
 
     node = await node_repo.read(NODE_ID)
+
     assert exit_code is ExitCode.FAILURE
     assert node is not None
     assert node.state == state.value
+
     assert await audit_entry_repo.get_all() == []
     assert state.value in out.getvalue()
 
@@ -181,3 +196,80 @@ async def test_retry_refuses_a_node_that_is_not_in_the_run(
     assert exit_code is ExitCode.FAILURE
     assert await audit_entry_repo.get_all() == []
     assert NODE_ID in out.getvalue()
+
+
+@pytest.mark.parametrize(
+    ("state", "is_registered"),
+    [
+        (NodeState.ERRORED, False),
+        (NodeState.ERRORED, True),
+        (NodeState.IN_PROGRESS, False),
+        (None, False),
+    ],
+)
+async def test_retry_registers_the_run_only_after_a_successful_state_change(
+    state: NodeState | None,
+    is_registered: bool,
+    mocker: MockerFixture,
+    out: io.StringIO,
+) -> None:
+    node = None
+    if state is not None:
+        node = Node(id=NODE_ID, title="", name="", state=state.value)
+
+    node_repo = mocker.MagicMock(spec=NodeRepo)
+    node_repo.read.return_value = node
+
+    scheduled_job = ScheduledJob(label="fyi.virgo.dag.demo")
+    registered_job = None if is_registered else scheduled_job
+    run_schedule_service = mocker.MagicMock(spec=RunScheduleService)
+    run_schedule_service.ensure_registered.return_value = registered_job
+
+    run_lock = mocker.MagicMock(spec=RunLock)
+
+    call_order = mocker.MagicMock()
+
+    call_order.attach_mock(run_lock.acquire_lock, "acquire")
+    call_order.attach_mock(node_repo.update_state, "update_state")
+    call_order.attach_mock(run_schedule_service.ensure_registered, "ensure_registered")
+    call_order.attach_mock(run_lock.release, "release")
+
+    handler = RetryCommandHandler(
+        run_lock=run_lock,
+        node_repo=node_repo,
+        audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
+        notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
+        node_agent_repo=mocker.MagicMock(spec=NodeAgentRepo),
+        run_schedule_service=run_schedule_service,
+    )
+
+    dag_path = Path("dag.toml")
+    command = RetryCommand(dag_path=dag_path, node_id=NODE_ID)
+    context = ApplicationContext(command, out)
+    token = bind_context(context)
+
+    try:
+        exit_code = await handler.handle(command)
+    finally:
+        unbind_context(token)
+
+    if state is not NodeState.ERRORED:
+        assert exit_code is ExitCode.FAILURE
+        run_schedule_service.ensure_registered.assert_not_awaited()
+        assert "this host will run" not in out.getvalue()
+
+        return
+
+    assert exit_code is ExitCode.SUCCESS
+    run_schedule_service.ensure_registered.assert_awaited_once_with(dag_path)
+    assert [call[0] for call in call_order.mock_calls] == [
+        "acquire",
+        "update_state",
+        "ensure_registered",
+        "release",
+    ]
+
+    output = out.getvalue()
+    has_schedule_message = "this host will run fyi.virgo.dag.demo" in output
+
+    assert has_schedule_message is (not is_registered)

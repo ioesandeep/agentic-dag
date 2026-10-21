@@ -708,6 +708,7 @@ def _build_retry_command_handler(context: ApplicationContext) -> RetryCommandHan
         context.get(AuditEntryRepo),
         context.get(NotificationPublisher),
         context.get(NodeAgentRepo),
+        context.get(RunScheduleService),
     )
 
 
@@ -717,6 +718,7 @@ def _build_node_skip_service(context: ApplicationContext) -> NodeSkipService:
         audit_entry_repo=context.get(AuditEntryRepo),
         notification_publisher=context.get(NotificationPublisher),
         graph_builder=context.get(GraphBuilder),
+        run_schedule_service=context.get(RunScheduleService),
     )
 
 
@@ -999,6 +1001,7 @@ def _build_node_recovery_service(context: ApplicationContext) -> NodeRecoverySer
         notification_publisher=context.get(NotificationPublisher),
         graph_builder=context.get(GraphBuilder),
         agent_launchers=_build_agent_launchers(context.get(DagSpec)),
+        run_schedule_service=context.get(RunScheduleService),
     )
 
 

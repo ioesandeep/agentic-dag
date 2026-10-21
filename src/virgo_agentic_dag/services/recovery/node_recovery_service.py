@@ -36,6 +36,9 @@ from virgo_agentic_dag.domain.service.notification_publisher import (
 )
 from virgo_agentic_dag.domain.specs.executor_agent import ExecutorAgent
 from virgo_agentic_dag.labels.en import LABELS
+from virgo_agentic_dag.services.scheduling.run_schedule_service import (
+    RunScheduleService,
+)
 from virgo_agentic_dag.utils.format_label import format_label
 
 _WAKEABLE = (NodeState.ERRORED, NodeState.NEEDS_HUMAN, NodeState.RESTING)
@@ -54,6 +57,7 @@ class NodeRecoveryService:
         notification_publisher: NotificationPublisher,
         graph_builder: GraphBuilder,
         agent_launchers: Mapping[ExecutorAgent, AgentLauncher],
+        run_schedule_service: RunScheduleService,
     ) -> None:
         self._node_repo = node_repo
         self._node_recovery_repo = node_recovery_repo
@@ -63,6 +67,7 @@ class NodeRecoveryService:
         self._notification_publisher = notification_publisher
         self._graph_builder = graph_builder
         self._agent_launchers = agent_launchers
+        self._run_schedule_service = run_schedule_service
 
     async def recover(self, command: RecoverCommand) -> ExitCode:
         """Apply what the recovery agent decided and record the failure, or change nothing."""
@@ -212,6 +217,14 @@ class NodeRecoveryService:
         )
 
         emit(format_label(LABELS["nodeWoken"], {"node_id": node.id}))
+
+        scheduled_job = await self._run_schedule_service.ensure_registered(
+            command.dag_path
+        )
+
+        if scheduled_job is not None:
+            message = format_label(LABELS["runScheduled"], {"job": scheduled_job.label})
+            emit(message + "\n")
 
         return True
 

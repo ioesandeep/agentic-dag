@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime
 
+from virgo_agentic_dag.bootstrap.application_context import emit
 from virgo_agentic_dag.domain.command.skip_command import SkipCommand
 from virgo_agentic_dag.domain.events.node_event import NodeEvent
 from virgo_agentic_dag.domain.events.node_retried_event import NodeRetriedEvent
@@ -23,6 +24,9 @@ from virgo_agentic_dag.domain.service.notification_publisher import (
     NotificationPublisher,
 )
 from virgo_agentic_dag.labels.en import LABELS
+from virgo_agentic_dag.services.scheduling.run_schedule_service import (
+    RunScheduleService,
+)
 from virgo_agentic_dag.utils.format_label import format_label
 
 
@@ -35,11 +39,13 @@ class NodeSkipService:
         audit_entry_repo: AuditEntryRepo,
         notification_publisher: NotificationPublisher,
         graph_builder: GraphBuilder,
+        run_schedule_service: RunScheduleService,
     ) -> None:
         self._node_repo = node_repo
         self._audit_entry_repo = audit_entry_repo
         self._notification_publisher = notification_publisher
         self._graph_builder = graph_builder
+        self._run_schedule_service = run_schedule_service
 
     async def skip(self, command: SkipCommand, current_time: datetime) -> list[str]:
         """Mark the named node skipped and return the ids of the nodes moved back to pending."""
@@ -50,6 +56,7 @@ class NodeSkipService:
             )
 
         self._ensure_skippable(node)
+        is_already_skipped = node.state == NodeState.SKIPPED.value
 
         graph = self._graph_builder.build_from_path(command.dag_path)
         graph_service = GraphService(graph)
@@ -63,7 +70,19 @@ class NodeSkipService:
             current_time,
         )
 
-        return await self._return_to_pending(descendants, current_time)
+        pending_node_ids = await self._return_to_pending(descendants, current_time)
+        if is_already_skipped and not pending_node_ids:
+            return []
+
+        scheduled_job = await self._run_schedule_service.ensure_registered(
+            command.dag_path
+        )
+
+        if scheduled_job is not None:
+            message = format_label(LABELS["runScheduled"], {"job": scheduled_job.label})
+            emit(message + "\n")
+
+        return pending_node_ids
 
     def _ensure_skippable(self, node: Node) -> None:
         """Raise when this node is in progress or has merged."""

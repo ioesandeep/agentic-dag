@@ -12,6 +12,7 @@ from virgo_agentic_dag.domain.command.retry_command import RetryCommand
 from virgo_agentic_dag.domain.events.node_retried_event import NodeRetriedEvent
 from virgo_agentic_dag.domain.infra.locking.run_lock import RunLock
 from virgo_agentic_dag.domain.infra.locking.run_lock_config import RunLockConfig
+from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.notifications.notification_type import NotificationType
 from virgo_agentic_dag.domain.persistence.entities.audit_entry import AuditEntry
 from virgo_agentic_dag.domain.persistence.entities.node import Node
@@ -19,11 +20,13 @@ from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.repos.audit_entry_repo import AuditEntryRepo
 from virgo_agentic_dag.domain.persistence.repos.node_agent_repo import NodeAgentRepo
 from virgo_agentic_dag.domain.persistence.repos.node_repo import NodeRepo
-from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.service.notification_publisher import (
     NotificationPublisher,
 )
 from virgo_agentic_dag.labels.en import LABELS
+from virgo_agentic_dag.services.scheduling.run_schedule_service import (
+    RunScheduleService,
+)
 from virgo_agentic_dag.utils.format_label import format_label
 
 _RETRYABLE = (NodeState.ERRORED, NodeState.NEEDS_HUMAN)
@@ -39,12 +42,14 @@ class RetryCommandHandler(CommandHandler[RetryCommand]):
         audit_entry_repo: AuditEntryRepo,
         notification_publisher: NotificationPublisher,
         node_agent_repo: NodeAgentRepo,
+        run_schedule_service: RunScheduleService,
     ) -> None:
         self._run_lock = run_lock
         self._node_repo = node_repo
         self._audit_entry_repo = audit_entry_repo
         self._notification_publisher = notification_publisher
         self._node_agent_repo = node_agent_repo
+        self._run_schedule_service = run_schedule_service
 
     async def handle(self, command: RetryCommand) -> ExitCode:
         run_lock_config = RunLockConfig(timeout=command.timeout)
@@ -79,6 +84,14 @@ class RetryCommandHandler(CommandHandler[RetryCommand]):
 
         await self._record(node)
         emit(format_label(LABELS["nodeRetried"], {"node_id": node.id}))
+
+        scheduled_job = await self._run_schedule_service.ensure_registered(
+            command.dag_path
+        )
+
+        if scheduled_job is not None:
+            message = format_label(LABELS["runScheduled"], {"job": scheduled_job.label})
+            emit(message + "\n")
 
         return ExitCode.SUCCESS
 
