@@ -1,10 +1,12 @@
 from collections.abc import AsyncGenerator, Awaitable, Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 from sqlalchemy.ext.asyncio import create_async_engine
+
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
+from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.infra.persistence.sqlite.sqlite_database import SqliteDatabase
 from virgo_agentic_dag.infra.persistence.sqlite.sqlite_node_repo import SqliteNodeRepo
 
@@ -111,3 +113,35 @@ async def test_record_learnings_extracted_stamps_every_node_of_the_batch(
     ]
 
     assert extracted_times == [NOW, NOW]
+
+
+async def test_update_state_stores_resume_at_when_the_node_waits(
+    repo: SqliteNodeRepo,
+) -> None:
+    graph_nodes = [GraphNode(id="A")]
+    await repo.ensure_rows(graph_nodes, NOW)
+
+    resume_at = NOW + timedelta(hours=2)
+
+    await repo.update_state("A", NodeState.PENDING, NOW, resume_at=resume_at)
+
+    node = await repo.read("A")
+
+    assert node is not None and node.resume_at is not None
+    assert node.resume_at.replace(tzinfo=UTC) == resume_at
+
+
+async def test_update_state_clears_resume_at_when_the_node_starts(
+    repo: SqliteNodeRepo,
+) -> None:
+    graph_nodes = [GraphNode(id="A")]
+    await repo.ensure_rows(graph_nodes, NOW)
+
+    resume_at = NOW + timedelta(hours=2)
+    await repo.update_state("A", NodeState.PENDING, NOW, resume_at=resume_at)
+
+    await repo.update_state("A", NodeState.IN_PROGRESS, resume_at)
+
+    node = await repo.read("A")
+
+    assert node is not None and node.resume_at is None

@@ -32,6 +32,9 @@ class Node(EntityBase):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
+    resume_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     recovery_attempts_allowed: Mapped[int] = mapped_column(Integer, nullable=False)
     pull_request_settled_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

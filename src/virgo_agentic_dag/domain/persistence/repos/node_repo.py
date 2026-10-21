@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
-from virgo_agentic_dag.domain.persistence.entities.node import Node
 from virgo_agentic_dag.domain.node.node_state import NodeState
+from virgo_agentic_dag.domain.persistence.entities.node import Node
 
 
 class NodeRepo(ABC):
@@ -34,8 +34,14 @@ class NodeRepo(ABC):
         """Return the nodes with these ids, in the order the store finds them."""
 
     @abstractmethod
-    async def update_state(self, node_id: str, state: NodeState, at: datetime) -> None:
-        """Move this node to the given state, stamping when it happened."""
+    async def update_state(
+        self,
+        node_id: str,
+        state: NodeState,
+        at: datetime,
+        resume_at: datetime | None = None,
+    ) -> None:
+        """Record the node's state transition and optional resume time."""
 
     @abstractmethod
     async def spend_recovery_attempt(self, node_id: str) -> None:

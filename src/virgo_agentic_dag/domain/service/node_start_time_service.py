@@ -1,4 +1,4 @@
-"""Calculates start times for graph nodes with cooldowns."""
+"""Calculates when pending nodes may start."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from virgo_agentic_dag.domain.service.graph_service import GraphService
 
 
 class NodeStartTimeService:
-    """A service for calculating when graph nodes may start after their dependencies."""
+    """Calculates node start times for cooldowns and scheduled waits."""
 
     def __init__(self, graph: Graph) -> None:
         self._graph_service = GraphService(graph)
@@ -20,7 +20,22 @@ class NodeStartTimeService:
     def get_start_time(
         self, graph_node: GraphNode, nodes: list[Node]
     ) -> datetime | None:
-        """Return the node's start time, or None when no cooldown is active."""
+        """Return the earliest time the node may start."""
+        start_times = [
+            node.resume_at.replace(tzinfo=UTC)
+            for node in nodes
+            if node.id == graph_node.id and node.resume_at is not None
+        ]
+
+        cooldown_start_time = self._get_cooldown_start_time(graph_node, nodes)
+        if cooldown_start_time is not None:
+            start_times.append(cooldown_start_time)
+
+        return max(start_times, default=None)
+
+    def _get_cooldown_start_time(
+        self, graph_node: GraphNode, nodes: list[Node]
+    ) -> datetime | None:
         if not graph_node.cooldown_seconds:
             return None
 

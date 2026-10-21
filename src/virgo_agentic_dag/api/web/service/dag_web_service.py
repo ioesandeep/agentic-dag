@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy.exc import SQLAlchemyError
+
 from virgo_agentic_dag.api.web.api_responses.conversation_message_response import (
     ConversationMessageResponse,
 )
@@ -208,11 +209,8 @@ class DagWebService:
             return None
 
         node_start_time_service = NodeStartTimeService(graph)
-        skipped_and_dependency_nodes = [*skipped_nodes, *dependency_nodes]
 
-        return node_start_time_service.get_start_time(
-            graph_node, skipped_and_dependency_nodes
-        )
+        return node_start_time_service.get_start_time(graph_node, nodes)
 
     def _find_audit_tail(self, audit_entries: list[AuditEntry]) -> list[AuditEntry]:
         """Return the latest audit entries, newest first."""
@@ -353,6 +351,7 @@ class DagWebService:
             return self._get_empty_conversation_page(limit)
 
         look_ahead_lines = self._list_look_ahead_lines(transcript_path, before, limit)
+
         page_lines: list[TranscriptLine] = []
         conversation_messages: list[ConversationMessageResponse] = []
         while len(conversation_messages) < limit:

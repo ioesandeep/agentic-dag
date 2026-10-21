@@ -23,6 +23,7 @@ from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.node.node_state_handler import NodeStateHandler
 from virgo_agentic_dag.domain.notifications.notification_type import NotificationType
 from virgo_agentic_dag.domain.persistence.entities.audit_entry import AuditEntry
+from virgo_agentic_dag.domain.persistence.entities.node import Node
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
 from virgo_agentic_dag.domain.persistence.repos.audit_entry_repo import AuditEntryRepo
@@ -64,9 +65,11 @@ class PendingNodeHandler(NodeStateHandler):
         node_importer: NodeImporter,
     ) -> None:
         super().__init__(node_repo, audit_entry_repo, notification_publisher)
+
         self._workspace = workspace
         self._agent_launchers = agent_launchers
         self._dag_spec = dag_spec
+
         self._node_agent_repo = node_agent_repo
         self._code_repo = code_repo
         self._node_importer = node_importer
@@ -124,12 +127,13 @@ class PendingNodeHandler(NodeStateHandler):
         if not all(state is NodeState.MERGED for state in dependency_states):
             return TickResponse()
 
-        node_start_time_service = NodeStartTimeService(graph)
-        skipped_and_dependency_nodes = [*skipped_nodes, *dependency_nodes]
-        start_time = node_start_time_service.get_start_time(
-            graph_node, skipped_and_dependency_nodes
-        )
+        node = await self._node_repo.read(graph_node.id)
+        if node is None:
+            return TickResponse()
 
+        node_start_time_service = NodeStartTimeService(graph)
+        nodes = [*skipped_nodes, *dependency_nodes, node]
+        start_time = node_start_time_service.get_start_time(graph_node, nodes)
         if start_time is not None and start_time > current_time:
             await self._record_wait(graph_node, start_time)
 
@@ -157,10 +161,14 @@ class PendingNodeHandler(NodeStateHandler):
             return TickResponse(events_applied=1)
 
         try:
-            if graph_node.is_adopted():
+            is_adopted = graph_node.is_adopted()
+            can_resume = await self._can_resume(node)
+            if is_adopted and not can_resume:
                 return await self._adopt(graph_node)
 
-            return await self._start(graph_node, agent_name, launcher, current_time)
+            return await self._start(
+                graph_node, node, agent_name, launcher, current_time
+            )
         except (WorktreeError, ObservationError, OSError) as error:
             logger.warning(
                 "%s stays pending, it will retry next tick: %s", graph_node.id, error
@@ -175,7 +183,11 @@ class PendingNodeHandler(NodeStateHandler):
             seconds=graph_node.cooldown_seconds
         )
 
-        if node is None or node.is_updated_after(cooldown_start_time):
+        if node is None or node.resume_at is not None:
+            return
+
+        is_updated_after_cooldown = node.is_updated_after(cooldown_start_time)
+        if is_updated_after_cooldown:
             return
 
         current_time = datetime.now(UTC)
@@ -193,6 +205,14 @@ class PendingNodeHandler(NodeStateHandler):
 
         await self._audit_entry_repo.save(audit_entry)
 
+    async def _can_resume(self, node: Node) -> bool:
+        if node.resume_at is None:
+            return False
+
+        recorded_agent = await self._node_agent_repo.get_by_node_id(node.id)
+
+        return recorded_agent is not None and bool(recorded_agent.resume_token)
+
     async def _adopt(self, graph_node: GraphNode) -> TickResponse:
         pr_details = await self._code_repo.get_pr_details_from_url(graph_node.pr)
         await self._node_importer.import_node(graph_node, pr_details)
@@ -202,19 +222,18 @@ class PendingNodeHandler(NodeStateHandler):
     async def _start(
         self,
         graph_node: GraphNode,
+        node: Node,
         agent_product: str,
         launcher: AgentLauncher,
         current_time: datetime,
     ) -> TickResponse:
-        node = await self._node_repo.read(graph_node.id)
-        if node is None:
-            return TickResponse()
-
         worktree = await self._workspace.provision(graph_node)
         recorded_agent = await self._node_agent_repo.get_by_node_id(graph_node.id)
         if recorded_agent is not None and recorded_agent.resume_token:
             agent = recorded_agent
-            session = await launcher.wake(graph_node, LABELS["retryMessage"], agent)
+            has_resume_time = node.resume_at is not None
+            label_name = "resumeMessage" if has_resume_time else "retryMessage"
+            session = await launcher.wake(graph_node, LABELS[label_name], agent)
         else:
             agent = self._create_agent(
                 graph_node, agent_product, worktree, recorded_agent

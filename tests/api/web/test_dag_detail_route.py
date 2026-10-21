@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pytest_mock import MockerFixture
 from sqlalchemy.ext.asyncio import create_async_engine
+
 from virgo_agentic_dag.api.web.controllers.dag_controller import DagController
 from virgo_agentic_dag.api.web.controllers.health_controller import HealthController
 from virgo_agentic_dag.api.web.controllers.node_action_controller import (
@@ -89,6 +90,7 @@ async def open_database(
     async def open_for(dag_name: str) -> SqliteDatabase:
         db_path = dag_home / dag_name / "db.sqlite3"
         db_path.parent.mkdir(parents=True, exist_ok=True)
+
         engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
         database = SqliteDatabase(engine)
         await database.upgrade_to_head()
@@ -308,9 +310,11 @@ async def test_dag_detail_counts_only_wake_sessions_where_the_launch_is_recorded
     write_graph("alpha", "name = 'alpha'\n[[nodes]]\nid = 'seed'\n")
     database = await open_database("alpha")
     await SqliteNodeRepo(database).ensure_rows([GraphNode(id="seed")], STARTED_AT)
+
     sessions = [build_session("launch"), build_session("wake"), build_session("wake")]
     agent = build_agent("token-seed", None, sessions)
     await SqliteNodeAgentRepo(database).save(agent)
+
     code_repo = mocker.MagicMock(spec=CodeRepo)
 
     response = TestClient(build_application(code_repo)).get("/api/dags/alpha")
@@ -387,6 +391,7 @@ async def test_dag_detail_returns_the_latest_audit_entries_where_more_exist(
 ) -> None:
     write_graph("alpha", "name = 'alpha'\n[[nodes]]\nid = 'seed'\n")
     database = await open_database("alpha")
+
     audit_entry_repo = SqliteAuditEntryRepo(database)
     for index in range(1, AUDIT_TAIL_SIZE + 2):
         written_at = STARTED_AT + timedelta(minutes=index)
@@ -407,7 +412,15 @@ async def test_dag_detail_returns_the_latest_audit_entries_where_more_exist(
     assert notes == [f"pass {index}" for index in range(AUDIT_TAIL_SIZE + 1, 1, -1)]
 
 
-async def test_dag_detail_returns_the_start_time_when_a_node_waits_for_its_cooldown(
+@pytest.mark.parametrize(
+    ("cooldown_seconds", "resume_hours", "start_hours"),
+    [(3600, None, 1), (0, 2, 2), (3600, 2, 2)],
+    ids=["cooldown", "resume_wait", "resume_and_cooldown"],
+)
+async def test_dag_detail_returns_the_start_time_when_a_node_waits(
+    cooldown_seconds: int,
+    resume_hours: int | None,
+    start_hours: int,
     mocker: MockerFixture,
     build_application: Callable[[CodeRepo], FastAPI],
     write_graph: Callable[[str, str], None],
@@ -415,25 +428,36 @@ async def test_dag_detail_returns_the_start_time_when_a_node_waits_for_its_coold
 ) -> None:
     write_graph(
         "alpha",
-        "name = 'alpha'\ncooldown_seconds = 3600\n"
+        f"name = 'alpha'\ncooldown_seconds = {cooldown_seconds}\n"
         "[[nodes]]\nid = 'seed'\n"
         "[[nodes]]\nid = 'read'\ndepends_on = ['seed']\n",
     )
 
     database = await open_database("alpha")
     node_repo = SqliteNodeRepo(database)
-    await node_repo.ensure_rows(
-        [GraphNode(id="seed"), GraphNode(id="read")], STARTED_AT
-    )
+
+    graph_nodes = [GraphNode(id="seed"), GraphNode(id="read")]
+    await node_repo.ensure_rows(graph_nodes, STARTED_AT)
 
     merged_at = datetime.now(UTC)
     await node_repo.update_state("seed", NodeState.MERGED, merged_at)
+
+    if resume_hours is not None:
+        resume_at = merged_at + timedelta(hours=resume_hours)
+        await node_repo.update_state(
+            "read", NodeState.PENDING, merged_at, resume_at=resume_at
+        )
+
     code_repo = mocker.MagicMock(spec=CodeRepo)
 
-    response = TestClient(build_application(code_repo)).get("/api/dags/alpha")
+    application = build_application(code_repo)
+    client = TestClient(application)
+
+    response = client.get("/api/dags/alpha")
 
     starts_at = response.json()["nodes"][1]["startsAt"]
-    assert datetime.fromisoformat(starts_at) == merged_at + timedelta(hours=1)
+
+    assert datetime.fromisoformat(starts_at) == merged_at + timedelta(hours=start_hours)
 
 
 @pytest.mark.parametrize(
@@ -466,6 +490,7 @@ async def test_dag_detail_returns_a_null_start_time_when_the_node_does_not_wait_
 
     database = await open_database("alpha")
     node_repo = SqliteNodeRepo(database)
+
     graph_nodes = [GraphNode(id="seed"), GraphNode(id="index"), GraphNode(id="read")]
     await node_repo.ensure_rows(graph_nodes, STARTED_AT)
 
@@ -473,6 +498,7 @@ async def test_dag_detail_returns_a_null_start_time_when_the_node_does_not_wait_
     await node_repo.update_state("seed", NodeState.MERGED, merged_at)
     await node_repo.update_state("index", index_state, merged_at)
     await node_repo.update_state("read", read_state, merged_at)
+
     code_repo = mocker.MagicMock(spec=CodeRepo)
 
     response = TestClient(build_application(code_repo)).get("/api/dags/alpha")

@@ -8,8 +8,9 @@ from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+
 from virgo_agentic_dag.domain.persistence.entities.entity_base import EntityBase
 from virgo_agentic_dag.infra.persistence.sqlite.sqlite_database import SqliteDatabase
 
@@ -87,3 +88,34 @@ async def test_upgrade_to_head_adds_the_nullable_evidence_columns_when_the_datab
 
     nullable_by_name = {column["name"]: column["nullable"] for column in columns}
     assert [nullable_by_name[name] for name in evidence_column_names] == [True] * 3
+
+
+async def test_upgrade_to_head_preserves_existing_nodes_without_a_resume_time(
+    engine: AsyncEngine, migrations_path: Traversable
+) -> None:
+    config = Config()
+    config.set_main_option("script_location", str(migrations_path))
+
+    insert_node = text(
+        "INSERT INTO nodes (id, title, name, state, created_at, updated_at, "
+        "recovery_attempts_allowed) VALUES "
+        "('A', 'Resume work', 'Aries', 'pending', '2026-10-19', '2026-10-19', 1)"
+    )
+
+    async with engine.begin() as connection:
+        config.attributes["connection"] = connection.sync_connection
+        await connection.run_sync(lambda _: command.upgrade(config, "f6b8c0d2e4a6"))
+
+        await connection.execute(insert_node)
+
+    database = SqliteDatabase(engine)
+
+    await database.upgrade_to_head()
+
+    statement = text("SELECT id, resume_at FROM nodes")
+    async with engine.connect() as connection:
+        nodes = await connection.execute(statement)
+        node = nodes.one()
+
+    assert node.id == "A"
+    assert node.resume_at is None

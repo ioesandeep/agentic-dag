@@ -6,11 +6,12 @@ from datetime import datetime
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import selectinload
+
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
+from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.persistence.entities.node import Node
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.repos.node_repo import NodeRepo
-from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.infra.persistence.sqlite.sqlite_database import SqliteDatabase
 
 _EAGER = (
@@ -70,12 +71,18 @@ class SqliteNodeRepo(NodeRepo):
 
             return list((await session.execute(statement)).scalars())
 
-    async def update_state(self, node_id: str, state: NodeState, at: datetime) -> None:
+    async def update_state(
+        self,
+        node_id: str,
+        state: NodeState,
+        at: datetime,
+        resume_at: datetime | None = None,
+    ) -> None:
         async with self._database.open_session() as session:
             statement = (
                 update(Node)
                 .where(Node.id == node_id)
-                .values(state=state.value, updated_at=at)
+                .values(state=state.value, updated_at=at, resume_at=resume_at)
             )
 
             await session.execute(statement)

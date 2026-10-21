@@ -67,6 +67,9 @@ LABELS: dict[str, str] = {
         "A human sent this node back to work after its session ended. "
         "Continue the task from the current state of the worktree."
     ),
+    "resumeMessage": (
+        "The wait is over. Continue the task from the current state of the worktree."
+    ),
     "nodeAdopted": (
         "{node_id} joined {dag_name}, taking over pull request "
         "#{pr_number} on {branch}. The next pass supervises it.\n"

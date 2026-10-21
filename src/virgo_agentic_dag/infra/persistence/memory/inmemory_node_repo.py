@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
+from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.persistence.entities.node import Node
 from virgo_agentic_dag.domain.persistence.repos.node_repo import NodeRepo
-from virgo_agentic_dag.domain.node.node_state import NodeState
 
 
 class InMemoryNodeRepo(NodeRepo):
@@ -43,7 +43,13 @@ class InMemoryNodeRepo(NodeRepo):
     async def get_nodes_by_ids(self, node_ids: list[str]) -> list[Node]:
         return [self._rows[node_id] for node_id in node_ids if node_id in self._rows]
 
-    async def update_state(self, node_id: str, state: NodeState, at: datetime) -> None:
+    async def update_state(
+        self,
+        node_id: str,
+        state: NodeState,
+        at: datetime,
+        resume_at: datetime | None = None,
+    ) -> None:
         row = self._rows[node_id]
         self._rows[node_id] = Node(
             id=row.id,
@@ -52,6 +58,7 @@ class InMemoryNodeRepo(NodeRepo):
             state=state.value,
             created_at=row.created_at,
             updated_at=at,
+            resume_at=resume_at,
             recovery_attempts_allowed=row.recovery_attempts_allowed,
             pull_request_settled_at=row.pull_request_settled_at,
             learnings_extracted_at=row.learnings_extracted_at,
@@ -67,6 +74,7 @@ class InMemoryNodeRepo(NodeRepo):
             created_at=row.created_at,
             updated_at=row.updated_at,
             recovery_attempts_allowed=row.recovery_attempts_allowed - 1,
+            resume_at=row.resume_at,
             pull_request_settled_at=row.pull_request_settled_at,
             learnings_extracted_at=row.learnings_extracted_at,
         )
@@ -82,6 +90,7 @@ class InMemoryNodeRepo(NodeRepo):
             updated_at=row.updated_at,
             recovery_attempts_allowed=row.recovery_attempts_allowed,
             pull_request_settled_at=at,
+            resume_at=row.resume_at,
             learnings_extracted_at=row.learnings_extracted_at,
         )
 
@@ -103,4 +112,5 @@ class InMemoryNodeRepo(NodeRepo):
                 recovery_attempts_allowed=row.recovery_attempts_allowed,
                 pull_request_settled_at=row.pull_request_settled_at,
                 learnings_extracted_at=at,
+                resume_at=row.resume_at,
             )

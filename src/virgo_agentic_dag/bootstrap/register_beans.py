@@ -234,6 +234,7 @@ from virgo_agentic_dag.services.run.adopt_service import AdoptService
 from virgo_agentic_dag.services.run.adopted_node_importer import AdoptedNodeImporter
 from virgo_agentic_dag.services.run.node_importer import NodeImporter
 from virgo_agentic_dag.services.run.node_skip_service import NodeSkipService
+from virgo_agentic_dag.services.run.node_wait_service import NodeWaitService
 from virgo_agentic_dag.services.scheduling.run_schedule_service import (
     RunScheduleService,
 )
@@ -359,6 +360,7 @@ def register_beans(context: ApplicationContext) -> None:
     context.register(TickCommandHandler, _build_tick_command_handler)
 
     context.register(ValidateCommandHandler, _build_validate_command_handler)
+
     context.register(Renderer, lambda _context: MermaidRenderer())
     context.register(PreviewCommandHandler, _build_preview_command_handler)
 
@@ -366,6 +368,7 @@ def register_beans(context: ApplicationContext) -> None:
     context.register(RunScheduleService, _build_run_schedule_service)
 
     context.register(StartCommandHandler, _build_start_command_handler)
+
     context.register(AbortCommandHandler, _build_abort_command_handler)
 
     context.register(NodeImporter, _build_node_importer)
@@ -375,6 +378,9 @@ def register_beans(context: ApplicationContext) -> None:
     context.register(RetryCommandHandler, _build_retry_command_handler)
 
     context.register(NodeSkipService, _build_node_skip_service)
+
+    context.register(NodeWaitService, _build_node_wait_service)
+
     context.register(SkipCommandHandler, _build_skip_command_handler)
 
     context.register(NodeStopService, _build_node_stop_service)
@@ -711,6 +717,13 @@ def _build_node_skip_service(context: ApplicationContext) -> NodeSkipService:
         audit_entry_repo=context.get(AuditEntryRepo),
         notification_publisher=context.get(NotificationPublisher),
         graph_builder=context.get(GraphBuilder),
+    )
+
+
+def _build_node_wait_service(context: ApplicationContext) -> NodeWaitService:
+    return NodeWaitService(
+        node_repo=context.get(NodeRepo),
+        audit_entry_repo=context.get(AuditEntryRepo),
     )
 
 
