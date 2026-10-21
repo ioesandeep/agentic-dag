@@ -1,11 +1,15 @@
 from collections.abc import Callable
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.domain.exceptions.host.worktree_error import WorktreeError
+from virgo_agentic_dag.domain.execution.run_result import RunResult
 from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
+from virgo_agentic_dag.domain.infra.host.command_runner import CommandRunner
 from virgo_agentic_dag.domain.infra.workspace.workspace import Workspace
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
@@ -17,6 +21,7 @@ from virgo_agentic_dag.domain.service.notification_publisher import (
     NotificationPublisher,
 )
 from virgo_agentic_dag.domain.specs.executor_agent import ExecutorAgent
+from virgo_agentic_dag.infra.workspace.git_workspace import GitWorkspace
 from virgo_agentic_dag.services.node_state_handlers.merged_node_handler import (
     MergedNodeHandler,
 )
@@ -52,9 +57,13 @@ async def test_reclaims_the_worktree_when_the_node_has_merged(
     node_agent_repo.get_by_node_id.return_value = build_agent(worktree)
 
     node_repo = mocker.MagicMock(spec=NodeRepo)
+
     audit_entry_repo = mocker.MagicMock(spec=AuditEntryRepo)
+
     notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
+
     work_tree_repo = mocker.MagicMock(spec=WorkTreeRepo)
+
     workspace = mocker.MagicMock(spec=Workspace)
 
     handler = MergedNodeHandler(
@@ -68,12 +77,50 @@ async def test_reclaims_the_worktree_when_the_node_has_merged(
 
     await handler.handle(graph, [graph_node], NOW)
 
-    workspace.remove.assert_awaited_once_with(worktree)
+    workspace.remove.assert_awaited_once_with(worktree, graph_node.project_root)
     work_tree_repo.mark_reclaimed.assert_awaited_once()
     assert work_tree_repo.mark_reclaimed.await_args.args[0].id == 1
+
     node_repo.update_state.assert_not_awaited()
     audit_entry_repo.save.assert_not_awaited()
     notification_publisher.publish.assert_not_called()
+
+
+async def test_reclaims_the_worktree_when_its_directory_is_deleted(
+    mocker: MockerFixture, build_agent: BuildAgent, tmp_path: Path
+) -> None:
+    graph_node = GraphNode(id="A", project_root=tmp_path)
+    graph = Graph(name="demo", nodes=[graph_node])
+
+    path = tmp_path / "A"
+    path.mkdir()
+    path.rmdir()
+
+    worktree = WorkTree(id=1, name="A", absolute_path=str(path), created_at=NOW)
+
+    node_agent_repo = mocker.MagicMock(spec=NodeAgentRepo)
+    node_agent_repo.get_by_node_id.return_value = build_agent(worktree)
+
+    command_runner = mocker.MagicMock(spec=CommandRunner)
+    command_runner.run.return_value = RunResult(returncode=0)
+    workspace = GitWorkspace(command_runner=command_runner)
+
+    work_tree_repo = mocker.MagicMock(spec=WorkTreeRepo)
+    handler = MergedNodeHandler(
+        node_repo=mocker.MagicMock(spec=NodeRepo),
+        audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
+        notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
+        node_agent_repo=node_agent_repo,
+        work_tree_repo=work_tree_repo,
+        workspace=workspace,
+    )
+
+    await handler.handle(graph, [graph_node], NOW)
+    reclaimed_worktree = work_tree_repo.mark_reclaimed.await_args.args[0]
+
+    work_tree_repo.mark_reclaimed.assert_awaited_once()
+    assert reclaimed_worktree.id == worktree.id
+    assert reclaimed_worktree.reclaimed_at == NOW
 
 
 async def test_reclaims_nothing_when_the_worktree_is_already_gone(

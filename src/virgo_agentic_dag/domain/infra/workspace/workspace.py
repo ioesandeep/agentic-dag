@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
@@ -20,5 +21,5 @@ class Workspace(ABC):
         """Return the branch the agent left checked out in this worktree."""
 
     @abstractmethod
-    async def remove(self, worktree: WorkTree) -> None:
+    async def remove(self, worktree: WorkTree, project_root: Path) -> None:
         """Delete this worktree from disk and mark its record reclaimed."""

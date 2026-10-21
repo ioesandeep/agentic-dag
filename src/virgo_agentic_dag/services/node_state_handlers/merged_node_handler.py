@@ -36,6 +36,7 @@ class MergedNodeHandler(NodeStateHandler):
         workspace: Workspace,
     ) -> None:
         super().__init__(node_repo, audit_entry_repo, notification_publisher)
+
         self._node_agent_repo = node_agent_repo
         self._work_tree_repo = work_tree_repo
         self._workspace = workspace
@@ -65,7 +66,7 @@ class MergedNodeHandler(NodeStateHandler):
             return TickResponse()
 
         try:
-            await self._workspace.remove(worktree)
+            await self._workspace.remove(worktree, graph_node.project_root)
         except (WorktreeError, OSError) as error:
             logger.warning(
                 "%s keeps its worktree, reclaiming retries next tick: %s",
