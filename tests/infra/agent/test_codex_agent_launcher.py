@@ -72,12 +72,15 @@ async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_
 ) -> None:
     loader = TomlDagLoader()
     spec = loader.parse({"name": "demo", "nodes": [{"id": "A"}], "codex": settings})
+
     binary = tmp_path / "codex"
     binary.write_text(f"#!{sys.executable}\n{CODEX_SCRIPT}")
     binary.chmod(0o755)
     mocker.patch.object(CodexAgentLauncher, "_BINARY", str(binary))
+
     learnings_path = tmp_path / "learnings.md"
     learnings_path.write_text("Run the tests before pushing.")
+
     transcript_locator = CodexTranscriptLocator()
     launcher = CodexAgentLauncher(
         timeout_seconds=30,
@@ -89,6 +92,7 @@ async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_
     graph_node = GraphNode(id="A")
     launched_session = await launcher.launch(graph_node, "Implement the feature", agent)
     await asyncio.to_thread(os.waitpid, launched_session.pid, 0)
+
     agent.sessions.append(launched_session)
     restarted_launcher = CodexAgentLauncher(
         timeout_seconds=30,
@@ -103,10 +107,13 @@ async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_
     transcript_path = transcript_locator.get_transcript_path(agent)
     transcript_lines = agent.get_transcript_lines(transcript_path)
     messages = to_conversation_message_responses(transcript_lines)
+
     arguments = json.loads(messages[-1].text)
+
     assert arguments[:2] == ["exec", "resume"]
     for message in messages[1::2]:
         execution_arguments = json.loads(message.text)
+
         assert [arg for arg in execution_arguments if arg.startswith("model=")] == [
             f'model="{model}"'
         ]
@@ -121,6 +128,7 @@ async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_
     assert "features.fast_mode=false" in arguments
     assert arguments[-2] == THREAD_ID
     assert "Run the tests before pushing." in arguments[-1]
+
     assert [message.role for message in messages] == [
         "user",
         "assistant",
@@ -130,7 +138,7 @@ async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_
 
     assert len({message.uuid for message in messages}) == 4
     assert woken_session.marks_before == '{"pr":"1"}'
-    assert agent.worktree.find_exit_code() == 0
+    assert await agent.worktree.find_exit_code() == 0
 
 
 async def test_wake_raises_worktree_error_when_codex_exits_before_recording_a_thread_id(
@@ -140,6 +148,7 @@ async def test_wake_raises_worktree_error_when_codex_exits_before_recording_a_th
     binary.write_text("#!/bin/sh\necho 'authentication failed' >&2\nexit 9\n")
     binary.chmod(0o755)
     mocker.patch.object(CodexAgentLauncher, "_BINARY", str(binary))
+
     transcript_locator = CodexTranscriptLocator()
     launcher = CodexAgentLauncher(
         timeout_seconds=30,
@@ -153,7 +162,7 @@ async def test_wake_raises_worktree_error_when_codex_exits_before_recording_a_th
     await asyncio.to_thread(os.waitpid, session.pid, 0)
     agent.sessions.append(session)
 
-    assert agent.worktree.find_exit_code() == 9
+    assert await agent.worktree.find_exit_code() == 9
     assert "authentication failed" in agent.worktree.find_log_tail()
     with pytest.raises(WorktreeError, match="did not record a thread ID"):
         await launcher.wake(graph_node, "Try again", agent)
@@ -164,10 +173,12 @@ async def test_wake_resumes_the_adopted_thread_when_no_prior_wake_succeeds(
     mocker: MockerFixture, tmp_path: Path, agent: NodeAgent, first_wake_fails: bool
 ) -> None:
     agent.resume_token = THREAD_ID
+
     binary = tmp_path / "codex"
     binary.write_text(f"#!{sys.executable}\n{CODEX_SCRIPT}")
     binary.chmod(0o755)
     mocker.patch.object(CodexAgentLauncher, "_BINARY", str(binary))
+
     transcript_locator = CodexTranscriptLocator()
     launcher = CodexAgentLauncher(
         timeout_seconds=30,
@@ -180,6 +191,7 @@ async def test_wake_resumes_the_adopted_thread_when_no_prior_wake_succeeds(
         binary.write_text("#!/bin/sh\necho 'authentication failed' >&2\nexit 9\n")
         failed_session = await launcher.wake(graph_node, "Address the review", agent)
         await asyncio.to_thread(os.waitpid, failed_session.pid, 0)
+
         agent.sessions.append(failed_session)
         binary.write_text(f"#!{sys.executable}\n{CODEX_SCRIPT}")
 
@@ -189,7 +201,9 @@ async def test_wake_resumes_the_adopted_thread_when_no_prior_wake_succeeds(
     transcript_path = transcript_locator.get_transcript_path(agent)
     transcript_lines = agent.get_transcript_lines(transcript_path)
     messages = to_conversation_message_responses(transcript_lines)
+
     arguments = json.loads(messages[-1].text)
+
     assert arguments[-2:] == [THREAD_ID, "Address the review"]
 
 
@@ -207,7 +221,7 @@ async def test_launch_records_exit_code_127_when_the_codex_binary_is_missing(
     session = await launcher.launch(GraphNode(id="A"), "Implement the feature", agent)
     await asyncio.to_thread(os.waitpid, session.pid, 0)
 
-    assert agent.worktree.find_exit_code() == 127
+    assert await agent.worktree.find_exit_code() == 127
     assert "Codex execution failed" in agent.worktree.find_log_tail()
 
 
@@ -218,6 +232,7 @@ async def test_supervise_reports_overdue_when_the_deadline_passes_and_finished_w
     binary.write_text("#!/bin/sh\nexec sleep 60\n")
     binary.chmod(0o755)
     mocker.patch.object(CodexAgentLauncher, "_BINARY", str(binary))
+
     transcript_locator = CodexTranscriptLocator()
     launcher = CodexAgentLauncher(
         timeout_seconds=30,

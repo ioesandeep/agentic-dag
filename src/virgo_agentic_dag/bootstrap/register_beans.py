@@ -353,6 +353,7 @@ def register_beans(context: ApplicationContext) -> None:
 
     context.register(PendingNodeHandler, _build_pending_node_handler)
     context.register(InProgressNodeHandler, _build_in_progress_node_handler)
+
     context.register(RestingNodeHandler, _build_resting_node_handler)
     context.register(MergedNodeHandler, _build_merged_node_handler)
 
@@ -976,7 +977,8 @@ def _build_learning_dispatch_service(
         node_repo=context.get(NodeRepo),
         audit_entry_repo=context.get(AuditEntryRepo),
         agent_launcher=agent_launchers[executor_agent],
-        executor_agent=executor_agent,
+        process_killer=context.get(ProcessKiller),
+        dag_spec=dag_spec,
         run_home=run_home,
     )
 

@@ -5,11 +5,13 @@ import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import anyio
 import pytest
 
 from virgo_agentic_dag.api.cli.dagctl import main
 from virgo_agentic_dag.infra.agent.claude_agent_launcher import ClaudeAgentLauncher
 from virgo_agentic_dag.infra.locking.dag_run_lock import DagRunLock
+from virgo_agentic_dag.services.learning.extraction_lock import ExtractionLock
 
 pytestmark = pytest.mark.e2e
 
@@ -44,16 +46,21 @@ def build_run_dir(
 ) -> dict[str, Path]:
     repo = tmp_path / "repo"
     repo.mkdir()
+
     subprocess.run(["git", "init", "-q", "-b", "develop"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+
     (repo / "README.md").write_text("seed\n", encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=repo, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "seed"], cwd=repo, check=True)
+
     dag = tmp_path / "dag.toml"
     workspace = tmp_path / "ws"
+
     db = tmp_path / "db.sqlite3" if db_in_dag else tmp_path / "e2e" / "db.sqlite3"
     db_line = f'db_path = "{db}"\n' if db_in_dag else ""
+
     header = (
         f'project_root = "{repo}"\n'
         f'workspace_path = "{workspace}"\n'
@@ -80,6 +87,7 @@ def install_agent(
     """Put a stub named like the launcher's binary ahead of the real one on PATH."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir(exist_ok=True)
+
     stub = bin_dir / binary
     stub.write_text(script, encoding="utf-8")
     stub.chmod(0o755)
@@ -115,6 +123,7 @@ def run_retry(paths: dict[str, Path], node_id: str, reset: bool = False) -> int:
 
 def settle_agent(paths: dict[str, Path]) -> int:
     newest_pid = get_newest_pid(paths["db"])
+
     assert wait_until_dead(newest_pid)
 
     return run_tick(paths)
@@ -188,9 +197,11 @@ def test_starts_the_ready_node_when_the_run_first_ticks(
     assert len(agents) == 1 and agents[0][0] == "A" and agents[0][1] == executor
     assert agents[0][2]
     assert sessions == 1
+
     assert worktrees == [("A",)]
-    assert audits == [("A", "in_progress")]
     assert (paths["workspace"] / "A").is_dir()
+
+    assert audits == [("A", "in_progress")]
 
 
 @pytest.mark.parametrize(
@@ -219,6 +230,7 @@ def test_runs_the_recovery_and_learning_agents_with_the_dag_executor_when_a_node
     assert agents == {"A": executor, "B": override}
     assert f"stub={executor}" in (paths["workspace"] / "A.log").read_text()
     assert f"stub={override}" in (paths["workspace"] / "B.log").read_text()
+
     assert run_tick(paths) == 3
     with sqlite3.connect(paths["db"]) as connection:
         recovery_pid = connection.execute(
@@ -231,8 +243,14 @@ def test_runs_the_recovery_and_learning_agents_with_the_dag_executor_when_a_node
 
     assert wait_until_dead(recovery_pid)
     assert f"stub={executor}" in (tmp_path / "recovery.log").read_text()
+
     assert run_tick(paths) == 3
-    learning_pid = int((tmp_path / "learning_extraction.lock").read_text())
+
+    lock_path = tmp_path / "learning_extraction.lock"
+    extraction_lock = ExtractionLock(lock_path=lock_path)
+    learning_pid = anyio.run(extraction_lock.get_session_pid)
+
+    assert learning_pid is not None
     assert wait_until_dead(learning_pid)
     assert f"stub={executor}" in (tmp_path / "learning.log").read_text()
 
@@ -241,7 +259,9 @@ def test_starts_the_dependent_node_when_its_cooldown_ends(
     tmp_path: Path,
 ) -> None:
     paths = build_run_dir(tmp_path, "cooldown_seconds = 3600\n" + DAG_TOML)
+
     assert run_tick(paths) == 0
+
     merged_at = datetime.now(UTC)
     with sqlite3.connect(paths["db"]) as connection:
         connection.execute(
@@ -271,6 +291,7 @@ def test_starts_the_dependent_node_when_its_cooldown_ends(
         )
 
     start_time = merged_at + timedelta(hours=1)
+
     assert audits == [
         ("pending", f"it starts at {start_time} when its cooldown ends"),
         ("in_progress", "B started work"),
@@ -333,13 +354,17 @@ def test_settles_the_run_when_the_agent_published_nothing(
 
 def test_retry_resumes_the_recorded_agent_in_its_worktree(tmp_path: Path) -> None:
     paths = build_run_dir(tmp_path, DAG_TOML)
+
     assert run_tick(paths) == 0
+
     first_token = get_resume_token(paths["db"])
+
     assert settle_agent(paths) == 3
 
     assert run_retry(paths, "A") == 0
     assert run_tick(paths) == 0
     assert settle_agent(paths) == 3
+
     assert get_states(paths["db"])["A"] == "needs_human"
 
     assert run_retry(paths, "A") == 0
@@ -360,6 +385,7 @@ def test_retry_resumes_the_recorded_agent_in_its_worktree(tmp_path: Path) -> Non
 
     assert tokens == [(first_token,)]
     assert triggers == [("launch",), ("wake",), ("wake",)]
+
     assert worktree_names == [("A",)]
     assert directory_names == ["A"]
 
@@ -369,8 +395,11 @@ def test_retry_starts_a_new_conversation_when_the_command_includes_the_reset_opt
     tmp_path: Path, executor: str
 ) -> None:
     paths = build_run_dir(tmp_path, DAG_TOML)
+
     assert run_tick(paths) == 0
+
     first_token = get_resume_token(paths["db"])
+
     assert settle_agent(paths) == 3
 
     paths["dag"].write_text(
@@ -390,6 +419,7 @@ def test_retry_starts_a_new_conversation_when_the_command_includes_the_reset_opt
 
     assert len(tokens) == 1
     assert tokens[0][0] != first_token
+
     assert agents == [(executor,)]
     assert triggers == [("launch",), ("launch",)]
 
@@ -432,8 +462,10 @@ def test_recover_resumes_the_existing_agent_when_the_command_includes_a_wake_mes
 
     assert int(exit_code) == 0
     assert get_states(paths["db"])["A"] == "in_progress"
+
     assert triggers == [("launch",), ("wake",)]
     assert notes[-1] == ("the recovery agent resumed it: open the pull request",)
+
     assert rows == [("no_pull_request",)]
 
 
@@ -485,6 +517,7 @@ def test_abort_kills_the_running_agent_and_stops_the_run(
 
     paths = build_run_dir(tmp_path, DAG_TOML, db_in_dag=False)
     sleeping_agent(tmp_path, monkeypatch)
+
     assert run_tick(paths) == 0
     with sqlite3.connect(paths["db"]) as connection:
         pid = connection.execute("select pid from agent_sessions").fetchone()[0]

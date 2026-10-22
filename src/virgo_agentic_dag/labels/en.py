@@ -181,6 +181,10 @@ LABELS: dict[str, str] = {
     "learningExtractionStarted": (
         "a learning agent session started to extract the learnings of its pull request"
     ),
+    "learningExtractionFailed": (
+        "its pull request learnings were not extracted because the learning session "
+        "exited with code {exit_code}"
+    ),
     "learningPrompt": (
         "You are the learning agent of this run. The batch at the end lists the nodes "
         "whose pull request merged or closed, a section for each node.\n\n"

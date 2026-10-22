@@ -130,7 +130,7 @@ async def test_abort_kills_open_sessions_before_releasing_the_run_lock(
     lock_path = tmp_path / "learning_extraction.lock"
     extraction_lock = ExtractionLock(lock_path)
     if has_background_sessions:
-        extraction_lock.record_session_pid(learning_process.pid)
+        await extraction_lock.record_session_pid(learning_process.pid)
 
     kill_process_group = mocker.patch("os.killpg", wraps=os.killpg)
 
@@ -208,7 +208,7 @@ async def test_abort_kills_open_sessions_before_releasing_the_run_lock(
         recovery_session_repo.close.assert_not_awaited()
         kill_process_group.assert_not_called()
 
-    assert extraction_lock.is_free() is True
+    assert await extraction_lock.is_free() is True
 
 
 @pytest.mark.unit

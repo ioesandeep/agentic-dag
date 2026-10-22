@@ -12,6 +12,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.36",
     "alembic>=1.16.5",
     "aiosqlite>=0.20",
+    "anyio>=4.0",
     "python-dotenv>=1.0",
     "jinja2>=3.1.6",
 ]

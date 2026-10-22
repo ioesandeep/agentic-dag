@@ -6,8 +6,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from anyio import Path as AsyncPath
 from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from virgo_agentic_dag.domain.persistence.entities.entity_base import EntityBase
 
 if TYPE_CHECKING:
@@ -56,10 +58,12 @@ class WorkTree(EntityBase):
         """Return the path of the exit code file written beside this worktree."""
         return Path(self.absolute_path).with_suffix(".exit")
 
-    def find_exit_code(self) -> int | None:
+    async def find_exit_code(self) -> int | None:
         """Returns the work tree's recorded exit code."""
+        exit_path = self.get_exit_path()
+        async_exit_path = AsyncPath(exit_path)
         try:
-            exit_text = self.get_exit_path().read_text()
+            exit_text = await async_exit_path.read_text()
         except FileNotFoundError:
             return None
 

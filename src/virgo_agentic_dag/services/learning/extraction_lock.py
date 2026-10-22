@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+from datetime import UTC, datetime
 from pathlib import Path
+
+from anyio import CancelScope
+from anyio import Path as AsyncPath
+from anyio.lowlevel import checkpoint_if_cancelled
 
 from virgo_agentic_dag.services.learning.extraction_lock_state_enum import (
     ExtractionLockStateEnum,
@@ -18,17 +24,18 @@ class ExtractionLock:
     """Prevents a second learning extraction session from starting while one is running."""
 
     def __init__(self, lock_path: Path) -> None:
-        self._lock_path = lock_path
+        self._lock_path = AsyncPath(lock_path)
 
-    def get_state(self) -> ExtractionLockStateEnum:
+    async def get_state(self) -> ExtractionLockStateEnum:
         """Return whether the lock is free, held by a running process, or unreadable."""
         try:
-            lock_file_content = self._lock_path.read_text(encoding="utf-8")
+            lock_file_content = await self._lock_path.read_text(encoding="utf-8")
         except FileNotFoundError:
             return ExtractionLockStateEnum.FREE
 
         try:
-            pid = int(lock_file_content.strip())
+            pid_text = lock_file_content.partition("\n")[0]
+            pid = int(pid_text)
         except ValueError:
             return ExtractionLockStateEnum.UNREADABLE
 
@@ -38,9 +45,9 @@ class ExtractionLock:
 
         return ExtractionLockStateEnum.FREE
 
-    def is_free(self) -> bool:
+    async def is_free(self) -> bool:
         """Report whether this lock may be taken."""
-        state = self.get_state()
+        state = await self.get_state()
         if state is ExtractionLockStateEnum.UNREADABLE:
             logger.warning(
                 "the learning extraction lock file does not contain a process id. "
@@ -51,37 +58,85 @@ class ExtractionLock:
 
         return state is ExtractionLockStateEnum.FREE
 
-    def acquire(self) -> bool:
+    async def acquire(self) -> bool:
         """Take the lock for the calling process when the lock is free."""
-        state = self.get_state()
+        state = await self.get_state()
         if state is ExtractionLockStateEnum.FREE:
-            self._lock_path.unlink(missing_ok=True)
+            await self._lock_path.unlink(missing_ok=True)
 
+        lock_creation = self._create_lock()
+        lock_creation_task = asyncio.create_task(lock_creation)
+        cancellation_error: asyncio.CancelledError | None = None
+
+        with CancelScope(shield=True):
+            is_lock_creation_done = lock_creation_task.done()
+            while not is_lock_creation_done:
+                try:
+                    await asyncio.shield(lock_creation_task)
+                except asyncio.CancelledError as error:
+                    cancellation_error = error
+
+                is_lock_creation_done = lock_creation_task.done()
+
+        is_acquired = lock_creation_task.result()
+        if cancellation_error is not None:
+            raise cancellation_error
+
+        await checkpoint_if_cancelled()
+
+        return is_acquired
+
+    async def _create_lock(self) -> bool:
         try:
-            descriptor = os.open(
-                self._lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644
-            )
+            await self._lock_path.touch(mode=0o644, exist_ok=False)
         except FileExistsError:
             return False
 
         pid = os.getpid()
-        with os.fdopen(descriptor, "w", encoding="utf-8") as lock_file:
-            lock_file.write(str(pid))
+        await self._lock_path.write_text(str(pid), encoding="utf-8")
 
         return True
 
-    def record_session_pid(self, pid: int) -> None:
-        """Record the process id of the launched session, replacing the one before it."""
-        self._lock_path.write_text(str(pid), encoding="utf-8")
+    async def record_session_pid(
+        self, pid: int, node_ids: list[str] | None = None
+    ) -> None:
+        """Record the learning session's process id and node ids."""
+        lock_file_lines = [str(pid), *(node_ids or [])]
+        lock_file_content = "\n".join(lock_file_lines)
+        await self._lock_path.write_text(lock_file_content, encoding="utf-8")
 
-    def get_session_pid(self) -> int | None:
+    async def get_session_pid(self) -> int | None:
         """Return the learning session's recorded process id."""
         try:
-            lock_file_content = self._lock_path.read_text(encoding="utf-8")
+            lock_file_content = await self._lock_path.read_text(encoding="utf-8")
         except FileNotFoundError:
             return None
 
         try:
-            return int(lock_file_content)
+            pid_text = lock_file_content.partition("\n")[0]
+
+            return int(pid_text)
         except ValueError:
             return None
+
+    async def get_session_node_ids(self) -> list[str]:
+        """Return the node IDs assigned to the learning session."""
+        try:
+            lock_file_content = await self._lock_path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            return []
+
+        return lock_file_content.splitlines()[1:]
+
+    async def get_written_at(self) -> datetime | None:
+        """Return when the extraction lock was last written."""
+        try:
+            lock_stat = await self._lock_path.stat()
+        except FileNotFoundError:
+            return None
+
+        return datetime.fromtimestamp(lock_stat.st_mtime, UTC)
+
+    async def release(self) -> None:
+        """Allow another learning extraction session to start."""
+        await self._lock_path.unlink(missing_ok=True)

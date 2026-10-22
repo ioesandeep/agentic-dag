@@ -197,7 +197,8 @@ class InProgressNodeHandler(NodeStateHandler):
     ) -> AgentSession:
         """Return the session closed with its final state."""
         current_time = datetime.now(UTC)
-        exit_code = worktree.find_exit_code()
+
+        exit_code = await worktree.find_exit_code()
         log_tail = worktree.find_log_tail()
 
         closed_session = AgentSession(

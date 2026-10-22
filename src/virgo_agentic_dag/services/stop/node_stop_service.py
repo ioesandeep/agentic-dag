@@ -104,7 +104,7 @@ class NodeStopService:
         self, session: AgentSession, worktree: WorkTree, current_time: datetime
     ) -> None:
         """Close the session with the stopped end state."""
-        exit_code = worktree.find_exit_code()
+        exit_code = await worktree.find_exit_code()
         log_tail = worktree.find_log_tail()
         closed_session = AgentSession(
             id=session.id,
