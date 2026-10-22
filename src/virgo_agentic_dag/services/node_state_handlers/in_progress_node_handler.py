@@ -22,6 +22,7 @@ from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
 from virgo_agentic_dag.domain.infra.workspace.workspace import Workspace
+from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.node.node_state_handler import NodeStateHandler
 from virgo_agentic_dag.domain.notifications.notification_type import NotificationType
 from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSession
@@ -34,7 +35,6 @@ from virgo_agentic_dag.domain.persistence.repos.node_agent_repo import NodeAgent
 from virgo_agentic_dag.domain.persistence.repos.node_repo import NodeRepo
 from virgo_agentic_dag.domain.persistence.repos.work_tree_repo import WorkTreeRepo
 from virgo_agentic_dag.domain.run.pr_details import PrDetails
-from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.service.notification_publisher import (
     NotificationPublisher,
 )
@@ -62,9 +62,11 @@ class InProgressNodeHandler(NodeStateHandler):
         code_repo: CodeRepo,
     ) -> None:
         super().__init__(node_repo, audit_entry_repo, notification_publisher)
+
         self._node_agent_repo = node_agent_repo
         self._agent_session_repo = agent_session_repo
         self._work_tree_repo = work_tree_repo
+
         self._workspace = workspace
         self._agent_launchers = agent_launchers
         self._code_repo = code_repo
@@ -119,6 +121,7 @@ class InProgressNodeHandler(NodeStateHandler):
         try:
             if session_status is SessionStatus.OVERDUE:
                 await launcher.stop(session)
+                session = await self._close_session(session, worktree, session_status)
 
             return await self._settle(graph_node, session, worktree, session_status)
         except (WorktreeError, ObservationError, OSError) as error:
@@ -196,12 +199,13 @@ class InProgressNodeHandler(NodeStateHandler):
         current_time = datetime.now(UTC)
         exit_code = worktree.find_exit_code()
         log_tail = worktree.find_log_tail()
+
         closed_session = AgentSession(
             id=session.id,
             agent_id=session.agent_id,
             started_at=session.started_at,
             ended_at=current_time,
-            end_state=session_status.value,
+            end_state=session.end_state or session_status.value,
             triggered_by=session.triggered_by,
             pid=session.pid,
             pid_start=session.pid_start,

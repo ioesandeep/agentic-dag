@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.domain.agent.session_status import SessionStatus
 from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
     ObservationError,
@@ -163,6 +164,7 @@ async def test_rests_the_node_when_the_session_reached_a_pull_request(
     node_repo = mocker.MagicMock(spec=NodeRepo)
     agent_session_repo = mocker.MagicMock(spec=AgentSessionRepo)
     work_tree_repo = mocker.MagicMock(spec=WorkTreeRepo)
+
     notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
 
     handler = InProgressNodeHandler(
@@ -185,9 +187,12 @@ async def test_rests_the_node_when_the_session_reached_a_pull_request(
 
     await handler.handle(graph, [graph_node], NOW)
 
+    published = work_tree_repo.record_publication.await_args.args[0]
+    closed = agent_session_repo.close.await_args.args[0]
+    event = notification_publisher.publish.call_args.args[0]
+
     node_repo.update_state.assert_awaited_once_with("A", NodeState.RESTING, NOW)
     work_tree_repo.record_publication.assert_awaited_once()
-    published = work_tree_repo.record_publication.await_args.args[0]
     assert (
         published.id,
         published.branch,
@@ -203,10 +208,9 @@ async def test_rests_the_node_when_the_session_reached_a_pull_request(
     )
 
     agent_session_repo.close.assert_awaited_once()
-    closed = agent_session_repo.close.await_args.args[0]
     assert (closed.id, closed.end_state) == (1, "finished")
+
     notification_publisher.publish.assert_called_once()
-    event = notification_publisher.publish.call_args.args[0]
     assert event.type is expected_kind
     assert event.pr_details is not None and event.pr_details.number == 12
 
@@ -279,11 +283,12 @@ async def test_stops_the_node_when_the_session_ended_without_a_pull_request(
     clock.now.return_value = NOW
 
     await handler.handle(graph, [graph_node], NOW)
+    event = notification_publisher.publish.call_args.args[0]
 
     node_repo.update_state.assert_awaited_once_with("A", expected_state, NOW)
     work_tree_repo.record_publication.assert_not_awaited()
+
     notification_publisher.publish.assert_called_once()
-    event = notification_publisher.publish.call_args.args[0]
     assert event.type is expected_kind
     assert event.reason == expected_reason
 
@@ -338,12 +343,13 @@ async def test_rests_the_node_when_an_overdue_session_had_published(
     clock.now.return_value = NOW
 
     await handler.handle(graph, [graph_node], NOW)
+    published = work_tree_repo.record_publication.await_args.args[0]
 
     node_repo.update_state.assert_awaited_once_with("A", NodeState.RESTING, NOW)
     agent_launcher.stop.assert_awaited_once()
     assert agent_launcher.stop.await_args.args[0].pid == 4242
+
     work_tree_repo.record_publication.assert_awaited_once()
-    published = work_tree_repo.record_publication.await_args.args[0]
     assert (published.id, published.branch, published.pr_number) == (1, "virgo/a", 7)
 
 
@@ -378,10 +384,10 @@ async def test_errors_the_node_when_no_agent_was_ever_recorded(
     clock.now.return_value = NOW
 
     await handler.handle(graph, [graph_node], NOW)
+    event = notification_publisher.publish.call_args.args[0]
 
     node_repo.update_state.assert_awaited_once_with("A", NodeState.ERRORED, NOW)
     notification_publisher.publish.assert_called_once()
-    event = notification_publisher.publish.call_args.args[0]
     assert event.type is NotificationType.AGENT_FAILED
 
 
@@ -431,6 +437,93 @@ async def test_leaves_the_node_in_progress_when_the_platform_cannot_be_read(
 
     node_repo.update_state.assert_not_awaited()
     agent_session_repo.close.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "failing_operation",
+    ["find_pull_request", "get_pull_request", "count_commits_between"],
+)
+async def test_keeps_the_session_overdue_when_settling_retries_after_a_platform_error(
+    failing_operation: str,
+    mocker: MockerFixture,
+    build_agent: BuildAgent,
+) -> None:
+    graph_node = GraphNode(id="A", executor_agent=ExecutorAgent.CLAUDE)
+    graph = Graph(name="demo", nodes=[graph_node])
+    worktree = WorkTree(
+        id=1,
+        name="A",
+        absolute_path="/ws/A",
+        branch="virgo/a",
+        pr_number=12,
+        head_sha="1a2b3c4d5e6f",
+        created_at=NOW,
+    )
+
+    session = AgentSession(
+        id=1, agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=4242
+    )
+
+    node_agent_repo = mocker.MagicMock(spec=NodeAgentRepo)
+    node_agent_repo.get_by_node_id.return_value = build_agent(worktree, session)
+
+    agent_launcher = mocker.MagicMock(spec=AgentLauncher)
+    agent_launcher.supervise.side_effect = [
+        SessionStatus.OVERDUE,
+        SessionStatus.FINISHED,
+    ]
+
+    workspace = mocker.MagicMock(spec=Workspace)
+    workspace.get_branch.return_value = "virgo/a"
+
+    code_repo = mocker.MagicMock(spec=CodeRepo)
+    code_repo.find_pull_request.return_value = 12
+    code_repo.get_pull_request.return_value = PullRequestSnapshot(
+        state=PullRequestState.OPEN, head_sha="8bddf07abcdef", base_branch="main"
+    )
+
+    code_repo.count_commits_between.return_value = 1
+
+    failing_method = getattr(code_repo, failing_operation)
+    observation_error = ObservationError("the platform is unreachable")
+    failing_method.side_effect = [observation_error, failing_method.return_value]
+
+    node_repo = mocker.MagicMock(spec=NodeRepo)
+    agent_session_repo = mocker.MagicMock(spec=AgentSessionRepo)
+
+    handler = InProgressNodeHandler(
+        node_repo=node_repo,
+        audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
+        notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
+        node_agent_repo=node_agent_repo,
+        agent_session_repo=agent_session_repo,
+        work_tree_repo=mocker.MagicMock(spec=WorkTreeRepo),
+        workspace=workspace,
+        agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
+        code_repo=code_repo,
+    )
+
+    clock = mocker.patch(
+        "virgo_agentic_dag.services.node_state_handlers.in_progress_node_handler.datetime"
+    )
+
+    clock.now.return_value = NOW
+
+    await handler.handle(graph, [graph_node], NOW)
+    recorded_session = agent_session_repo.close.await_args.args[0]
+
+    node_repo.update_state.assert_not_awaited()
+    assert recorded_session.end_state == SessionStatus.OVERDUE.value
+
+    node_agent_repo.get_by_node_id.return_value = build_agent(
+        worktree, recorded_session
+    )
+
+    await handler.handle(graph, [graph_node], NOW)
+    closed_session = agent_session_repo.close.await_args.args[0]
+
+    assert closed_session.end_state == SessionStatus.OVERDUE.value
+    node_repo.update_state.assert_awaited_once_with("A", NodeState.RESTING, NOW)
 
 
 @pytest.mark.parametrize(
