@@ -4,6 +4,8 @@ from datetime import UTC, datetime
 
 import pytest
 from pytest_mock import MockerFixture
+
+from virgo_agentic_dag.domain.exceptions.host.worktree_error import WorktreeError
 from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
     ObservationError,
 )
@@ -169,6 +171,7 @@ async def test_settles_the_node_when_the_pull_request_reaches_a_final_state(
     node = build_node()
     node_repo = mocker.MagicMock(spec=NodeRepo)
     node_repo.read.return_value = node
+
     audit_entry_repo = mocker.MagicMock(spec=AuditEntryRepo)
     notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
 
@@ -194,8 +197,10 @@ async def test_settles_the_node_when_the_pull_request_reaches_a_final_state(
 
     node_repo.update_state.assert_awaited_once_with("A", expected_state, NOW)
     node_repo.record_pull_request_settled.assert_awaited_once_with(node, NOW)
+
     audit_entry_repo.save.assert_awaited_once()
     assert audit_entry_repo.save.await_args.args[0].note == expected_note
+
     notification_publisher.publish.assert_called_once()
     event = notification_publisher.publish.call_args.args[0]
     assert (event.type, event.pr_details.number) == (expected_kind, 12)
@@ -208,8 +213,10 @@ async def test_records_no_settle_time_when_the_node_already_records_one(
     build_signals: BuildSignals,
 ) -> None:
     settled_at = datetime(2026, 7, 30, tzinfo=UTC)
+
     graph_node = GraphNode(id="A", executor_agent=ExecutorAgent.CLAUDE)
     graph = Graph(name="demo", nodes=[graph_node])
+
     worktree = WorkTree(
         id=1,
         name="A",
@@ -349,12 +356,254 @@ async def test_wakes_the_agent_when_a_signal_reports_news(
 
     node_repo.update_state.assert_awaited_once_with("A", NodeState.IN_PROGRESS, NOW)
     node_repo.record_pull_request_settled.assert_not_awaited()
+
     agent_launcher.wake.assert_awaited_once()
+
     woken_node, news, woken_agent = agent_launcher.wake.await_args.args
     assert woken_node.id == "A"
     assert woken_agent.resume_token == agent.resume_token
     assert expected_phrase in news
+
     agent_session_repo.add.assert_awaited_once_with(wake_session)
+
+
+@pytest.mark.parametrize(
+    "wake_error_type",
+    [OSError, WorktreeError, None],
+    ids=["os-error", "worktree-error", "worker-limit"],
+)
+async def test_retries_the_same_comment_when_a_wake_does_not_start(
+    wake_error_type: type[Exception] | None,
+    mocker: MockerFixture,
+    build_agent: BuildAgent,
+    build_signals: BuildSignals,
+) -> None:
+    graph_node = GraphNode(id="A", executor_agent=ExecutorAgent.CLAUDE)
+    graph = Graph(name="demo", nodes=[graph_node])
+    worktree = WorkTree(
+        id=1,
+        name="A",
+        absolute_path="/ws/A",
+        branch="virgo/a",
+        pr_number=12,
+        marks="{}",
+        created_at=NOW,
+    )
+
+    launch_session = AgentSession(
+        id=1, agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=1
+    )
+
+    agent = build_agent(worktree, [launch_session])
+
+    node_agent_repo = mocker.MagicMock(spec=NodeAgentRepo)
+    node_agent_repo.get_by_node_id.return_value = agent
+
+    snapshot = PullRequestSnapshot(
+        state=PullRequestState.OPEN, head_sha="sha1", base_branch="develop"
+    )
+
+    comment = ReviewArtifact(
+        kind=ReviewArtifactType.ISSUE_COMMENT,
+        artifact_id=1,
+        author="mrfawy",
+        body="please rename this class",
+        created_at="2026-07-30T10:00:00Z",
+    )
+
+    code_repo = mocker.MagicMock(spec=CodeRepo)
+    code_repo.get_pull_request.return_value = snapshot
+    code_repo.get_review_artifacts.return_value = [comment]
+
+    wake_session = AgentSession(
+        agent_id="agent-1", started_at=NOW, triggered_by="wake", pid=777
+    )
+
+    agent_launcher = mocker.MagicMock(spec=AgentLauncher)
+    agent_launcher.wake.return_value = wake_session
+    if wake_error_type is not None:
+        wake_error = wake_error_type("wake fails")
+        agent_launcher.wake.side_effect = [wake_error, wake_session]
+
+    node_repo = mocker.MagicMock(spec=NodeRepo)
+    node_repo.get_nodes_by_state.return_value = []
+    if wake_error_type is None:
+        in_progress_node = Node(
+            id="B", state=NodeState.IN_PROGRESS.value, created_at=NOW, updated_at=NOW
+        )
+
+        node_repo.get_nodes_by_state.side_effect = [[in_progress_node], []]
+
+    work_tree_repo = mocker.MagicMock(spec=WorkTreeRepo)
+    agent_session_repo = mocker.MagicMock(spec=AgentSessionRepo)
+    notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
+
+    dag_spec = DagSpec(name="demo", nodes=(), max_workers=1)
+    pr_signals = build_signals()
+    handler = RestingNodeHandler(
+        node_repo=node_repo,
+        audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
+        notification_publisher=notification_publisher,
+        node_agent_repo=node_agent_repo,
+        agent_session_repo=agent_session_repo,
+        work_tree_repo=work_tree_repo,
+        agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
+        dag_spec=dag_spec,
+        code_repo=code_repo,
+        pr_signals=pr_signals,
+    )
+
+    deferred_response = await handler.handle(graph, [graph_node], NOW)
+
+    assert deferred_response.sessions_started == 0
+
+    work_tree_repo.advance_marks.assert_not_awaited()
+    work_tree_repo.save.assert_not_awaited()
+
+    agent_session_repo.add.assert_not_awaited()
+    notification_publisher.publish.assert_not_called()
+    node_repo.update_state.assert_not_awaited()
+
+    retry_response = await handler.handle(graph, [graph_node], NOW)
+
+    assert retry_response.sessions_started == 1
+    agent_session_repo.add.assert_awaited_once_with(wake_session)
+
+    wake_message = agent_launcher.wake.await_args.args[1]
+    assert comment.body in wake_message
+
+    if wake_error_type is not None:
+        failed_message = agent_launcher.wake.await_args_list[0].args[1]
+        assert failed_message == wake_message
+
+    work_tree_repo.advance_marks.assert_awaited_once()
+    marked_worktree = work_tree_repo.advance_marks.await_args.args[0]
+    saved_marks = json.loads(marked_worktree.marks)
+    assert saved_marks["comments"] == comment.created_at
+
+
+@pytest.mark.parametrize(
+    "wake_fails", [True, False], ids=["worktree-error", "last-worker"]
+)
+async def test_starts_available_sessions_when_multiple_nodes_need_a_wake(
+    wake_fails: bool,
+    mocker: MockerFixture,
+    build_signals: BuildSignals,
+) -> None:
+    graph_nodes = [
+        GraphNode(id="A", executor_agent=ExecutorAgent.CLAUDE),
+        GraphNode(id="B", executor_agent=ExecutorAgent.CLAUDE),
+    ]
+
+    graph = Graph(name="demo", nodes=graph_nodes)
+    worktrees = [
+        WorkTree(
+            id=index,
+            name=graph_node.id,
+            absolute_path=f"/ws/{graph_node.id}",
+            branch=f"virgo/{graph_node.id}",
+            pr_number=index,
+            marks="{}",
+            created_at=NOW,
+        )
+        for index, graph_node in enumerate(graph_nodes, start=1)
+    ]
+
+    launch_sessions = [
+        AgentSession(
+            agent_id=f"agent-{worktree.name}",
+            started_at=NOW,
+            triggered_by="launch",
+            pid=index,
+        )
+        for index, worktree in enumerate(worktrees, start=1)
+    ]
+
+    agents = [
+        NodeAgent(
+            id=launch_session.agent_id,
+            name="claude",
+            resume_token="token",
+            node_id=worktree.name,
+            worktree=worktree,
+            sessions=[launch_session],
+        )
+        for worktree, launch_session in zip(worktrees, launch_sessions, strict=True)
+    ]
+
+    node_agent_repo = mocker.MagicMock(spec=NodeAgentRepo)
+    node_agent_repo.get_by_node_id.side_effect = agents
+
+    snapshot = PullRequestSnapshot(
+        state=PullRequestState.OPEN, head_sha="sha1", base_branch="develop"
+    )
+
+    comment = ReviewArtifact(
+        kind=ReviewArtifactType.ISSUE_COMMENT,
+        artifact_id=1,
+        author="mrfawy",
+        body="please rename this class",
+        created_at="2026-07-30T10:00:00Z",
+    )
+
+    code_repo = mocker.MagicMock(spec=CodeRepo)
+    code_repo.get_pull_request.return_value = snapshot
+    code_repo.get_review_artifacts.return_value = [comment]
+
+    expected_node_id = "B" if wake_fails else "A"
+    wake_session = AgentSession(
+        agent_id=f"agent-{expected_node_id}",
+        started_at=NOW,
+        triggered_by="wake",
+        pid=777,
+    )
+
+    agent_launcher = mocker.MagicMock(spec=AgentLauncher)
+    agent_launcher.wake.return_value = wake_session
+    if wake_fails:
+        agent_launcher.wake.side_effect = [
+            WorktreeError("worktree unavailable"),
+            wake_session,
+        ]
+
+    node_repo = mocker.MagicMock(spec=NodeRepo)
+    node_repo.get_nodes_by_state.return_value = []
+    if not wake_fails:
+        in_progress_node = Node(
+            id="A", state=NodeState.IN_PROGRESS.value, created_at=NOW, updated_at=NOW
+        )
+
+        node_repo.get_nodes_by_state.side_effect = [[], [in_progress_node]]
+
+    work_tree_repo = mocker.MagicMock(spec=WorkTreeRepo)
+    agent_session_repo = mocker.MagicMock(spec=AgentSessionRepo)
+
+    dag_spec = DagSpec(name="demo", nodes=(), max_workers=1)
+    pr_signals = build_signals()
+    handler = RestingNodeHandler(
+        node_repo=node_repo,
+        audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
+        notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
+        node_agent_repo=node_agent_repo,
+        agent_session_repo=agent_session_repo,
+        work_tree_repo=work_tree_repo,
+        agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
+        dag_spec=dag_spec,
+        code_repo=code_repo,
+        pr_signals=pr_signals,
+    )
+
+    tick_response = await handler.handle(graph, graph_nodes, NOW)
+
+    assert tick_response.sessions_started == 1
+    agent_session_repo.add.assert_awaited_once_with(wake_session)
+    node_repo.update_state.assert_awaited_once_with(
+        expected_node_id, NodeState.IN_PROGRESS, mocker.ANY
+    )
+
+    work_tree_repo.advance_marks.assert_awaited_once()
+    marked_worktree = work_tree_repo.advance_marks.await_args.args[0]
+    assert marked_worktree.name == expected_node_id
 
 
 @pytest.mark.parametrize(
@@ -469,8 +718,10 @@ async def test_announces_without_waking_when_the_pull_request_is_approved(
     code_repo.get_review_artifacts.return_value = []
 
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
+
     node_repo = mocker.MagicMock(spec=NodeRepo)
     work_tree_repo = mocker.MagicMock(spec=WorkTreeRepo)
+
     notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
 
     handler = RestingNodeHandler(
@@ -490,9 +741,11 @@ async def test_announces_without_waking_when_the_pull_request_is_approved(
 
     node_repo.update_state.assert_not_awaited()
     agent_launcher.wake.assert_not_awaited()
+
     work_tree_repo.advance_marks.assert_awaited_once()
     marked = work_tree_repo.advance_marks.await_args.args[0]
     assert json.loads(marked.marks)["approval"] == "sha1"
+
     notification_publisher.publish.assert_called_once()
     event = notification_publisher.publish.call_args.args[0]
     assert event.type is NotificationType.APPROVED
@@ -547,6 +800,7 @@ async def test_needs_a_human_when_the_wake_budget_is_spent(
 
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
     node_repo = mocker.MagicMock(spec=NodeRepo)
+    work_tree_repo = mocker.MagicMock(spec=WorkTreeRepo)
 
     notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
 
@@ -556,7 +810,7 @@ async def test_needs_a_human_when_the_wake_budget_is_spent(
         notification_publisher=notification_publisher,
         node_agent_repo=node_agent_repo,
         agent_session_repo=mocker.MagicMock(spec=AgentSessionRepo),
-        work_tree_repo=mocker.MagicMock(spec=WorkTreeRepo),
+        work_tree_repo=work_tree_repo,
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
         dag_spec=DagSpec(name="demo", nodes=(), caps=AttemptBudget(node_wakes=2)),
         code_repo=code_repo,
@@ -572,6 +826,11 @@ async def test_needs_a_human_when_the_wake_budget_is_spent(
 
     node_repo.update_state.assert_awaited_once_with("A", NodeState.NEEDS_HUMAN, NOW)
     agent_launcher.wake.assert_not_awaited()
+
+    work_tree_repo.advance_marks.assert_not_awaited()
+    work_tree_repo.save.assert_not_awaited()
+
+    notification_publisher.publish.assert_called_once()
     stopped_event = notification_publisher.publish.call_args.args[0]
     assert stopped_event.pr_details.number == 12
 

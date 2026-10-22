@@ -23,6 +23,7 @@ from virgo_agentic_dag.domain.events.pull_request_merged_event import (
     PullRequestMergedEvent,
 )
 from virgo_agentic_dag.domain.events.work_resumed_event import WorkResumedEvent
+from virgo_agentic_dag.domain.exceptions.host.worktree_error import WorktreeError
 from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
     ObservationError,
 )
@@ -30,6 +31,7 @@ from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
+from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.node.node_state_handler import NodeStateHandler
 from virgo_agentic_dag.domain.notifications.notification_type import NotificationType
 from virgo_agentic_dag.domain.observation.pull_request_snapshot import (
@@ -46,7 +48,6 @@ from virgo_agentic_dag.domain.persistence.repos.node_agent_repo import NodeAgent
 from virgo_agentic_dag.domain.persistence.repos.node_repo import NodeRepo
 from virgo_agentic_dag.domain.persistence.repos.work_tree_repo import WorkTreeRepo
 from virgo_agentic_dag.domain.run.pr_details import PrDetails
-from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.service.notification_publisher import (
     NotificationPublisher,
 )
@@ -79,11 +80,14 @@ class RestingNodeHandler(NodeStateHandler):
         pr_signals: list[PrSignal],
     ) -> None:
         super().__init__(node_repo, audit_entry_repo, notification_publisher)
+
         self._node_agent_repo = node_agent_repo
         self._agent_session_repo = agent_session_repo
         self._work_tree_repo = work_tree_repo
+
         self._agent_launchers = agent_launchers
         self._dag_spec = dag_spec
+
         self._code_repo = code_repo
         self._pr_signals = pr_signals
 
@@ -136,7 +140,7 @@ class RestingNodeHandler(NodeStateHandler):
 
         try:
             return await self._observe(graph_node, agent, worktree, launcher)
-        except (ObservationError, OSError) as error:
+        except (WorktreeError, ObservationError, OSError) as error:
             logger.warning(
                 "%s stays resting, its pull request reads again next tick: %s",
                 graph_node.id,
@@ -206,16 +210,20 @@ class RestingNodeHandler(NodeStateHandler):
             reclaimed_at=worktree.reclaimed_at,
         )
 
+        waking_changes = [change for change in changes if change.wakes_node]
+        tick_response = TickResponse(events_applied=1)
+        if waking_changes:
+            tick_response = await self._wake(
+                graph_node, agent, marked_worktree, launcher, waking_changes, pr_details
+            )
+
+            if tick_response.sessions_started == 0:
+                return tick_response
+
         await self._work_tree_repo.advance_marks(marked_worktree)
         self._publish_news(graph_node, changes, pr_details)
 
-        waking_changes = [change for change in changes if change.wakes_node]
-        if not waking_changes:
-            return TickResponse(events_applied=1)
-
-        return await self._wake(
-            graph_node, agent, marked_worktree, launcher, waking_changes, pr_details
-        )
+        return tick_response
 
     async def _get_fully(
         self, graph_node: GraphNode, worktree: WorkTree, snapshot: PullRequestSnapshot
@@ -349,6 +357,14 @@ class RestingNodeHandler(NodeStateHandler):
             )
 
             return TickResponse(events_applied=1)
+
+        in_progress_nodes = await self._node_repo.get_nodes_by_state(
+            NodeState.IN_PROGRESS
+        )
+
+        in_progress_count = len(in_progress_nodes)
+        if in_progress_count >= self._dag_spec.max_workers:
+            return TickResponse()
 
         news = "\n\n".join(change.render() for change in waking_changes)
 
