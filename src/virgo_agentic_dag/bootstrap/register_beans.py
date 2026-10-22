@@ -587,11 +587,14 @@ def _build_watch_command_handler(context: ApplicationContext) -> WatchCommandHan
         context.get(TomlDagLoader),
     )
 
+    subscription_factory = SubscriptionFactory()
+    command_runner = SubprocessCommandRunner(timeout_seconds=None)
+    sleeper = SystemSleeper()
     run_watcher = RunWatcher(
         plan_reader,
-        SubscriptionFactory(),
-        SubprocessCommandRunner(),
-        SystemSleeper(),
+        subscription_factory,
+        command_runner,
+        sleeper,
     )
 
     return WatchCommandHandler(run_watcher)
@@ -652,7 +655,9 @@ def _build_bot_notification_dispatcher(
 
 
 def _build_code_repo(_context: ApplicationContext) -> GitHubCodeRepo:
-    return GitHubCodeRepo(SubprocessCommandRunner())
+    command_runner = SubprocessCommandRunner(timeout_seconds=600)
+
+    return GitHubCodeRepo(command_runner)
 
 
 def _build_session_killer(context: ApplicationContext) -> AgentSessionKiller:

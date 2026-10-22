@@ -13,8 +13,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
+
 from virgo_agentic_dag.domain.command.exit_code import ExitCode
 from virgo_agentic_dag.domain.command.serve_command import DEFAULT_HOST, DEFAULT_PORT
+from virgo_agentic_dag.domain.exceptions.host.scheduling_error import SchedulingError
 from virgo_agentic_dag.domain.exceptions.host.web_extra_missing import WebExtraMissing
 from virgo_agentic_dag.domain.exceptions.host.worktree_error import WorktreeError
 from virgo_agentic_dag.domain.exceptions.manifest.config_error import ConfigError
@@ -37,6 +39,7 @@ ENV_FILE_NAME = ".env.local"
 _FAILURES = (
     ConfigError,
     SpecError,
+    SchedulingError,
     ObservationError,
     PublishError,
     WebExtraMissing,

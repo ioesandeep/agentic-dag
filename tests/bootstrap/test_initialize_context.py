@@ -1,14 +1,19 @@
 import asyncio
 import io
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 from pytest_mock import MockerFixture
+
+from virgo_agentic_dag.api.cli.handlers.watch_command_handler import WatchCommandHandler
 from virgo_agentic_dag.bootstrap.context_initializer import initialize_context
 from virgo_agentic_dag.domain.command.abort_command import AbortCommand
+from virgo_agentic_dag.domain.command.exit_code import ExitCode
 from virgo_agentic_dag.domain.command.serve_command import ServeCommand
 from virgo_agentic_dag.domain.command.tick_command import TickCommand
+from virgo_agentic_dag.domain.command.watch_command import WatchCommand
 from virgo_agentic_dag.domain.events.node_event import NodeEvent
 from virgo_agentic_dag.domain.events.work_started_event import WorkStartedEvent
 from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
@@ -23,6 +28,10 @@ from virgo_agentic_dag.domain.service.notification_publisher import (
     NotificationPublisher,
 )
 from virgo_agentic_dag.infra.code.github_code_repo import GitHubCodeRepo
+from virgo_agentic_dag.services.watching.event_reader import EventReader
+from virgo_agentic_dag.services.watching.subscription_factory import SubscriptionFactory
+from virgo_agentic_dag.services.watching.watch_plan import WatchPlan
+from virgo_agentic_dag.services.watching.watch_plan_reader import WatchPlanReader
 
 pytestmark = pytest.mark.behavior
 
@@ -154,6 +163,7 @@ async def test_admits_an_abort_while_a_pass_is_working_the_run(
 
     dag_path = tmp_path / "dag.toml"
     dag_path.write_text(HOMED_DAG_TOML, encoding="utf-8")
+
     tick = TickCommand(dag_path=dag_path)
     abort = AbortCommand(dag_name="demo")
 
@@ -262,3 +272,44 @@ async def test_initialize_context_keeps_the_repository_slug_empty_when_github_co
         repo_slug = context.repo_slug
 
     assert repo_slug == ""
+
+
+async def test_watcher_completes_a_pass_that_exceeds_thirty_seconds(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    mocker.patch(
+        "virgo_agentic_dag.utils.dag_utils.get_dag_root", return_value=tmp_path
+    )
+
+    plan_reader = mocker.MagicMock(spec=WatchPlanReader)
+    plan = WatchPlan(
+        sse_url="http://stream/events",
+        argv=(
+            sys.executable,
+            "-c",
+            "import time; time.sleep(31); raise SystemExit(3)",
+        ),
+        working_directory=tmp_path,
+        repo_slug="acme/virgo",
+        refresh_seconds=300,
+    )
+
+    plan_reader.get_plan.return_value = plan
+    plan_reader.get_topics.return_value = ["acme/virgo#12"]
+    mocker.patch(
+        "virgo_agentic_dag.bootstrap.register_beans.WatchPlanReader",
+        return_value=plan_reader,
+    )
+
+    event_reader = mocker.MagicMock(spec=EventReader)
+    event_reader.get_event.side_effect = ["pull_request", None]
+    mocker.patch.object(SubscriptionFactory, "build", return_value=event_reader)
+
+    watch_command = WatchCommand(dag_name="demo")
+    output_writer = io.StringIO()
+
+    async with initialize_context(watch_command, output_writer) as context:
+        watch_command_handler = context.get(WatchCommandHandler)
+        exit_code = await watch_command_handler.handle(watch_command)
+
+    assert exit_code is ExitCode.RUN_COMPLETE

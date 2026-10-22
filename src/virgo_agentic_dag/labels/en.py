@@ -97,6 +97,7 @@ LABELS: dict[str, str] = {
     "runScheduled": "this host will run {job} until the run settles\n",
     "runUnscheduled": "this host will no longer run {job}\n",
     "runNotScheduled": "no host is running {dag}; there is nothing to abort\n",
+    "commandTimedOut": "Command {command} exceeds the {timeout}-second timeout.",
     "systemdCommandFailed": "Command {command} fails with error {error}.",
     "systemdFileFailed": "The systemd unit file operation for {job} fails with error {error}.",
     "systemdRegisterFailed": "Systemd registration for {job} fails with error {error}.",
