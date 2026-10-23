@@ -23,6 +23,10 @@ DISABLED = RunResult(returncode=1, stdout="disabled\n")
 LINKED = RunResult(returncode=1, stdout="linked\n")
 SUCCESS = RunResult(returncode=0)
 UNIT_NAME = "fyi.virgo.dag.demo"
+UNIT_FILE_MISSING = RunResult(
+    returncode=1,
+    stderr=f"Failed to get unit file state for {UNIT_NAME}.timer: No such file or directory\n",
+)
 
 
 @pytest.fixture
@@ -117,6 +121,7 @@ async def test_registration_installs_escaped_units_before_enabling_only_the_time
     [
         ("loaded", "active", ENABLED, ENABLED, True),
         ("not-found", "inactive", NOT_FOUND, ENABLED, False),
+        ("not-found", "inactive", UNIT_FILE_MISSING, ENABLED, False),
         ("loaded", "active", DISABLED, ENABLED, False),
         ("loaded", "inactive", ENABLED, ENABLED, False),
         ("loaded", "active", ENABLED, NOT_FOUND, False),
@@ -146,6 +151,21 @@ async def test_registration_lookup_uses_timer_and_service_state(
     is_registered = await scheduler.is_registered(job)
 
     assert is_registered is expected
+
+
+async def test_registration_lookup_raises_a_scheduling_error_when_the_unit_file_state_fails(
+    mocker: MockerFixture, get_job: Callable[..., ScheduledJob]
+) -> None:
+    job = get_job()
+
+    command_runner = mocker.MagicMock(spec=CommandRunner)
+    bus_failure_result = RunResult(returncode=1, stderr="Failed to connect to bus")
+    command_runner.run.side_effect = [PRESENT, bus_failure_result]
+
+    scheduler = SystemdScheduler(command_runner=command_runner)
+
+    with pytest.raises(SchedulingError, match="systemctl --user is-enabled.*fails"):
+        await scheduler.is_registered(job)
 
 
 @pytest.mark.parametrize("failure", ["manager", "executable", "timeout"])

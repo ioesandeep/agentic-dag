@@ -175,13 +175,19 @@ class SystemdScheduler(Scheduler):
     @staticmethod
     def _is_not_enabled(command: str, run_result: RunResult) -> bool:
         file_state = run_result.stdout.strip()
+        unit_file_missing_message = "No such file or directory"
+        is_unit_file_missing = (
+            not file_state and unit_file_missing_message in run_result.stderr
+        )
 
         return command == "is-enabled" and (
             run_result.returncode == 1
-            and file_state
-            in {"disabled", "linked", "linked-runtime", "masked", "masked-runtime"}
-            or run_result.returncode == 4
-            and file_state == "not-found"
+            and (
+                file_state
+                in {"disabled", "linked", "linked-runtime", "masked", "masked-runtime"}
+                or is_unit_file_missing
+            )
+            or (run_result.returncode == 4 and file_state == "not-found")
         )
 
     async def _rollback(
