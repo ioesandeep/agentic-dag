@@ -79,6 +79,22 @@ class InMemoryNodeRepo(NodeRepo):
             learnings_extracted_at=row.learnings_extracted_at,
         )
 
+    async def reset_recovery_attempts(self, node_id: str, attempts: int) -> None:
+        """Restore the node's recovery allowance."""
+        row = self._rows[node_id]
+        self._rows[node_id] = Node(
+            id=row.id,
+            title=row.title,
+            name=row.name,
+            state=row.state,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+            recovery_attempts_allowed=attempts,
+            resume_at=row.resume_at,
+            pull_request_settled_at=row.pull_request_settled_at,
+            learnings_extracted_at=row.learnings_extracted_at,
+        )
+
     async def record_pull_request_settled(self, node: Node, at: datetime) -> None:
         row = self._rows[node.id]
         self._rows[node.id] = Node(

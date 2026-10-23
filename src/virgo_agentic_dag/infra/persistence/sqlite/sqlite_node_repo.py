@@ -99,6 +99,18 @@ class SqliteNodeRepo(NodeRepo):
             await session.execute(statement)
             await session.commit()
 
+    async def reset_recovery_attempts(self, node_id: str, attempts: int) -> None:
+        """Restore the node's recovery allowance."""
+        async with self._database.open_session() as session:
+            statement = (
+                update(Node)
+                .where(Node.id == node_id)
+                .values(recovery_attempts_allowed=attempts)
+            )
+
+            await session.execute(statement)
+            await session.commit()
+
     async def record_pull_request_settled(self, node: Node, at: datetime) -> None:
         async with self._database.open_session() as session:
             statement = (

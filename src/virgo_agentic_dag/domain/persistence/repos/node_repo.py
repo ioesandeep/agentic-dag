@@ -48,6 +48,10 @@ class NodeRepo(ABC):
         """Take a single recovery attempt off this node's allowance."""
 
     @abstractmethod
+    async def reset_recovery_attempts(self, node_id: str, attempts: int) -> None:
+        """Restore the node's recovery allowance."""
+
+    @abstractmethod
     async def record_pull_request_settled(self, node: Node, at: datetime) -> None:
         """Record when this node's pull request settled."""
 

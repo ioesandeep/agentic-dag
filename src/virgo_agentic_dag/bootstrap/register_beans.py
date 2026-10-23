@@ -722,6 +722,10 @@ def _build_node_importer(context: ApplicationContext) -> AdoptedNodeImporter:
 
 
 def _build_retry_command_handler(context: ApplicationContext) -> RetryCommandHandler:
+    graph_builder = context.get(GraphBuilder)
+    dag_spec = context.get(DagSpec)
+    graph = graph_builder.create_graph(dag_spec)
+
     return RetryCommandHandler(
         context.get(RunLock),
         context.get(NodeRepo),
@@ -730,6 +734,7 @@ def _build_retry_command_handler(context: ApplicationContext) -> RetryCommandHan
         context.get(NodeAgentRepo),
         context.get(RunScheduleService),
         context.get(DependentReleaseService),
+        graph,
     )
 
 

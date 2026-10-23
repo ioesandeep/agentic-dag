@@ -10,6 +10,7 @@ from virgo_agentic_dag.domain.command.command_handler import CommandHandler
 from virgo_agentic_dag.domain.command.exit_code import ExitCode
 from virgo_agentic_dag.domain.command.retry_command import RetryCommand
 from virgo_agentic_dag.domain.events.node_retried_event import NodeRetriedEvent
+from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.infra.locking.run_lock import RunLock
 from virgo_agentic_dag.domain.infra.locking.run_lock_config import RunLockConfig
 from virgo_agentic_dag.domain.node.node_state import NodeState
@@ -47,6 +48,7 @@ class RetryCommandHandler(CommandHandler[RetryCommand]):
         node_agent_repo: NodeAgentRepo,
         run_schedule_service: RunScheduleService,
         dependent_release_service: DependentReleaseService,
+        graph: Graph,
     ) -> None:
         self._run_lock = run_lock
         self._node_repo = node_repo
@@ -55,6 +57,7 @@ class RetryCommandHandler(CommandHandler[RetryCommand]):
         self._node_agent_repo = node_agent_repo
         self._run_schedule_service = run_schedule_service
         self._dependent_release_service = dependent_release_service
+        self._graph = graph
 
     async def handle(self, command: RetryCommand) -> ExitCode:
         run_lock_config = RunLockConfig(timeout=command.timeout)
@@ -84,6 +87,8 @@ class RetryCommandHandler(CommandHandler[RetryCommand]):
 
             return ExitCode.FAILURE
 
+        await self._reset_recovery_attempts(command)
+
         if command.reset:
             await self._clear_resume_token(node)
 
@@ -102,6 +107,15 @@ class RetryCommandHandler(CommandHandler[RetryCommand]):
             emit(message + "\n")
 
         return ExitCode.SUCCESS
+
+    async def _reset_recovery_attempts(self, command: RetryCommand) -> None:
+        graph_node = next(
+            node for node in self._graph.nodes if node.id == command.node_id
+        )
+
+        await self._node_repo.reset_recovery_attempts(
+            command.node_id, graph_node.recovery_attempts_allowed
+        )
 
     async def _clear_resume_token(self, node: Node) -> None:
         """Drop the recorded conversation of this node's agent, so the next start opens a new one."""

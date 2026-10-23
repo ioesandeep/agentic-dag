@@ -75,6 +75,9 @@ def handler(
     audit_entry_repo: InMemoryAuditEntryRepo,
     notification_publisher: NotificationPublisher,
 ) -> RetryCommandHandler:
+    graph_nodes = [GraphNode(id=NODE_ID)]
+    graph = Graph(name="demo", nodes=graph_nodes)
+
     return RetryCommandHandler(
         mocker.MagicMock(spec=RunLock),
         node_repo,
@@ -83,6 +86,7 @@ def handler(
         mocker.MagicMock(spec=NodeAgentRepo),
         mocker.MagicMock(spec=RunScheduleService),
         mocker.MagicMock(spec=DependentReleaseService),
+        graph,
     )
 
 
@@ -106,13 +110,29 @@ async def retry(
 @pytest.mark.parametrize("state", [NodeState.ERRORED, NodeState.NEEDS_HUMAN])
 async def test_retry_returns_a_stopped_node_to_pending(
     state: NodeState,
-    handler: RetryCommandHandler,
+    mocker: MockerFixture,
     node_repo: InMemoryNodeRepo,
     audit_entry_repo: InMemoryAuditEntryRepo,
     notification_publisher: NotificationPublisher,
     out: io.StringIO,
 ) -> None:
-    await open_node(node_repo, state)
+    graph_nodes = [GraphNode(id=NODE_ID, recovery_attempts_allowed=1)]
+    await node_repo.ensure_rows(graph_nodes, NOW)
+    await node_repo.spend_recovery_attempt(NODE_ID)
+    await node_repo.update_state(NODE_ID, state, NOW)
+
+    graph_nodes = [GraphNode(id=NODE_ID, recovery_attempts_allowed=5)]
+    graph = Graph(name="demo", nodes=graph_nodes)
+    handler = RetryCommandHandler(
+        run_lock=mocker.MagicMock(spec=RunLock),
+        node_repo=node_repo,
+        audit_entry_repo=audit_entry_repo,
+        notification_publisher=notification_publisher,
+        node_agent_repo=mocker.MagicMock(spec=NodeAgentRepo),
+        run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
+        dependent_release_service=mocker.MagicMock(spec=DependentReleaseService),
+        graph=graph,
+    )
 
     exit_code = await retry(handler, out)
 
@@ -123,6 +143,7 @@ async def test_retry_returns_a_stopped_node_to_pending(
     assert exit_code is ExitCode.SUCCESS
     assert node is not None
     assert node.state == NodeState.PENDING.value
+    assert node.recovery_attempts_allowed == 5
 
     assert entries[0].note == "a human sent it back to work"
     assert node_event.type is NotificationType.RETRIED
@@ -149,6 +170,9 @@ async def test_retry_clears_the_resume_token_when_reset_is_set(
         worktree=worktree,
     )
 
+    graph_nodes = [GraphNode(id=NODE_ID, recovery_attempts_allowed=5)]
+    graph = Graph(name="demo", nodes=graph_nodes)
+
     handler = RetryCommandHandler(
         mocker.MagicMock(spec=RunLock),
         node_repo,
@@ -157,6 +181,7 @@ async def test_retry_clears_the_resume_token_when_reset_is_set(
         node_agent_repo,
         mocker.MagicMock(spec=RunScheduleService),
         mocker.MagicMock(spec=DependentReleaseService),
+        graph,
     )
 
     exit_code = await retry(handler, out, reset=True)
@@ -167,6 +192,9 @@ async def test_retry_clears_the_resume_token_when_reset_is_set(
     assert agent.id == "agent-1"
     assert agent.resume_token == ""
     assert agent.worktree is not None and agent.worktree.id == 7
+
+    node = await node_repo.read(NODE_ID)
+    assert node is not None and node.recovery_attempts_allowed == 5
 
 
 @pytest.mark.parametrize(
@@ -241,6 +269,9 @@ async def test_retry_registers_the_run_only_after_a_successful_state_change(
     call_order.attach_mock(run_schedule_service.ensure_registered, "ensure_registered")
     call_order.attach_mock(run_lock.release, "release")
 
+    graph_nodes = [GraphNode(id=NODE_ID)]
+    graph = Graph(name="demo", nodes=graph_nodes)
+
     handler = RetryCommandHandler(
         run_lock=run_lock,
         node_repo=node_repo,
@@ -249,6 +280,7 @@ async def test_retry_registers_the_run_only_after_a_successful_state_change(
         node_agent_repo=mocker.MagicMock(spec=NodeAgentRepo),
         run_schedule_service=run_schedule_service,
         dependent_release_service=mocker.MagicMock(spec=DependentReleaseService),
+        graph=graph,
     )
 
     dag_path = Path("dag.toml")
@@ -263,6 +295,8 @@ async def test_retry_registers_the_run_only_after_a_successful_state_change(
 
     if state is not NodeState.ERRORED:
         assert exit_code is ExitCode.FAILURE
+        node_repo.reset_recovery_attempts.assert_not_awaited()
+
         run_schedule_service.ensure_registered.assert_not_awaited()
         assert "this host will run" not in out.getvalue()
 
@@ -326,6 +360,7 @@ async def test_retry_returns_parked_dependents_to_pending_after_the_parent_resta
         node_agent_repo=mocker.MagicMock(spec=NodeAgentRepo),
         run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
         dependent_release_service=dependent_release_service,
+        graph=graph,
     )
 
     exit_code = await retry(handler, out)

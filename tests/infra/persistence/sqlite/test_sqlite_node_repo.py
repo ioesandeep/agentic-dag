@@ -59,6 +59,29 @@ async def test_ensure_rows_records_the_recovery_attempts_allowed_of_the_node_it_
     assert row is not None and row.recovery_attempts_allowed == 5
 
 
+@pytest.mark.parametrize("attempts", [0, 5])
+async def test_reset_recovery_attempts_restores_only_the_selected_nodes_allowance(
+    repo: SqliteNodeRepo, attempts: int
+) -> None:
+    graph_nodes = [
+        GraphNode(id="A", recovery_attempts_allowed=1),
+        GraphNode(id="B", recovery_attempts_allowed=2),
+    ]
+
+    await repo.ensure_rows(graph_nodes, NOW)
+    await repo.spend_recovery_attempt("A")
+
+    await repo.reset_recovery_attempts("A", attempts)
+
+    node = await repo.read("A")
+    assert node is not None
+    assert node.recovery_attempts_allowed == attempts
+    assert node.state == NodeState.PENDING.value
+
+    other_node = await repo.read("B")
+    assert other_node is not None and other_node.recovery_attempts_allowed == 2
+
+
 async def test_record_pull_request_settled_records_the_time_it_is_given(
     repo: SqliteNodeRepo,
 ) -> None:
