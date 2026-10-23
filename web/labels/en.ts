@@ -1,8 +1,5 @@
 import type { SignalKind } from '@/entities/nodeDetail';
-import {
-  RecoveryCauseEnum,
-  SessionEndStateEnum,
-} from '@/entities/nodeDetail';
+import { RecoveryCauseEnum, SessionEndStateEnum } from '@/entities/nodeDetail';
 import { NodeStateEnum } from '@/entities/nodeState';
 import { DagState } from '@/utils/dagState';
 import { RecoverySessionState } from '@/utils/recoverySessionState';
@@ -83,6 +80,21 @@ export const LABELS = {
   dagsLoading: 'Loading the dags',
   dagLoading: 'Loading the dag',
   nodeLoading: 'Loading the node',
+  projectsHeading: 'Projects',
+  projectsShowArchived: 'Show archived',
+  projectsEmpty: 'No projects to show',
+  projectsEmptyHint: 'Create a project to group repositories.',
+  projectActive: 'active',
+  projectArchived: 'archived',
+  projectRepositoryCountSingular: '{count} repo',
+  projectRepositoryCountPlural: '{count} repos',
+  projectRepositories: 'Repositories',
+  projectRepositoriesEmpty: 'No repositories in this project.',
+  projectCreate: 'Create project',
+  projectName: 'Name',
+  projectNameRequired: 'Enter a project name.',
+  projectDescription: 'Description (optional)',
+  projectCreateCancel: 'Cancel',
   dagsHeading: 'DAGS',
   dagsEmpty:
     'No dags on this host. Start one with dagctl start --dag <path to dag.toml>.',
