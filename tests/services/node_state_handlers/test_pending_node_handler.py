@@ -5,7 +5,16 @@ from unittest.mock import ANY
 import pytest
 from pytest_mock import MockerFixture
 
+from virgo_agentic_dag.domain.exceptions.host.base_branch_missing_error import (
+    BaseBranchMissingError,
+)
+from virgo_agentic_dag.domain.exceptions.host.worktree_conflict_error import (
+    WorktreeConflictError,
+)
 from virgo_agentic_dag.domain.exceptions.host.worktree_error import WorktreeError
+from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
+    ObservationError,
+)
 from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
@@ -299,12 +308,17 @@ async def test_resumes_the_recorded_agent_when_the_node_has_run_before(
     assert len(agent.sessions) == 2
 
 
-async def test_starts_a_new_conversation_when_the_recorded_agent_has_no_resume_token(
-    mocker: MockerFixture, build_node: BuildNode
+@pytest.mark.parametrize(
+    ("executor_agent", "resume_token"),
+    [(ExecutorAgent.CLAUDE, ""), (ExecutorAgent.CODEX, "first-token")],
+)
+async def test_starts_a_new_conversation_when_the_recorded_agent_cannot_resume(
+    mocker: MockerFixture,
+    build_node: BuildNode,
+    executor_agent: ExecutorAgent,
+    resume_token: str,
 ) -> None:
-    graph_node = GraphNode(
-        id="A", executor_agent=ExecutorAgent.CLAUDE, instructions="do it"
-    )
+    graph_node = GraphNode(id="A", executor_agent=executor_agent, instructions="do it")
 
     graph = Graph(name="demo", nodes=[graph_node])
 
@@ -329,23 +343,28 @@ async def test_starts_a_new_conversation_when_the_recorded_agent_has_no_resume_t
     node_agent_repo = mocker.MagicMock(spec=NodeAgentRepo)
     node_agent_repo.get_by_node_id.return_value = NodeAgent(
         id="agent-1",
-        name="claude",
-        resume_token="",
+        name=executor_agent.value,
+        resume_token=resume_token,
         node_id="A",
         sessions=[ended_session],
         worktree=recorded_worktree,
     )
 
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
-    agent_launcher.launch.return_value = AgentSession(
+    new_session = AgentSession(
         agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=4242
     )
+
+    if resume_token:
+        agent_launcher.wake.return_value = new_session
+    else:
+        agent_launcher.launch.return_value = new_session
 
     audit_entry_repo = mocker.MagicMock(spec=AuditEntryRepo)
     notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
     code_repo = mocker.MagicMock(spec=CodeRepo)
 
-    agent_launchers = {ExecutorAgent.CLAUDE: agent_launcher}
+    agent_launchers = {executor_agent: agent_launcher}
     handler = PendingNodeHandler(
         node_repo=node_repo,
         audit_entry_repo=audit_entry_repo,
@@ -365,10 +384,17 @@ async def test_starts_a_new_conversation_when_the_recorded_agent_has_no_resume_t
         ),
     )
 
-    await handler.handle(graph, [graph_node], NOW)
+    tick_response = await handler.handle(graph, [graph_node], NOW)
 
-    agent_launcher.launch.assert_awaited_once()
-    agent_launcher.wake.assert_not_awaited()
+    if resume_token:
+        agent_launcher.wake.assert_awaited_once()
+        agent_launcher.launch.assert_not_awaited()
+    else:
+        agent_launcher.launch.assert_awaited_once()
+        agent_launcher.wake.assert_not_awaited()
+
+    assert tick_response.sessions_started == 1
+    node_repo.update_state.assert_awaited_once_with("A", NodeState.IN_PROGRESS, NOW)
 
     agent = node_agent_repo.save.await_args.args[0]
 
@@ -377,9 +403,19 @@ async def test_starts_a_new_conversation_when_the_recorded_agent_has_no_resume_t
     assert agent.worktree is not None and agent.worktree.id == 7
     assert len(agent.sessions) == 2
 
+    audit_entry = audit_entry_repo.save.await_args.args[0]
 
+    if resume_token:
+        assert audit_entry.note == (
+            "A started a new conversation because the previous session recorded no thread ID"
+        )
+    else:
+        assert audit_entry.note == "A started work"
+
+
+@pytest.mark.parametrize("dependency_state", [NodeState.RESTING, NodeState.PENDING])
 async def test_leaves_the_node_pending_when_a_dependency_has_not_merged(
-    mocker: MockerFixture, build_node: BuildNode
+    dependency_state: NodeState, mocker: MockerFixture, build_node: BuildNode
 ) -> None:
     dependency = GraphNode(id="A", executor_agent=ExecutorAgent.CLAUDE)
     graph_node = GraphNode(
@@ -389,7 +425,7 @@ async def test_leaves_the_node_pending_when_a_dependency_has_not_merged(
     graph = Graph(name="demo", nodes=[dependency, graph_node])
 
     node_repo = mocker.MagicMock(spec=NodeRepo)
-    node_repo.get_nodes_by_ids.return_value = [build_node("A", NodeState.RESTING)]
+    node_repo.get_nodes_by_ids.return_value = [build_node("A", dependency_state)]
 
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
 
@@ -705,8 +741,9 @@ async def test_needs_a_human_when_no_launcher_serves_its_agent(
     agent_launcher.launch.assert_not_awaited()
 
 
+@pytest.mark.parametrize("error_type", [WorktreeError, ObservationError, OSError])
 async def test_leaves_the_node_pending_when_the_worktree_cannot_be_provisioned(
-    mocker: MockerFixture, build_node: BuildNode
+    mocker: MockerFixture, build_node: BuildNode, error_type: type[Exception]
 ) -> None:
     failing_node = GraphNode(id="A", executor_agent=ExecutorAgent.CLAUDE)
     second_node = GraphNode(id="B", executor_agent=ExecutorAgent.CLAUDE)
@@ -722,7 +759,7 @@ async def test_leaves_the_node_pending_when_the_worktree_cannot_be_provisioned(
 
     workspace = mocker.MagicMock(spec=Workspace)
     workspace.provision.side_effect = [
-        WorktreeError("no disk for A"),
+        error_type("no disk for A"),
         WorkTree(name="B", absolute_path="/ws/B", created_at=NOW),
     ]
 
@@ -763,6 +800,60 @@ async def test_leaves_the_node_pending_when_the_worktree_cannot_be_provisioned(
     node_repo.update_state.assert_awaited_once_with("B", NodeState.IN_PROGRESS, NOW)
     agent_launcher.launch.assert_awaited_once()
     assert agent_launcher.launch.await_args.args[0].id == "B"
+
+
+@pytest.mark.parametrize("error_type", [BaseBranchMissingError, WorktreeConflictError])
+async def test_pending_node_handler_moves_the_node_to_errored_when_provisioning_cannot_succeed(
+    mocker: MockerFixture, build_node: BuildNode, error_type: type[WorktreeError]
+) -> None:
+    graph_node = GraphNode(id="A", executor_agent=ExecutorAgent.CLAUDE)
+    graph = Graph(name="demo", nodes=[graph_node])
+
+    node_repo = mocker.MagicMock(spec=NodeRepo)
+    node_repo.get_nodes_by_ids.return_value = []
+    node_repo.get_nodes_by_state.return_value = []
+    node_repo.read.return_value = build_node("A", NodeState.PENDING)
+
+    workspace = mocker.MagicMock(spec=Workspace)
+    workspace.provision.side_effect = error_type("Cannot provision A from missing-base")
+
+    agent_launcher = mocker.MagicMock(spec=AgentLauncher)
+    agent_launchers = {ExecutorAgent.CLAUDE: agent_launcher}
+
+    audit_entry_repo = mocker.MagicMock(spec=AuditEntryRepo)
+    notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
+    dag_spec = DagSpec(name="demo", nodes=(), max_workers=2)
+    handler = PendingNodeHandler(
+        node_repo=node_repo,
+        audit_entry_repo=audit_entry_repo,
+        notification_publisher=notification_publisher,
+        workspace=workspace,
+        agent_launchers=agent_launchers,
+        dag_spec=dag_spec,
+        node_agent_repo=mocker.MagicMock(spec=NodeAgentRepo),
+        code_repo=mocker.MagicMock(spec=CodeRepo),
+        node_importer=mocker.MagicMock(spec=NodeImporter),
+    )
+
+    tick_response = await handler.handle(graph, [graph_node], NOW)
+
+    assert tick_response.events_applied == 1
+    assert tick_response.sessions_started == 0
+    node_repo.update_state.assert_awaited_once_with("A", NodeState.ERRORED, NOW)
+    agent_launcher.launch.assert_not_awaited()
+
+    audit_entry_repo.save.assert_awaited_once()
+    audit_entry = audit_entry_repo.save.await_args.args[0]
+
+    assert audit_entry.state == NodeState.ERRORED.value
+    assert audit_entry.note == "Cannot provision A from missing-base"
+
+    notification_publisher.publish.assert_called_once()
+    node_event = notification_publisher.publish.call_args.args[0]
+
+    assert node_event.node_id == "A"
+    assert node_event.type is NotificationType.AGENT_FAILED
+    assert node_event.reason == audit_entry.note
 
 
 async def test_a_started_node_names_its_agent_and_its_task(

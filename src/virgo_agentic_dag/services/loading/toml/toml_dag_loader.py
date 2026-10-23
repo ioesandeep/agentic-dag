@@ -31,12 +31,24 @@ class TomlDagLoader(DagLoader):
         self._nodes = NodeParser(self._reader)
 
     def load(self, path: Path) -> DagSpec:
-        try:
-            data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
-        except tomllib.TOMLDecodeError as error:
-            raise SpecError(f"dag: {Path(path).name} is not valid TOML: {error}")
+        data = self._get_dag_table(path)
 
         return self.parse(data)
+
+    def get_db_path(self, path: Path) -> Path | None:
+        """Return the database path configured in the DAG file."""
+        data = self._get_dag_table(path)
+
+        return self._get_path(data, "db_path")
+
+    def _get_dag_table(self, path: Path) -> dict[str, object]:
+        try:
+            dag_text = path.read_text(encoding="utf-8")
+            data = tomllib.loads(dag_text)
+        except tomllib.TOMLDecodeError as error:
+            raise SpecError(f"dag: {path.name} is not valid TOML: {error}") from error
+
+        return data
 
     def parse(self, data: dict[str, object]) -> DagSpec:
         """Build a DagSpec from parsed TOML, rejecting malformed input with a reason."""
@@ -79,6 +91,7 @@ class TomlDagLoader(DagLoader):
     def _parse_codex_spec(self, dag_table: dict[str, object]) -> CodexSpec:
         raw_codex_spec = dag_table.get("codex", {})
         codex_table = self._reader.require_table(raw_codex_spec, "dag.codex")
+
         default_codex_spec = CodexSpec()
         codex_values = {
             "model": default_codex_spec.model,

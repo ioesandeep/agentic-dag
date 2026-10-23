@@ -642,7 +642,27 @@ async def test_posts_the_dag_started_message_when_the_host_job_is_registered(
     assert posted_text == "*demo* started — 2 nodes, 1 in progress"
 
 
-async def test_posts_the_dag_completed_message_when_the_run_completes(
+@pytest.mark.parametrize(
+    ("states", "expected_message"),
+    [
+        (
+            [NodeState.MERGED, NodeState.MERGED, NodeState.SKIPPED],
+            "*demo* complete in 2h 0m — 2 merged, 1 skipped",
+        ),
+        (
+            [NodeState.NEEDS_HUMAN, NodeState.ERRORED, NodeState.SKIPPED],
+            "*demo* errored after 2h 0m — 1 needs human, 1 errored, 1 skipped",
+        ),
+        (
+            [NodeState.SKIPPED] * 3,
+            "*demo* complete in 2h 0m — 3 skipped",
+        ),
+    ],
+    ids=["complete", "errored", "all-skipped"],
+)
+async def test_start_posts_the_run_status_when_the_run_finishes(
+    states: list[NodeState],
+    expected_message: str,
     mocker: MockerFixture,
     build_node: Callable[[str, str, datetime], Node],
     tmp_path: Path,
@@ -665,9 +685,9 @@ async def test_posts_the_dag_completed_message_when_the_run_completes(
     started_at = NOW.replace(tzinfo=None) - timedelta(hours=2)
     node_repo = mocker.MagicMock(spec=NodeRepo)
     node_repo.get_all.return_value = [
-        build_node("A", NodeState.MERGED.value, started_at),
-        build_node("B", NodeState.MERGED.value, started_at + timedelta(hours=1)),
-        build_node("C", NodeState.SKIPPED.value, started_at + timedelta(hours=1)),
+        build_node("A", states[0].value, started_at),
+        build_node("B", states[1].value, started_at + timedelta(hours=1)),
+        build_node("C", states[2].value, started_at + timedelta(hours=1)),
     ]
 
     notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
@@ -714,5 +734,6 @@ async def test_posts_the_dag_completed_message_when_the_run_completes(
     await dispatcher.dispatch(dag_completed_event)
 
     payload = poster.post.call_args.args[1]
-    assert payload["text"] == "*demo* complete in 2h 0m — 2 merged, 1 skipped"
+
+    assert payload["text"] == expected_message
     assert "thread_ts" not in payload

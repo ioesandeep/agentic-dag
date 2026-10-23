@@ -1,9 +1,11 @@
+import asyncio
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.domain.events.agent_stopped_event import AgentStoppedEvent
 from virgo_agentic_dag.domain.events.checks_completed_event import ChecksCompletedEvent
 from virgo_agentic_dag.domain.events.comments_added_event import CommentsAddedEvent
@@ -86,23 +88,76 @@ async def test_opens_and_records_a_thread_when_the_node_has_none(
     build_dispatcher: Callable[..., BotNotificationDispatcher],
 ) -> None:
     monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-token")
+
     poster = mocker.MagicMock(spec=JsonPoster)
     poster.post.return_value = {"ok": True, "ts": "1700.1"}
+
     slack_notification_repo = mocker.AsyncMock(spec=SlackNotificationRepo)
     slack_notification_repo.get_by_node_id.return_value = None
+
     composer = mocker.MagicMock(spec=NotificationComposer)
     composer.work_started.return_value = "Agent *Iris* started working on `A`"
+
     dispatcher = build_dispatcher(poster, slack_notification_repo, composer)
 
     await dispatcher.dispatch(WORK_STARTED)
 
     url, payload, _ = poster.post.call_args_list[0].args
+
     assert "chat.postMessage" in url
     assert "thread_ts" not in payload
 
     slack_notification_repo.save.assert_awaited_once()
+
     saved = slack_notification_repo.save.await_args.args[0]
+
     assert (saved.node_id, saved.thread_id) == ("A", "1700.1")
+
+
+async def test_dispatch_posts_in_a_single_thread_when_node_events_arrive_together(
+    mocker: MockerFixture,
+) -> None:
+    """The repository double yields so concurrent lookups can return no thread."""
+    mocker.patch.dict("os.environ", {"SLACK_BOT_TOKEN": "xoxb-token"})
+
+    poster = mocker.MagicMock(spec=JsonPoster)
+    poster.post.return_value = {"ok": True, "ts": "1700.1"}
+
+    slack_notifications: list[SlackNotification] = []
+
+    async def get_thread_by_node_id(_: str) -> SlackNotification | None:
+        slack_notification = slack_notifications[0] if slack_notifications else None
+        await asyncio.sleep(0)
+
+        return slack_notification
+
+    slack_notification_repo = mocker.AsyncMock(spec=SlackNotificationRepo)
+    slack_notification_repo.get_by_node_id.side_effect = get_thread_by_node_id
+    slack_notification_repo.save.side_effect = slack_notifications.append
+
+    composer = mocker.MagicMock(spec=NotificationComposer)
+    composer.work_started.return_value = "Agent *Iris* started working on `A`"
+    composer.node_retried.return_value = "Node `A` retries"
+
+    dispatcher = BotNotificationDispatcher(
+        poster=poster,
+        slack_notification_repo=slack_notification_repo,
+        channel="#dag",
+        composer=composer,
+        dag_name="demo",
+    )
+
+    node_retried_fields = build_fields(NotificationType.RETRIED)
+    node_retried = NodeRetriedEvent(**node_retried_fields)
+
+    work_started_dispatch = dispatcher.dispatch(WORK_STARTED)
+    node_retried_dispatch = dispatcher.dispatch(node_retried)
+    await asyncio.gather(work_started_dispatch, node_retried_dispatch)
+
+    thread_ids = [call.args[1].get("thread_ts") for call in poster.post.call_args_list]
+
+    assert thread_ids == [None, "1700.1"]
+    slack_notification_repo.save.assert_awaited_once()
 
 
 async def test_replies_in_the_thread_when_the_node_already_has_one(
@@ -111,8 +166,10 @@ async def test_replies_in_the_thread_when_the_node_already_has_one(
     build_dispatcher: Callable[..., BotNotificationDispatcher],
 ) -> None:
     monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-token")
+
     poster = mocker.MagicMock(spec=JsonPoster)
     poster.post.return_value = {"ok": True, "ts": "1700.1"}
+
     slack_notification_repo = mocker.AsyncMock(spec=SlackNotificationRepo)
     slack_notification_repo.get_by_node_id.return_value = SlackNotification(
         node_id="A", channel="#dag", thread_id="1699.0", created_at=NOW
@@ -120,6 +177,7 @@ async def test_replies_in_the_thread_when_the_node_already_has_one(
 
     composer = mocker.MagicMock(spec=NotificationComposer)
     composer.work_started.return_value = "Agent *Iris* started working on `A`"
+
     dispatcher = build_dispatcher(poster, slack_notification_repo, composer)
 
     await dispatcher.dispatch(WORK_STARTED)
@@ -134,8 +192,10 @@ async def test_dispatch_updates_the_thread_message_when_passed_a_pull_request_op
     build_dispatcher: Callable[..., BotNotificationDispatcher],
 ) -> None:
     monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-token")
+
     poster = mocker.MagicMock(spec=JsonPoster)
     poster.post.return_value = {"ok": True, "ts": "1699.0"}
+
     slack_notification_repo = mocker.AsyncMock(spec=SlackNotificationRepo)
     slack_notification_repo.get_by_node_id.return_value = SlackNotification(
         node_id="A", channel="#dag", thread_id="1699.0", created_at=NOW
@@ -154,6 +214,7 @@ async def test_dispatch_updates_the_thread_message_when_passed_a_pull_request_op
     await dispatcher.dispatch(pull_request_opened)
 
     url, payload, _ = poster.post.call_args_list[0].args
+
     assert "chat.update" in url
     assert (payload["ts"], payload["text"]) == (
         "1699.0",
@@ -192,14 +253,17 @@ async def test_marks_the_thread_when_the_event_settles_the_node(
     build_dispatcher: Callable[..., BotNotificationDispatcher],
 ) -> None:
     monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-token")
+
     poster = mocker.MagicMock(spec=JsonPoster)
     poster.post.return_value = {"ok": True, "ts": "1700.1"}
+
     slack_notification_repo = mocker.AsyncMock(spec=SlackNotificationRepo)
     slack_notification_repo.get_by_node_id.return_value = SlackNotification(
         node_id="A", channel="#dag", thread_id="1699.0", created_at=NOW
     )
 
     composer = mocker.MagicMock(spec=NotificationComposer)
+
     dispatcher = build_dispatcher(poster, slack_notification_repo, composer)
 
     await dispatcher.dispatch(event)
@@ -332,12 +396,16 @@ async def test_posts_the_text_the_composer_method_returns(
     build_dispatcher: Callable[..., BotNotificationDispatcher],
 ) -> None:
     monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-token")
+
     poster = mocker.MagicMock(spec=JsonPoster)
     poster.post.return_value = {"ok": True, "ts": "1700.1"}
+
     slack_notification_repo = mocker.AsyncMock(spec=SlackNotificationRepo)
     slack_notification_repo.get_by_node_id.return_value = None
+
     composer = mocker.MagicMock(spec=NotificationComposer)
     getattr(composer, method_name).return_value = "the composed text"
+
     dispatcher = build_dispatcher(poster, slack_notification_repo, composer)
 
     await dispatcher.dispatch(event)
@@ -352,12 +420,16 @@ async def test_posts_the_message_in_a_section_block_with_a_context_line(
     build_dispatcher: Callable[..., BotNotificationDispatcher],
 ) -> None:
     monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-token")
+
     poster = mocker.MagicMock(spec=JsonPoster)
     poster.post.return_value = {"ok": True, "ts": "1700.1"}
+
     slack_notification_repo = mocker.AsyncMock(spec=SlackNotificationRepo)
     slack_notification_repo.get_by_node_id.return_value = None
+
     composer = mocker.MagicMock(spec=NotificationComposer)
     composer.work_started.return_value = "Agent *Iris* started working on `A`"
+
     dispatcher = build_dispatcher(
         poster, slack_notification_repo, composer, dag_name="node-recovery"
     )
@@ -365,6 +437,7 @@ async def test_posts_the_message_in_a_section_block_with_a_context_line(
     await dispatcher.dispatch(WORK_STARTED)
 
     section, context = poster.post.call_args_list[0].args[1]["blocks"]
+
     assert section["text"]["text"] == "Agent *Iris* started working on `A`"
     assert context["elements"][0]["text"] == "node-recovery · A · work_started"
 
@@ -396,14 +469,17 @@ async def test_broadcasts_the_reply_to_the_channel_only_when_the_node_stops(
     build_dispatcher: Callable[..., BotNotificationDispatcher],
 ) -> None:
     monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-token")
+
     poster = mocker.MagicMock(spec=JsonPoster)
     poster.post.return_value = {"ok": True, "ts": "1700.1"}
+
     slack_notification_repo = mocker.AsyncMock(spec=SlackNotificationRepo)
     slack_notification_repo.get_by_node_id.return_value = SlackNotification(
         node_id="A", channel="#dag", thread_id="1699.0", created_at=NOW
     )
 
     composer = mocker.MagicMock(spec=NotificationComposer)
+
     dispatcher = build_dispatcher(poster, slack_notification_repo, composer)
 
     await dispatcher.dispatch(event)
@@ -423,10 +499,14 @@ async def test_posts_nothing_when_the_composer_defines_no_method_for_the_event(
     build_dispatcher: Callable[..., BotNotificationDispatcher],
 ) -> None:
     monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-token")
+
     poster = mocker.MagicMock(spec=JsonPoster)
+
     slack_notification_repo = mocker.AsyncMock(spec=SlackNotificationRepo)
     slack_notification_repo.get_by_node_id.return_value = None
+
     composer = mocker.MagicMock(spec=NotificationComposer)
+
     dispatcher = build_dispatcher(poster, slack_notification_repo, composer)
 
     work_resumed = WorkResumedEvent(**build_fields(NotificationType.WORK_RESUMED))
@@ -442,12 +522,16 @@ async def test_records_no_thread_when_slack_refuses_the_post(
     build_dispatcher: Callable[..., BotNotificationDispatcher],
 ) -> None:
     monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-token")
+
     poster = mocker.MagicMock(spec=JsonPoster)
     poster.post.return_value = {"ok": False, "error": "channel_not_found"}
+
     slack_notification_repo = mocker.AsyncMock(spec=SlackNotificationRepo)
     slack_notification_repo.get_by_node_id.return_value = None
+
     composer = mocker.MagicMock(spec=NotificationComposer)
     composer.work_started.return_value = "Agent *Iris* started working on `A`"
+
     dispatcher = build_dispatcher(poster, slack_notification_repo, composer)
 
     await dispatcher.dispatch(WORK_STARTED)
@@ -461,9 +545,11 @@ async def test_sends_nothing_when_the_run_has_no_bot_token(
     build_dispatcher: Callable[..., BotNotificationDispatcher],
 ) -> None:
     monkeypatch.delenv("SLACK_BOT_TOKEN", raising=False)
+
     poster = mocker.MagicMock(spec=JsonPoster)
     slack_notification_repo = mocker.AsyncMock(spec=SlackNotificationRepo)
     composer = mocker.MagicMock(spec=NotificationComposer)
+
     dispatcher = build_dispatcher(poster, slack_notification_repo, composer)
 
     await dispatcher.dispatch(WORK_STARTED)

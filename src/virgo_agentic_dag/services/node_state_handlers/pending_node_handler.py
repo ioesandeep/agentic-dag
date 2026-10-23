@@ -10,6 +10,12 @@ from pathlib import Path
 
 from virgo_agentic_dag.domain.events.agent_stopped_event import AgentStoppedEvent
 from virgo_agentic_dag.domain.events.work_started_event import WorkStartedEvent
+from virgo_agentic_dag.domain.exceptions.host.base_branch_missing_error import (
+    BaseBranchMissingError,
+)
+from virgo_agentic_dag.domain.exceptions.host.worktree_conflict_error import (
+    WorktreeConflictError,
+)
 from virgo_agentic_dag.domain.exceptions.host.worktree_error import WorktreeError
 from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
     ObservationError,
@@ -169,6 +175,15 @@ class PendingNodeHandler(NodeStateHandler):
             return await self._start(
                 graph_node, node, agent_name, launcher, current_time
             )
+        except (BaseBranchMissingError, WorktreeConflictError) as error:
+            note = str(error)
+            node_event = self._get_stopped_event(
+                graph_node, NotificationType.AGENT_FAILED, note, current_time
+            )
+
+            await self.record(node_event, NodeState.ERRORED, note)
+
+            return TickResponse(events_applied=1)
         except (WorktreeError, ObservationError, OSError) as error:
             logger.warning(
                 "%s stays pending, it will retry next tick: %s", graph_node.id, error
@@ -229,11 +244,15 @@ class PendingNodeHandler(NodeStateHandler):
     ) -> TickResponse:
         worktree = await self._workspace.provision(graph_node)
         recorded_agent = await self._node_agent_repo.get_by_node_id(graph_node.id)
+        start_label = "workStarted"
         if recorded_agent is not None and recorded_agent.resume_token:
             agent = recorded_agent
             has_resume_time = node.resume_at is not None
             label_name = "resumeMessage" if has_resume_time else "retryMessage"
             session = await launcher.wake(graph_node, LABELS[label_name], agent)
+
+            if session.triggered_by == "launch":
+                start_label = "conversationStartedWithoutThread"
         else:
             agent = self._create_agent(
                 graph_node, agent_product, worktree, recorded_agent
@@ -244,9 +263,7 @@ class PendingNodeHandler(NodeStateHandler):
         agent.sessions.append(session)
         await self._node_agent_repo.save(agent)
 
-        note = format_label(
-            LABELS["workStarted"], {"agent_name": node.get_agent_name()}
-        )
+        note = format_label(LABELS[start_label], {"agent_name": node.get_agent_name()})
 
         node_event = WorkStartedEvent(
             node_id=graph_node.id,

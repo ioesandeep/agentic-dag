@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.api.cli.handlers.tick_command_handler import TickCommandHandler
 from virgo_agentic_dag.domain.command.exit_code import ExitCode
 from virgo_agentic_dag.domain.command.tick_command import TickCommand
@@ -66,6 +67,7 @@ async def test_tick_dispatches_a_recovery_session_when_a_node_fails(
 
     recovery_scan_service = mocker.MagicMock(spec=RecoveryScanService)
     recovery_scan_service.get_recoverable_nodes.return_value = [resting_node]
+
     recovery_dispatch_service = mocker.MagicMock(spec=RecoveryDispatchService)
     recovery_dispatch_service.dispatch.return_value = TickResponse(sessions_started=1)
 
@@ -73,6 +75,7 @@ async def test_tick_dispatches_a_recovery_session_when_a_node_fails(
     learning_dispatch_service.dispatch.return_value = TickResponse()
 
     node_state_handling_facade = mocker.MagicMock(spec=NodeStateHandlingFacade)
+
     node_state_handling_facade.handle_in_progress_nodes.return_value = TickResponse()
     node_state_handling_facade.handle_resting_nodes.return_value = TickResponse()
     node_state_handling_facade.handle_pending_nodes.return_value = TickResponse()
@@ -93,6 +96,7 @@ async def test_tick_dispatches_a_recovery_session_when_a_node_fails(
     exit_code = await handler.handle(TickCommand(dag_path=tmp_path / "dag.toml"))
 
     dispatched_nodes = recovery_dispatch_service.dispatch.await_args.args[0]
+
     assert exit_code is ExitCode.SUCCESS
     assert dispatched_nodes == [resting_node]
     assert out.getvalue() == "applied 0 events, started 1 sessions\n"
@@ -114,6 +118,7 @@ async def test_tick_dispatches_no_recovery_session_when_no_node_fails(
 
     recovery_scan_service = mocker.MagicMock(spec=RecoveryScanService)
     recovery_scan_service.get_recoverable_nodes.return_value = []
+
     recovery_dispatch_service = mocker.MagicMock(spec=RecoveryDispatchService)
     recovery_dispatch_service.dispatch.return_value = TickResponse()
 
@@ -121,6 +126,7 @@ async def test_tick_dispatches_no_recovery_session_when_no_node_fails(
     learning_dispatch_service.dispatch.return_value = TickResponse()
 
     node_state_handling_facade = mocker.MagicMock(spec=NodeStateHandlingFacade)
+
     node_state_handling_facade.handle_in_progress_nodes.return_value = TickResponse()
     node_state_handling_facade.handle_resting_nodes.return_value = TickResponse()
     node_state_handling_facade.handle_pending_nodes.return_value = TickResponse()
@@ -141,27 +147,47 @@ async def test_tick_dispatches_no_recovery_session_when_no_node_fails(
     exit_code = await handler.handle(TickCommand(dag_path=tmp_path / "dag.toml"))
 
     dispatched_nodes = recovery_dispatch_service.dispatch.await_args.args[0]
+
     assert exit_code is ExitCode.SUCCESS
     assert dispatched_nodes == []
     assert out.getvalue() == "applied 0 events, started 0 sessions\n"
 
 
-async def test_tick_reports_one_learning_session_as_started_when_a_settled_node_is_due(
-    mocker: MockerFixture, tmp_path: Path, resting_node: Node
+@pytest.mark.parametrize(
+    ("states", "expected_exit_code"),
+    [
+        ([NodeState.MERGED, NodeState.SKIPPED], ExitCode.RUN_COMPLETE),
+        ([NodeState.SKIPPED, NodeState.SKIPPED], ExitCode.RUN_COMPLETE),
+        ([NodeState.NEEDS_HUMAN, NodeState.ERRORED], ExitCode.RUN_COMPLETE),
+        ([NodeState.MERGED, NodeState.NEEDS_HUMAN], ExitCode.SUCCESS),
+        ([NodeState.MERGED, NodeState.RESTING], ExitCode.SUCCESS),
+    ],
+    ids=["complete", "all-skipped", "errored", "merged-and-stopped", "resting"],
+)
+async def test_tick_returns_run_complete_only_when_the_run_is_finished(
+    states: list[NodeState],
+    expected_exit_code: ExitCode,
+    mocker: MockerFixture,
+    tmp_path: Path,
 ) -> None:
+    graph_nodes = [GraphNode(id="A"), GraphNode(id="B")]
+    graph = Graph(name="demo", nodes=graph_nodes)
+
     graph_builder = mocker.MagicMock(spec=GraphBuilder)
-    graph_builder.build_from_path.return_value = Graph(
-        name="demo", nodes=[GraphNode(id="A")]
-    )
+    graph_builder.build_from_path.return_value = graph
 
     validation_service = mocker.MagicMock(spec=GraphValidationService)
     validation_service.validate_graph.return_value = ValidationResult()
 
     node_repo = mocker.MagicMock(spec=NodeRepo)
-    node_repo.get_all.return_value = [resting_node]
+    node_repo.get_all.return_value = [
+        Node(id=node_id, state=state.value, created_at=NOW, updated_at=NOW)
+        for node_id, state in zip("AB", states, strict=True)
+    ]
 
     recovery_scan_service = mocker.MagicMock(spec=RecoveryScanService)
     recovery_scan_service.get_recoverable_nodes.return_value = []
+
     recovery_dispatch_service = mocker.MagicMock(spec=RecoveryDispatchService)
     recovery_dispatch_service.dispatch.return_value = TickResponse()
 
@@ -169,6 +195,7 @@ async def test_tick_reports_one_learning_session_as_started_when_a_settled_node_
     learning_dispatch_service.dispatch.return_value = TickResponse(sessions_started=1)
 
     node_state_handling_facade = mocker.MagicMock(spec=NodeStateHandlingFacade)
+
     node_state_handling_facade.handle_in_progress_nodes.return_value = TickResponse()
     node_state_handling_facade.handle_resting_nodes.return_value = TickResponse()
     node_state_handling_facade.handle_pending_nodes.return_value = TickResponse()
@@ -186,7 +213,10 @@ async def test_tick_reports_one_learning_session_as_started_when_a_settled_node_
         out=out,
     )
 
-    exit_code = await handler.handle(TickCommand(dag_path=tmp_path / "dag.toml"))
+    command = TickCommand(dag_path=tmp_path / "dag.toml")
 
-    assert exit_code is ExitCode.SUCCESS
-    assert out.getvalue() == "applied 0 events, started 1 sessions\n"
+    exit_code = await handler.handle(command)
+
+    assert exit_code is expected_exit_code
+    if expected_exit_code is ExitCode.SUCCESS:
+        assert out.getvalue() == "applied 0 events, started 1 sessions\n"

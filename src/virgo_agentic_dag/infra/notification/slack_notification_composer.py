@@ -157,6 +157,11 @@ class SlackNotificationComposer(NotificationComposer):
         elapsed_time = format_duration(event.elapsed_time)
         state_counts = self._render_state_counts(event.node_counts_by_state)
 
+        stopped_count = event.node_counts_by_state.get(NodeState.NEEDS_HUMAN, 0)
+        stopped_count += event.node_counts_by_state.get(NodeState.ERRORED, 0)
+        if stopped_count:
+            return f"*{event.dag_name}* errored after {elapsed_time} — {state_counts}"
+
         return f"*{event.dag_name}* complete in {elapsed_time} — {state_counts}"
 
     def _render_state_counts(

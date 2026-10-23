@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.bootstrap.application_context import (
     ApplicationContext,
     bind_context,
@@ -22,11 +23,11 @@ from virgo_agentic_dag.services.watching.watch_plan_reader import WatchPlanReade
 
 pytestmark = pytest.mark.unit
 
+
 PLAN = WatchPlan(
     sse_url="http://stream/events",
     argv=("dagctl", "start", "--dag", "/runs/demo/dag.toml"),
     working_directory=Path("/runs/demo"),
-    repo_slug="acme/virgo",
     refresh_seconds=300,
 )
 
@@ -61,20 +62,27 @@ async def test_fires_one_pass_when_a_burst_of_events_settles(
     plan_reader = mocker.AsyncMock(spec=WatchPlanReader)
     plan_reader.get_plan.return_value = PLAN
     plan_reader.get_topics.return_value = ["acme/virgo#12"]
+
     reader = mocker.MagicMock(spec=EventReader)
     reader.get_event.side_effect = ["pull_request", "pull_request", None]
+
     subscription_factory = mocker.MagicMock(spec=SubscriptionFactory)
     subscription_factory.build.return_value = reader
+
     command_runner = mocker.MagicMock(spec=CommandRunner)
     command_runner.run.return_value = RunResult(returncode=int(ExitCode.RUN_COMPLETE))
+
     sleeper = mocker.MagicMock(spec=Sleeper)
+
     watcher = build_watcher(plan_reader, subscription_factory, command_runner, sleeper)
 
     exit_code = await run_watch(watcher)
 
     assert exit_code is ExitCode.RUN_COMPLETE
     command_runner.run.assert_called_once_with(PLAN.argv, PLAN.working_directory)
+
     subscription_factory.build.assert_called_once_with(PLAN.sse_url, ["acme/virgo#12"])
+
     reader.stop.assert_called_once_with()
 
 
@@ -82,15 +90,21 @@ async def test_never_fires_for_unsupported_events(mocker: MockerFixture) -> None
     plan_reader = mocker.AsyncMock(spec=WatchPlanReader)
     plan_reader.get_plan.return_value = PLAN
     plan_reader.get_topics.return_value = ["acme/virgo#12"]
+
     quiet = mocker.MagicMock(spec=EventReader)
     quiet.get_event.side_effect = ["star", None]
+
     active = mocker.MagicMock(spec=EventReader)
     active.get_event.side_effect = ["pull_request", None]
+
     subscription_factory = mocker.MagicMock(spec=SubscriptionFactory)
     subscription_factory.build.side_effect = [quiet, active]
+
     command_runner = mocker.MagicMock(spec=CommandRunner)
     command_runner.run.return_value = RunResult(returncode=int(ExitCode.RUN_COMPLETE))
+
     sleeper = mocker.MagicMock(spec=Sleeper)
+
     watcher = build_watcher(plan_reader, subscription_factory, command_runner, sleeper)
 
     await run_watch(watcher)
@@ -106,13 +120,18 @@ async def test_waits_for_a_pull_request_when_the_run_has_none_yet(
     plan_reader.get_plan.return_value = PLAN
     plan_reader.get_topics.side_effect = [[], ["acme/virgo#12"]]
     plan_reader.is_scheduled.return_value = True
+
     reader = mocker.MagicMock(spec=EventReader)
     reader.get_event.side_effect = ["pull_request", None]
+
     subscription_factory = mocker.MagicMock(spec=SubscriptionFactory)
     subscription_factory.build.return_value = reader
+
     command_runner = mocker.MagicMock(spec=CommandRunner)
     command_runner.run.return_value = RunResult(returncode=int(ExitCode.RUN_COMPLETE))
+
     sleeper = mocker.MagicMock(spec=Sleeper)
+
     watcher = build_watcher(plan_reader, subscription_factory, command_runner, sleeper)
 
     await run_watch(watcher)
@@ -133,10 +152,13 @@ async def test_resubscribes_when_a_pass_leaves_the_run_running(
 
     first = mocker.MagicMock(spec=EventReader)
     first.get_event.side_effect = ["pull_request", None]
+
     second = mocker.MagicMock(spec=EventReader)
     second.get_event.side_effect = ["pull_request", None]
+
     subscription_factory = mocker.MagicMock(spec=SubscriptionFactory)
     subscription_factory.build.side_effect = [first, second]
+
     command_runner = mocker.MagicMock(spec=CommandRunner)
     command_runner.run.side_effect = [
         RunResult(returncode=int(ExitCode.SUCCESS)),
@@ -144,6 +166,7 @@ async def test_resubscribes_when_a_pass_leaves_the_run_running(
     ]
 
     sleeper = mocker.MagicMock(spec=Sleeper)
+
     watcher = build_watcher(plan_reader, subscription_factory, command_runner, sleeper)
 
     exit_code = await run_watch(watcher)
@@ -162,15 +185,21 @@ async def test_refreshes_its_topics_when_the_stream_stays_quiet(
     plan_reader = mocker.AsyncMock(spec=WatchPlanReader)
     plan_reader.get_plan.return_value = PLAN
     plan_reader.get_topics.return_value = ["acme/virgo#12"]
+
     quiet = mocker.MagicMock(spec=EventReader)
     quiet.get_event.side_effect = [None]
+
     active = mocker.MagicMock(spec=EventReader)
     active.get_event.side_effect = ["pull_request", None]
+
     subscription_factory = mocker.MagicMock(spec=SubscriptionFactory)
     subscription_factory.build.side_effect = [quiet, active]
+
     command_runner = mocker.MagicMock(spec=CommandRunner)
     command_runner.run.return_value = RunResult(returncode=int(ExitCode.RUN_COMPLETE))
+
     sleeper = mocker.MagicMock(spec=Sleeper)
+
     watcher = build_watcher(plan_reader, subscription_factory, command_runner, sleeper)
 
     await run_watch(watcher)
@@ -186,9 +215,13 @@ async def test_ends_the_watch_when_the_run_is_no_longer_scheduled(
     plan_reader.get_plan.return_value = PLAN
     plan_reader.get_topics.return_value = []
     plan_reader.is_scheduled.return_value = False
+
     subscription_factory = mocker.MagicMock(spec=SubscriptionFactory)
+
     command_runner = mocker.MagicMock(spec=CommandRunner)
+
     sleeper = mocker.MagicMock(spec=Sleeper)
+
     watcher = build_watcher(plan_reader, subscription_factory, command_runner, sleeper)
 
     exit_code = await run_watch(watcher)
@@ -196,3 +229,47 @@ async def test_ends_the_watch_when_the_run_is_no_longer_scheduled(
     assert exit_code is ExitCode.RUN_COMPLETE
     subscription_factory.build.assert_not_called()
     sleeper.sleep.assert_not_called()
+
+
+async def test_watch_writes_each_pass_output_after_its_exit_code(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    plan_reader = mocker.MagicMock(spec=WatchPlanReader)
+    plan_reader.get_plan.return_value = PLAN
+    plan_reader.get_topics.return_value = ["acme/docs#12"]
+
+    reader = mocker.MagicMock(spec=EventReader)
+    reader.get_event.side_effect = ["issue_comment", None, "issue_comment", None]
+
+    subscription_factory = mocker.MagicMock(spec=SubscriptionFactory)
+    subscription_factory.build.return_value = reader
+
+    command_runner = mocker.MagicMock(spec=CommandRunner)
+    command_runner.run.side_effect = [
+        RunResult(returncode=1, stdout="first pass\n", stderr="first traceback\n"),
+        RunResult(returncode=3, stdout="second pass\n", stderr="second stderr\n"),
+    ]
+
+    watcher = RunWatcher(
+        plan_reader=plan_reader,
+        subscription_factory=subscription_factory,
+        command_runner=command_runner,
+        sleeper=mocker.MagicMock(spec=Sleeper),
+        debounce_seconds=0.01,
+    )
+
+    command = WatchCommand(dag_name="demo")
+    log_path = tmp_path / "watch.log"
+
+    with log_path.open("w", encoding="utf-8") as log_file:
+        context = ApplicationContext(command, log_file)
+        token = bind_context(context)
+        try:
+            await watcher.watch(command)
+        finally:
+            unbind_context(token)
+
+    log_text = log_path.read_text(encoding="utf-8")
+
+    assert "it exited 1\nfirst pass\nfirst traceback\n" in log_text
+    assert "it exited 3\nsecond pass\nsecond stderr\n" in log_text

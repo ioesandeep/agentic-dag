@@ -12,16 +12,19 @@ from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.infra.scheduling.scheduled_job import ScheduledJob
 from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.notifications.notification_type import NotificationType
+from virgo_agentic_dag.domain.persistence.entities.audit_entry import AuditEntry
 from virgo_agentic_dag.domain.persistence.entities.node import Node
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.repos.audit_entry_repo import AuditEntryRepo
 from virgo_agentic_dag.domain.persistence.repos.node_repo import NodeRepo
-from virgo_agentic_dag.domain.service.graph_builder import GraphBuilder
 from virgo_agentic_dag.domain.service.notification_publisher import (
     NotificationPublisher,
 )
 from virgo_agentic_dag.infra.persistence.sqlite.sqlite_database import (  # noqa: F401
     SqliteDatabase,
+)
+from virgo_agentic_dag.services.run.dependent_release_service import (
+    DependentReleaseService,
 )
 from virgo_agentic_dag.services.run.node_skip_service import NodeSkipService
 from virgo_agentic_dag.services.scheduling.run_schedule_service import (
@@ -68,19 +71,16 @@ async def test_skip_marks_the_node_skipped_when_it_is_waiting_or_stopped(
     audit_entry_repo = mocker.MagicMock(spec=AuditEntryRepo)
     notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
 
-    graph_builder = mocker.MagicMock(spec=GraphBuilder)
-    graph_builder.build_from_path.return_value = Graph(
-        name="demo", nodes=[GraphNode(id="A")]
-    )
-
     run_schedule_service = mocker.MagicMock(spec=RunScheduleService)
     run_schedule_service.ensure_registered.return_value = None
+    dependent_release_service = mocker.MagicMock(spec=DependentReleaseService)
+    dependent_release_service.release.return_value = []
 
     service = NodeSkipService(
         node_repo=node_repo,
         audit_entry_repo=audit_entry_repo,
         notification_publisher=notification_publisher,
-        graph_builder=graph_builder,
+        dependent_release_service=dependent_release_service,
         run_schedule_service=run_schedule_service,
     )
 
@@ -98,7 +98,9 @@ async def test_skip_marks_the_node_skipped_when_it_is_waiting_or_stopped(
 
 
 @pytest.mark.parametrize("is_registered", [False, True])
-@pytest.mark.parametrize("state", [NodeState.ERRORED, NodeState.SKIPPED])
+@pytest.mark.parametrize(
+    "state", [NodeState.ERRORED, NodeState.SKIPPED, NodeState.NEEDS_HUMAN]
+)
 async def test_skip_returns_the_descendant_to_pending_when_it_stopped_without_an_agent(
     is_registered: bool, state: NodeState, mocker: MockerFixture, build_node: BuildNode
 ) -> None:
@@ -110,6 +112,7 @@ async def test_skip_returns_the_descendant_to_pending_when_it_stopped_without_an
             GraphNode(id="D", depends_on=("B",)),
             GraphNode(id="F", depends_on=("B",)),
             GraphNode(id="E"),
+            GraphNode(id="G", depends_on=("A",)),
         ],
     )
 
@@ -120,10 +123,32 @@ async def test_skip_returns_the_descendant_to_pending_when_it_stopped_without_an
         build_node("B", NodeState.NEEDS_HUMAN),
         build_node("D", NodeState.NEEDS_HUMAN, agent=started_agent),
         build_node("F", NodeState.PENDING),
+        build_node("G", NodeState.NEEDS_HUMAN),
     ]
 
-    graph_builder = mocker.MagicMock(spec=GraphBuilder)
-    graph_builder.build_from_path.return_value = graph
+    audit_entry = AuditEntry(
+        node_id="B",
+        state=NodeState.NEEDS_HUMAN.value,
+        note="upstream node A stopped, so this one can never start",
+        created_at=NOW,
+    )
+
+    independent_failure = AuditEntry(
+        node_id="G",
+        state=NodeState.NEEDS_HUMAN.value,
+        note="executor missing is not registered",
+        created_at=NOW,
+    )
+
+    audit_entry_repo = mocker.MagicMock(spec=AuditEntryRepo)
+    audit_entry_repo.get_all.return_value = [audit_entry, independent_failure]
+    notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
+    dependent_release_service = DependentReleaseService(
+        graph=graph,
+        node_repo=node_repo,
+        audit_entry_repo=audit_entry_repo,
+        notification_publisher=notification_publisher,
+    )
 
     scheduled_job = ScheduledJob(label="fyi.virgo.dag.demo")
     registered_job = None if is_registered else scheduled_job
@@ -134,16 +159,16 @@ async def test_skip_returns_the_descendant_to_pending_when_it_stopped_without_an
 
     service = NodeSkipService(
         node_repo=node_repo,
-        audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
-        notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
-        graph_builder=graph_builder,
+        audit_entry_repo=audit_entry_repo,
+        notification_publisher=notification_publisher,
+        dependent_release_service=dependent_release_service,
         run_schedule_service=run_schedule_service,
     )
 
     pending_node_ids = await service.skip(COMMAND, NOW)
 
     assert pending_node_ids == ["B"]
-    node_repo.get_nodes_by_ids.assert_awaited_once_with(["B", "D", "F"])
+    node_repo.get_nodes_by_ids.assert_awaited_once_with(["B", "D", "F", "G"])
 
     node_repo.update_state.assert_any_await("B", NodeState.PENDING, NOW)
     assert node_repo.update_state.await_count == 2
@@ -168,7 +193,7 @@ async def test_skip_refuses_the_node_when_the_run_does_not_have_it(
         node_repo=node_repo,
         audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
         notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
-        graph_builder=mocker.MagicMock(spec=GraphBuilder),
+        dependent_release_service=mocker.MagicMock(spec=DependentReleaseService),
         run_schedule_service=run_schedule_service,
     )
 
@@ -190,7 +215,7 @@ async def test_skip_refuses_the_node_when_it_is_in_progress(
         node_repo=node_repo,
         audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
         notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
-        graph_builder=mocker.MagicMock(spec=GraphBuilder),
+        dependent_release_service=mocker.MagicMock(spec=DependentReleaseService),
         run_schedule_service=run_schedule_service,
     )
 
@@ -212,7 +237,7 @@ async def test_skip_refuses_the_node_when_it_has_merged(
         node_repo=node_repo,
         audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
         notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
-        graph_builder=mocker.MagicMock(spec=GraphBuilder),
+        dependent_release_service=mocker.MagicMock(spec=DependentReleaseService),
         run_schedule_service=run_schedule_service,
     )
 
@@ -230,17 +255,14 @@ async def test_skip_registers_no_host_job_when_no_node_changes_state(
     node_repo.read.return_value = build_node("A", NodeState.SKIPPED)
     node_repo.get_nodes_by_ids.return_value = []
 
-    graph_node = GraphNode(id="A")
-    graph = Graph(name="demo", nodes=[graph_node])
-    graph_builder = mocker.MagicMock(spec=GraphBuilder)
-    graph_builder.build_from_path.return_value = graph
-
     run_schedule_service = mocker.MagicMock(spec=RunScheduleService)
+    dependent_release_service = mocker.MagicMock(spec=DependentReleaseService)
+    dependent_release_service.release.return_value = []
     service = NodeSkipService(
         node_repo=node_repo,
         audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
         notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
-        graph_builder=graph_builder,
+        dependent_release_service=dependent_release_service,
         run_schedule_service=run_schedule_service,
     )
 

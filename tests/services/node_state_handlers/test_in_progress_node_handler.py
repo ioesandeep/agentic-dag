@@ -1,5 +1,6 @@
+import os
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,7 @@ from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
 from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
+from virgo_agentic_dag.domain.infra.agent.usage_limit_reader import UsageLimitReader
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
 from virgo_agentic_dag.domain.infra.workspace.workspace import Workspace
 from virgo_agentic_dag.domain.node.node_state import NodeState
@@ -37,6 +39,7 @@ from virgo_agentic_dag.domain.specs.executor_agent import ExecutorAgent
 from virgo_agentic_dag.services.node_state_handlers.in_progress_node_handler import (
     InProgressNodeHandler,
 )
+from virgo_agentic_dag.services.run.node_wait_service import NodeWaitService
 
 pytestmark = pytest.mark.behavior
 
@@ -101,6 +104,8 @@ async def test_leaves_the_node_in_progress_when_the_session_cannot_be_settled(
         workspace=mocker.MagicMock(spec=Workspace),
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
         code_repo=mocker.MagicMock(spec=CodeRepo),
+        usage_limit_readers={},
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     await handler.handle(graph, [graph_node], NOW)
@@ -177,6 +182,8 @@ async def test_rests_the_node_when_the_session_reached_a_pull_request(
         workspace=workspace,
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
         code_repo=code_repo,
+        usage_limit_readers={},
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     clock = mocker.patch(
@@ -264,6 +271,10 @@ async def test_stops_the_node_when_the_session_ended_without_a_pull_request(
     work_tree_repo = mocker.MagicMock(spec=WorkTreeRepo)
     notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
 
+    usage_limit_reader = mocker.MagicMock(spec=UsageLimitReader)
+    usage_limit_reader.get_reset_time.return_value = None
+
+    node_wait_service = mocker.MagicMock(spec=NodeWaitService)
     handler = InProgressNodeHandler(
         node_repo=node_repo,
         audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
@@ -274,6 +285,8 @@ async def test_stops_the_node_when_the_session_ended_without_a_pull_request(
         workspace=workspace,
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
         code_repo=mocker.MagicMock(spec=CodeRepo),
+        usage_limit_readers={ExecutorAgent.CLAUDE: usage_limit_reader},
+        node_wait_service=node_wait_service,
     )
 
     clock = mocker.patch(
@@ -287,6 +300,7 @@ async def test_stops_the_node_when_the_session_ended_without_a_pull_request(
 
     node_repo.update_state.assert_awaited_once_with("A", expected_state, NOW)
     work_tree_repo.record_publication.assert_not_awaited()
+    node_wait_service.wait.assert_not_awaited()
 
     notification_publisher.publish.assert_called_once()
     assert event.type is expected_kind
@@ -334,6 +348,8 @@ async def test_rests_the_node_when_an_overdue_session_had_published(
         workspace=workspace,
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
         code_repo=code_repo,
+        usage_limit_readers={},
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     clock = mocker.patch(
@@ -375,6 +391,8 @@ async def test_errors_the_node_when_no_agent_was_ever_recorded(
         workspace=mocker.MagicMock(spec=Workspace),
         agent_launchers={ExecutorAgent.CLAUDE: mocker.MagicMock(spec=AgentLauncher)},
         code_repo=mocker.MagicMock(spec=CodeRepo),
+        usage_limit_readers={},
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     clock = mocker.patch(
@@ -431,6 +449,8 @@ async def test_leaves_the_node_in_progress_when_the_platform_cannot_be_read(
         workspace=workspace,
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
         code_repo=code_repo,
+        usage_limit_readers={},
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     await handler.handle(graph, [graph_node], NOW)
@@ -501,6 +521,8 @@ async def test_keeps_the_session_overdue_when_settling_retries_after_a_platform_
         workspace=workspace,
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
         code_repo=code_repo,
+        usage_limit_readers={},
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     clock = mocker.patch(
@@ -577,6 +599,8 @@ async def test_publishes_the_log_tail_on_the_stop_event_only_when_the_session_pr
         workspace=workspace,
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
         code_repo=mocker.MagicMock(spec=CodeRepo),
+        usage_limit_readers={},
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     await handler.handle(graph, [graph_node], NOW)
@@ -643,6 +667,8 @@ async def test_closes_the_session_with_the_exit_code_and_log_tail_when_the_sessi
         workspace=workspace,
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
         code_repo=mocker.MagicMock(spec=CodeRepo),
+        usage_limit_readers={},
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     await handler.handle(graph, [graph_node], NOW)
@@ -653,3 +679,113 @@ async def test_closes_the_session_with_the_exit_code_and_log_tail_when_the_sessi
         expected_exit_code,
         expected_log_tail,
     )
+
+
+@pytest.mark.parametrize(
+    ("executor_agent", "triggered_by", "pr_number", "exit_code"),
+    [
+        (ExecutorAgent.CLAUDE, "launch", 0, 1),
+        (ExecutorAgent.CODEX, "launch", 0, 0),
+        (ExecutorAgent.CODEX, "wake", 12, None),
+    ],
+    ids=["claude-launch", "codex-zero-exit", "resting-node-wake"],
+)
+async def test_handler_waits_when_an_ended_session_has_a_usage_limit_reset_time(
+    executor_agent: ExecutorAgent,
+    triggered_by: str,
+    pr_number: int,
+    exit_code: int | None,
+    mocker: MockerFixture,
+    build_agent: BuildAgent,
+    tmp_path: Path,
+) -> None:
+    graph_node = GraphNode(id="A", executor_agent=executor_agent)
+    graph = Graph(name="demo", nodes=[graph_node])
+    worktree = WorkTree(
+        id=1,
+        name="A",
+        absolute_path=str(tmp_path / "A"),
+        branch="virgo/a",
+        pr_number=pr_number,
+        created_at=NOW,
+    )
+
+    log_path = tmp_path / "A.log"
+    log_path.write_text("usage-limit output")
+
+    ended_at = NOW - timedelta(minutes=10)
+    completion_timestamp = ended_at.timestamp()
+    os.utime(log_path, (completion_timestamp, completion_timestamp))
+
+    if exit_code is not None:
+        exit_path = tmp_path / "A.exit"
+        exit_text = str(exit_code)
+        exit_path.write_text(exit_text)
+        os.utime(exit_path, (completion_timestamp, completion_timestamp))
+
+    started_at = ended_at - timedelta(hours=1)
+    session = AgentSession(
+        id=1,
+        agent_id="agent-1",
+        started_at=started_at,
+        triggered_by=triggered_by,
+        pid=4242,
+    )
+
+    node_agent_repo = mocker.MagicMock(spec=NodeAgentRepo)
+    node_agent_repo.get_by_node_id.return_value = build_agent(worktree, session)
+
+    agent_launcher = mocker.MagicMock(spec=AgentLauncher)
+    agent_launcher.supervise.return_value = SessionStatus.FINISHED
+
+    reset_time = NOW - timedelta(minutes=5)
+    usage_limit_reader = mocker.MagicMock(spec=UsageLimitReader)
+    usage_limit_reader.get_reset_time.return_value = reset_time
+
+    node_wait_service = mocker.MagicMock(spec=NodeWaitService)
+    agent_session_repo = mocker.MagicMock(spec=AgentSessionRepo)
+    node_repo = mocker.MagicMock(spec=NodeRepo)
+
+    notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
+    code_repo = mocker.MagicMock(spec=CodeRepo)
+    handler = InProgressNodeHandler(
+        node_repo=node_repo,
+        audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
+        notification_publisher=notification_publisher,
+        node_agent_repo=node_agent_repo,
+        agent_session_repo=agent_session_repo,
+        work_tree_repo=mocker.MagicMock(spec=WorkTreeRepo),
+        workspace=mocker.MagicMock(spec=Workspace),
+        agent_launchers={executor_agent: agent_launcher},
+        code_repo=code_repo,
+        usage_limit_readers={executor_agent: usage_limit_reader},
+        node_wait_service=node_wait_service,
+    )
+
+    clock = mocker.patch(
+        "virgo_agentic_dag.services.node_state_handlers.in_progress_node_handler.datetime"
+    )
+
+    clock.now.return_value = NOW
+    clock.fromtimestamp.side_effect = datetime.fromtimestamp
+
+    tick_response = await handler.handle(graph, [graph_node], NOW)
+    closed_session = agent_session_repo.close.await_args.args[0]
+
+    usage_limit_reader.get_reset_time.assert_called_once_with(
+        "usage-limit output", ended_at
+    )
+
+    assert tick_response.events_applied == 1
+    assert closed_session.end_state == "usage_limit"
+    assert closed_session.exit_code == exit_code
+    node_wait_service.wait.assert_awaited_once_with(
+        "A",
+        reset_time,
+        f"{executor_agent.value} usage limit resets at {reset_time}",
+        NOW,
+    )
+
+    node_repo.update_state.assert_not_awaited()
+    notification_publisher.publish.assert_not_called()
+    code_repo.find_pull_request.assert_not_awaited()

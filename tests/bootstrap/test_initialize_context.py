@@ -281,6 +281,10 @@ async def test_watcher_completes_a_pass_that_exceeds_thirty_seconds(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", return_value=tmp_path
     )
 
+    db_path = tmp_path / "demo" / "db.sqlite3"
+    db_path.parent.mkdir(parents=True)
+    db_path.touch()
+
     plan_reader = mocker.MagicMock(spec=WatchPlanReader)
     plan = WatchPlan(
         sse_url="http://stream/events",
@@ -290,7 +294,6 @@ async def test_watcher_completes_a_pass_that_exceeds_thirty_seconds(
             "import time; time.sleep(31); raise SystemExit(3)",
         ),
         working_directory=tmp_path,
-        repo_slug="acme/virgo",
         refresh_seconds=300,
     )
 

@@ -1,13 +1,15 @@
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
+
 from virgo_agentic_dag.domain.events.agent_stopped_event import AgentStoppedEvent
 from virgo_agentic_dag.domain.events.checks_completed_event import ChecksCompletedEvent
 from virgo_agentic_dag.domain.events.comments_added_event import CommentsAddedEvent
 from virgo_agentic_dag.domain.events.comments_addressed_event import (
     CommentsAddressedEvent,
 )
+from virgo_agentic_dag.domain.events.dag_completed_event import DagCompletedEvent
 from virgo_agentic_dag.domain.events.mergeability_changed_event import (
     MergeabilityChangedEvent,
 )
@@ -26,6 +28,7 @@ from virgo_agentic_dag.domain.events.pull_request_opened_event import (
     PullRequestOpenedEvent,
 )
 from virgo_agentic_dag.domain.events.work_started_event import WorkStartedEvent
+from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.notifications.notification_type import NotificationType
 from virgo_agentic_dag.domain.observation.check_failure import CheckFailure
 from virgo_agentic_dag.domain.review.review_artifact import ReviewArtifact
@@ -427,3 +430,42 @@ def test_node_skipped_returns_the_node_title() -> None:
 
     assert TITLE in message
     assert "was skipped" in message
+
+
+@pytest.mark.parametrize(
+    ("node_counts_by_state", "expected_message"),
+    [
+        (
+            {NodeState.MERGED: 2, NodeState.SKIPPED: 1},
+            "*demo* complete in 2h 0m — 2 merged, 1 skipped",
+        ),
+        (
+            {NodeState.NEEDS_HUMAN: 1, NodeState.SKIPPED: 2},
+            "*demo* errored after 2h 0m — 1 needs human, 2 skipped",
+        ),
+        (
+            {NodeState.ERRORED: 2, NodeState.SKIPPED: 1},
+            "*demo* errored after 2h 0m — 2 errored, 1 skipped",
+        ),
+        (
+            {NodeState.SKIPPED: 3},
+            "*demo* complete in 2h 0m — 3 skipped",
+        ),
+    ],
+    ids=["complete", "needs-human", "errored", "all-skipped"],
+)
+def test_dag_completed_returns_the_run_status_with_elapsed_time_and_node_counts(
+    node_counts_by_state: dict[NodeState, int], expected_message: str
+) -> None:
+    elapsed_time = timedelta(hours=2)
+    event = DagCompletedEvent(
+        dag_name="demo",
+        node_counts_by_state=node_counts_by_state,
+        elapsed_time=elapsed_time,
+    )
+
+    composer = SlackNotificationComposer()
+
+    message = composer.dag_completed(event)
+
+    assert message == expected_message

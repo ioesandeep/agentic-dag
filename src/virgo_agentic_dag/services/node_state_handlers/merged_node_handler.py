@@ -66,7 +66,8 @@ class MergedNodeHandler(NodeStateHandler):
             return TickResponse()
 
         try:
-            await self._workspace.remove(worktree, graph_node.project_root)
+            project_root = graph_node.get_project_root()
+            await self._workspace.remove(worktree, project_root)
         except (WorktreeError, OSError) as error:
             logger.warning(
                 "%s keeps its worktree, reclaiming retries next tick: %s",

@@ -70,9 +70,14 @@ LABELS: dict[str, str] = {
     "resumeMessage": (
         "The wait is over. Continue the task from the current state of the worktree."
     ),
+    "usageLimitWait": "{executor} usage limit resets at {reset_time}",
     "nodeAdopted": (
         "{node_id} joined {dag_name}, taking over pull request "
         "#{pr_number} on {branch}. The next pass supervises it.\n"
+    ),
+    "adoptGraphUpdateFailed": (
+        "Updating {dag_path} for node {node_id} fails with error {error}. "
+        "The imported database rows remain.\n"
     ),
     "takeoverStarted": (
         "took over #{pr_number} on {branch} and started a session on it"
@@ -127,6 +132,7 @@ LABELS: dict[str, str] = {
     "missingExecutor": (
         "{node_id} resolves to no executor agent; name one on the node or the dag"
     ),
+    "missingProjectRoot": "The dag requires a project_root setting.",
     "nodePrNotUrl": "{node_id} names pr {pr}, which is not a pull request url",
     "dependencyCycle": "{node_ids} form a dependency cycle",
     "upstreamStopped": "upstream node {node_id} stopped, so this one can never start",
@@ -248,6 +254,9 @@ LABELS: dict[str, str] = {
         "the recovery agent marked it unrecoverable: {cause}; {action}"
     ),
     "workStarted": "{agent_name} started work",
+    "conversationStartedWithoutThread": (
+        "{agent_name} started a new conversation because the previous session recorded no thread ID"
+    ),
     "workResumed": "{agent_name} resumed work",
     "agentKilled": "killed the agent working on {node}",
     "killedByAbort": "its agent was killed by abort",

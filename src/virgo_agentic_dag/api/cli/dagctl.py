@@ -29,10 +29,7 @@ from virgo_agentic_dag.domain.exceptions.run.run_busy import RunBusy
 from virgo_agentic_dag.domain.node.recovery_cause_enum import RecoveryCauseEnum
 from virgo_agentic_dag.domain.specs.executor_agent import ExecutorAgent
 from virgo_agentic_dag.labels.en import LABELS
-from virgo_agentic_dag.utils.dag_utils import (
-    get_dag_db_path,
-    get_dag_home,
-)
+from virgo_agentic_dag.utils.dag_utils import get_dag_home
 
 ENV_FILE_NAME = ".env.local"
 
@@ -355,10 +352,6 @@ def _run_status(args: argparse.Namespace) -> int:
     )
     from virgo_agentic_dag.bootstrap.context_initializer import initialize_context
     from virgo_agentic_dag.domain.command.status_command import StatusCommand
-    from virgo_agentic_dag.utils.format_label import format_label
-
-    if not (get_dag_db_path(args.name)).exists():
-        raise ConfigError(format_label(LABELS["dagUnknown"], {"dag": args.name}))
 
     command = StatusCommand(dag_name=args.name)
 
@@ -393,10 +386,6 @@ def _run_log(args: argparse.Namespace) -> int:
     )
     from virgo_agentic_dag.bootstrap.context_initializer import initialize_context
     from virgo_agentic_dag.domain.command.log_command import LogCommand
-    from virgo_agentic_dag.utils.format_label import format_label
-
-    if not (get_dag_db_path(args.name)).exists():
-        raise ConfigError(format_label(LABELS["dagUnknown"], {"dag": args.name}))
 
     command = LogCommand(dag_name=args.name)
 

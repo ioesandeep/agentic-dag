@@ -1,3 +1,4 @@
+import asyncio
 import io
 import os
 import subprocess
@@ -8,17 +9,22 @@ from pathlib import Path
 import pytest
 from pytest_mock import MockerFixture
 
+from virgo_agentic_dag.api.cli.dagctl import main
 from virgo_agentic_dag.api.cli.handlers.abort_command_handler import AbortCommandHandler
 from virgo_agentic_dag.bootstrap.application_context import (
     ApplicationContext,
     bind_context,
     unbind_context,
 )
+from virgo_agentic_dag.bootstrap.context_initializer import initialize_context
 from virgo_agentic_dag.domain.command.abort_command import AbortCommand
 from virgo_agentic_dag.domain.command.exit_code import ExitCode
+from virgo_agentic_dag.domain.command.tick_command import TickCommand
 from virgo_agentic_dag.domain.infra.agent.process_killer import ProcessKiller
 from virgo_agentic_dag.domain.infra.agent.session_killer import SessionKiller
 from virgo_agentic_dag.domain.infra.locking.run_lock import RunLock
+from virgo_agentic_dag.domain.infra.scheduling.scheduled_job import ScheduledJob
+from virgo_agentic_dag.domain.infra.scheduling.scheduler import Scheduler
 from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSession
 from virgo_agentic_dag.domain.persistence.entities.recovery_session import (
     RecoverySession,
@@ -29,7 +35,12 @@ from virgo_agentic_dag.domain.persistence.repos.agent_session_repo import (
 from virgo_agentic_dag.domain.persistence.repos.recovery_session_repo import (
     RecoverySessionRepo,
 )
+from virgo_agentic_dag.domain.persistence.repos.scheduled_job_repo import (
+    ScheduledJobRepo,
+)
 from virgo_agentic_dag.infra.agent.process_group_killer import ProcessGroupKiller
+from virgo_agentic_dag.infra.scheduling.scheduler_factory import SchedulerFactory
+from virgo_agentic_dag.labels.en import LABELS
 from virgo_agentic_dag.services.learning.extraction_lock import ExtractionLock
 from virgo_agentic_dag.services.recovery.recovery_session_killer import (
     RecoverySessionKiller,
@@ -38,6 +49,7 @@ from virgo_agentic_dag.services.scheduling.run_schedule_service import (
     RunScheduleService,
 )
 from virgo_agentic_dag.services.watching.watcher_service import WatcherService
+from virgo_agentic_dag.utils.format_label import format_label
 
 NOW = datetime(2026, 8, 2, tzinfo=UTC)
 
@@ -253,3 +265,93 @@ async def test_lets_go_of_the_run_when_the_sweep_fails(mocker: MockerFixture) ->
         "stop_watcher",
         "release",
     ]
+
+
+@pytest.mark.parametrize("executor_agent", ["claude", "invalid"])
+@pytest.mark.integration
+async def test_abort_retires_the_recorded_job_when_the_run_uses_a_custom_database(
+    mocker: MockerFixture, tmp_path: Path, executor_agent: str
+) -> None:
+    dag_root = tmp_path / "runs"
+    mocker.patch(
+        "virgo_agentic_dag.utils.dag_utils.get_dag_root", return_value=dag_root
+    )
+
+    dag_home = dag_root / "demo"
+    dag_home.mkdir(parents=True)
+    dag_path = dag_home / "dag.toml"
+
+    db_path = tmp_path / "custom" / "run.sqlite3"
+    dag_text = (
+        f'name = "demo"\ndb_path = "{db_path}"\nproject_root = "{tmp_path}"\n'
+        'repo_slug = "acme/demo"\nexecutor_agent = "claude"\n[[nodes]]\nid = "A"\n'
+    )
+
+    dag_path.write_text(dag_text, encoding="utf-8")
+
+    label = ScheduledJob.get_label("demo")
+    scheduled_job = ScheduledJob(
+        dag_name="demo",
+        label=label,
+        argv='["/venv/bin/dagctl", "start"]',
+        interval_seconds=300,
+        working_directory="/runs/demo",
+        log_path="/runs/demo/start.log",
+        environment="{}",
+        created_at=NOW,
+    )
+
+    output_writer = io.StringIO()
+    command = TickCommand(dag_path=dag_path)
+    async with initialize_context(command, output_writer) as context:
+        scheduled_job_repo = context.get(ScheduledJobRepo)
+        await scheduled_job_repo.save(scheduled_job)
+
+    configured_dag_text = dag_text.replace(
+        'executor_agent = "claude"', f'executor_agent = "{executor_agent}"'
+    )
+
+    dag_path.write_text(configured_dag_text, encoding="utf-8")
+
+    scheduler = mocker.MagicMock(spec=Scheduler)
+    scheduler.is_registered.return_value = True
+    mocker.patch.object(SchedulerFactory, "get_scheduler", return_value=scheduler)
+
+    exit_code = await asyncio.to_thread(main, ["abort", "demo"])
+
+    abort_command = AbortCommand(dag_name="demo")
+    async with initialize_context(abort_command, output_writer) as context:
+        scheduled_job_repo = context.get(ScheduledJobRepo)
+        stored_job = await scheduled_job_repo.get_by_dag_name("demo")
+
+    assert exit_code == 0
+
+    scheduler.retire.assert_awaited_once()
+    assert scheduler.retire.await_args.args[0].label == label
+
+    assert stored_job is None
+    assert not (dag_home / "db.sqlite3").exists()
+    assert not (dag_home / "db.sqlite3.lock").exists()
+
+
+@pytest.mark.parametrize("command_name", ["abort", "watch", "status", "log"])
+@pytest.mark.behavior
+def test_named_command_returns_failure_when_the_run_database_does_not_exist(
+    mocker: MockerFixture,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    command_name: str,
+) -> None:
+    dag_root = tmp_path / "runs"
+    mocker.patch(
+        "virgo_agentic_dag.utils.dag_utils.get_dag_root", return_value=dag_root
+    )
+
+    expected_message = format_label(LABELS["dagUnknown"], {"dag": "unknown"})
+
+    exit_code = main([command_name, "unknown"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert captured.err == expected_message + "\n"
+    assert not dag_root.exists()

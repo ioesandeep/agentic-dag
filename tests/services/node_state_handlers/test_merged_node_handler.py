@@ -45,9 +45,12 @@ def build_agent() -> BuildAgent:
 
 
 async def test_reclaims_the_worktree_when_the_node_has_merged(
-    mocker: MockerFixture, build_agent: BuildAgent
+    mocker: MockerFixture, build_agent: BuildAgent, tmp_path: Path
 ) -> None:
-    graph_node = GraphNode(id="A", executor_agent=ExecutorAgent.CLAUDE)
+    graph_node = GraphNode(
+        id="A", executor_agent=ExecutorAgent.CLAUDE, project_root=tmp_path
+    )
+
     graph = Graph(name="demo", nodes=[graph_node])
     worktree = WorkTree(
         id=1, name="A", absolute_path="/ws/A", pr_number=12, created_at=NOW
@@ -186,9 +189,12 @@ async def test_reclaims_nothing_when_the_node_has_no_worktree(
 
 
 async def test_keeps_the_worktree_when_removal_fails(
-    mocker: MockerFixture, build_agent: BuildAgent
+    mocker: MockerFixture, build_agent: BuildAgent, tmp_path: Path
 ) -> None:
-    graph_node = GraphNode(id="A", executor_agent=ExecutorAgent.CLAUDE)
+    graph_node = GraphNode(
+        id="A", executor_agent=ExecutorAgent.CLAUDE, project_root=tmp_path
+    )
+
     graph = Graph(name="demo", nodes=[graph_node])
     worktree = WorkTree(
         id=1, name="A", absolute_path="/ws/A", pr_number=12, created_at=NOW

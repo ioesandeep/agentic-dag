@@ -36,6 +36,9 @@ from virgo_agentic_dag.domain.service.notification_publisher import (
 )
 from virgo_agentic_dag.domain.specs.executor_agent import ExecutorAgent
 from virgo_agentic_dag.labels.en import LABELS
+from virgo_agentic_dag.services.run.dependent_release_service import (
+    DependentReleaseService,
+)
 from virgo_agentic_dag.services.scheduling.run_schedule_service import (
     RunScheduleService,
 )
@@ -58,6 +61,7 @@ class NodeRecoveryService:
         graph_builder: GraphBuilder,
         agent_launchers: Mapping[ExecutorAgent, AgentLauncher],
         run_schedule_service: RunScheduleService,
+        dependent_release_service: DependentReleaseService,
     ) -> None:
         self._node_repo = node_repo
         self._node_recovery_repo = node_recovery_repo
@@ -68,6 +72,7 @@ class NodeRecoveryService:
         self._graph_builder = graph_builder
         self._agent_launchers = agent_launchers
         self._run_schedule_service = run_schedule_service
+        self._dependent_release_service = dependent_release_service
 
     async def recover(self, command: RecoverCommand) -> ExitCode:
         """Apply what the recovery agent decided and record the failure, or change nothing."""
@@ -212,10 +217,11 @@ class NodeRecoveryService:
             LABELS["wokenByRecovery"], {"message": command.wake_message}
         )
 
-        await self._move(
+        current_time = await self._move(
             node, NodeState.IN_PROGRESS, note, NotificationType.WORK_STARTED
         )
 
+        await self._dependent_release_service.release(node.id, current_time)
         emit(format_label(LABELS["nodeWoken"], {"node_id": node.id}))
 
         scheduled_job = await self._run_schedule_service.ensure_registered(
@@ -250,7 +256,7 @@ class NodeRecoveryService:
         note: str,
         notification_type: NotificationType,
         reason: str = "",
-    ) -> None:
+    ) -> datetime:
         """Move this node to a new state everywhere the run is recorded and read."""
         current_time = datetime.now(UTC)
 
@@ -264,6 +270,8 @@ class NodeRecoveryService:
 
         node_event = self._get_event(node, notification_type, reason, current_time)
         self._notification_publisher.publish(node_event)
+
+        return current_time
 
     def _get_event(
         self,

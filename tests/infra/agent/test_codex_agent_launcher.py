@@ -12,7 +12,6 @@ from virgo_agentic_dag.api.web.mappers.codex_transcript_mapper import (
     to_conversation_message_responses,
 )
 from virgo_agentic_dag.domain.agent.session_status import SessionStatus
-from virgo_agentic_dag.domain.exceptions.host.worktree_error import WorktreeError
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
@@ -94,6 +93,7 @@ async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_
     await asyncio.to_thread(os.waitpid, launched_session.pid, 0)
 
     agent.sessions.append(launched_session)
+
     restarted_launcher = CodexAgentLauncher(
         timeout_seconds=30,
         learnings_path=learnings_path,
@@ -141,7 +141,7 @@ async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_
     assert await agent.worktree.find_exit_code() == 0
 
 
-async def test_wake_raises_worktree_error_when_codex_exits_before_recording_a_thread_id(
+async def test_wake_starts_a_new_conversation_when_codex_records_no_thread_id(
     mocker: MockerFixture, tmp_path: Path, agent: NodeAgent
 ) -> None:
     binary = tmp_path / "codex"
@@ -156,7 +156,7 @@ async def test_wake_raises_worktree_error_when_codex_exits_before_recording_a_th
         transcript_locator=transcript_locator,
     )
 
-    graph_node = GraphNode(id="A")
+    graph_node = GraphNode(id="A", instructions="Implement the feature")
 
     session = await launcher.launch(graph_node, "Implement the feature", agent)
     await asyncio.to_thread(os.waitpid, session.pid, 0)
@@ -164,8 +164,25 @@ async def test_wake_raises_worktree_error_when_codex_exits_before_recording_a_th
 
     assert await agent.worktree.find_exit_code() == 9
     assert "authentication failed" in agent.worktree.find_log_tail()
-    with pytest.raises(WorktreeError, match="did not record a thread ID"):
-        await launcher.wake(graph_node, "Try again", agent)
+
+    work_path = Path(agent.worktree.absolute_path) / "work.txt"
+    work_path.write_text("Keep the previous work.")
+    binary.write_text(f"#!{sys.executable}\n{CODEX_SCRIPT}")
+
+    woken_session = await launcher.wake(graph_node, "Try again", agent)
+    await asyncio.to_thread(os.waitpid, woken_session.pid, 0)
+
+    transcript_path = transcript_locator.get_transcript_path(agent)
+    transcript_lines = agent.get_transcript_lines(transcript_path)
+    messages = to_conversation_message_responses(transcript_lines)
+    arguments = json.loads(messages[-1].text)
+
+    assert arguments[:2] == ["exec", "--json"]
+    assert arguments[-1] == graph_node.instructions
+
+    assert woken_session.triggered_by == "launch"
+    assert await agent.worktree.find_exit_code() == 0
+    assert work_path.read_text() == "Keep the previous work."
 
 
 @pytest.mark.parametrize("first_wake_fails", [False, True])
@@ -193,6 +210,7 @@ async def test_wake_resumes_the_adopted_thread_when_no_prior_wake_succeeds(
         await asyncio.to_thread(os.waitpid, failed_session.pid, 0)
 
         agent.sessions.append(failed_session)
+
         binary.write_text(f"#!{sys.executable}\n{CODEX_SCRIPT}")
 
     session = await launcher.wake(graph_node, "Address the review", agent)

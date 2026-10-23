@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
-from virgo_agentic_dag.domain.persistence.entities.node import Node
 from virgo_agentic_dag.domain.node.node_state import NodeState
+from virgo_agentic_dag.domain.persistence.entities.node import Node
 
 
 class GraphService:
@@ -88,13 +90,27 @@ class GraphService:
 
         return self._graph_nodes_with_ids(descendant_ids)
 
-    def is_complete(self, nodes: list[Node]) -> bool:
-        """Report whether every node has reached a state the controller never leaves."""
-        terminal_ids = {
-            node.id for node in nodes if NodeState(node.state).is_terminal()
+    def get_run_status(
+        self, nodes: list[Node]
+    ) -> Literal["active", "complete", "errored"]:
+        """Determine whether the graph's run can end."""
+        states_by_id = {node.id: node.state for node in nodes}
+        graph_states = {
+            states_by_id.get(graph_node.id, NodeState.PENDING.value)
+            for graph_node in self._graph.nodes
         }
 
-        return all(graph_node.id in terminal_ids for graph_node in self._graph.nodes)
+        if graph_states <= {NodeState.MERGED.value, NodeState.SKIPPED.value}:
+            return "complete"
+
+        if graph_states <= {
+            NodeState.NEEDS_HUMAN.value,
+            NodeState.ERRORED.value,
+            NodeState.SKIPPED.value,
+        }:
+            return "errored"
+
+        return "active"
 
     def _nodes_in(self, state: NodeState, nodes: list[Node]) -> list[GraphNode]:
         matching_ids = {node.id for node in nodes if node.state == state.value}

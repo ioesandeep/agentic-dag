@@ -29,12 +29,13 @@ class GitWorkspace(Workspace):
         self._command_runner = command_runner
 
     async def provision(self, graph_node: GraphNode) -> WorkTree:
+        project_root = graph_node.get_project_root()
         path = graph_node.workspace_path / graph_node.id
         if path.exists():
-            await self._validate_registered_worktree(graph_node.project_root, path)
+            await self._validate_registered_worktree(project_root, path)
         else:
             commit = await self._get_base_commit(graph_node)
-            await self._add_worktree(graph_node.project_root, path, commit)
+            await self._add_worktree(project_root, path, commit)
 
         return WorkTree(
             name=graph_node.id, absolute_path=str(path), created_at=datetime.now(UTC)
@@ -91,7 +92,7 @@ class GitWorkspace(Workspace):
             )
 
     async def _get_base_commit(self, graph_node: GraphNode) -> str:
-        project_root = graph_node.project_root
+        project_root = graph_node.get_project_root()
         base_branch = graph_node.base_branch
         fetch_result = await self._run_git(project_root, ("fetch", REMOTE, base_branch))
 

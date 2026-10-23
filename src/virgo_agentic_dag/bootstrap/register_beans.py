@@ -61,6 +61,7 @@ from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
 from virgo_agentic_dag.domain.infra.agent.process_killer import ProcessKiller
 from virgo_agentic_dag.domain.infra.agent.session_killer import SessionKiller
 from virgo_agentic_dag.domain.infra.agent.transcript_locator import TranscriptLocator
+from virgo_agentic_dag.domain.infra.agent.usage_limit_reader import UsageLimitReader
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
 from virgo_agentic_dag.domain.infra.locking.run_lock import RunLock
 from virgo_agentic_dag.domain.infra.messaging.notification_subscriber import (
@@ -115,6 +116,9 @@ from virgo_agentic_dag.domain.service.validators.missing_dependency_validator im
 from virgo_agentic_dag.domain.service.validators.missing_executor_validator import (
     MissingExecutorValidator,
 )
+from virgo_agentic_dag.domain.service.validators.missing_project_root_validator import (
+    MissingProjectRootValidator,
+)
 from virgo_agentic_dag.domain.specs.dag_spec import DagSpec
 from virgo_agentic_dag.domain.specs.executor_agent import ExecutorAgent
 from virgo_agentic_dag.infra.agent.agent_session_killer import AgentSessionKiller
@@ -122,10 +126,14 @@ from virgo_agentic_dag.infra.agent.claude_agent_launcher import ClaudeAgentLaunc
 from virgo_agentic_dag.infra.agent.claude_transcript_locator import (
     ClaudeTranscriptLocator,
 )
+from virgo_agentic_dag.infra.agent.claude_usage_limit_reader import (
+    ClaudeUsageLimitReader,
+)
 from virgo_agentic_dag.infra.agent.codex_agent_launcher import CodexAgentLauncher
 from virgo_agentic_dag.infra.agent.codex_transcript_locator import (
     CodexTranscriptLocator,
 )
+from virgo_agentic_dag.infra.agent.codex_usage_limit_reader import CodexUsageLimitReader
 from virgo_agentic_dag.infra.agent.process_group_killer import ProcessGroupKiller
 from virgo_agentic_dag.infra.agent.transcript_page_reader import TranscriptPageReader
 from virgo_agentic_dag.infra.code.github_code_repo import GitHubCodeRepo
@@ -232,6 +240,9 @@ from virgo_agentic_dag.services.recovery.recovery_session_killer import (
 )
 from virgo_agentic_dag.services.run.adopt_service import AdoptService
 from virgo_agentic_dag.services.run.adopted_node_importer import AdoptedNodeImporter
+from virgo_agentic_dag.services.run.dependent_release_service import (
+    DependentReleaseService,
+)
 from virgo_agentic_dag.services.run.node_importer import NodeImporter
 from virgo_agentic_dag.services.run.node_skip_service import NodeSkipService
 from virgo_agentic_dag.services.run.node_wait_service import NodeWaitService
@@ -347,6 +358,7 @@ def register_beans(context: ApplicationContext) -> None:
                 MissingDependencyValidator(),
                 MissingExecutorValidator(),
                 MalformedPullRequestValidator(),
+                MissingProjectRootValidator(),
             ]
         ),
     )
@@ -378,6 +390,7 @@ def register_beans(context: ApplicationContext) -> None:
 
     context.register(RetryCommandHandler, _build_retry_command_handler)
 
+    context.register(DependentReleaseService, _build_dependent_release_service)
     context.register(NodeSkipService, _build_node_skip_service)
 
     context.register(NodeWaitService, _build_node_wait_service)
@@ -690,6 +703,7 @@ def _build_adopt_command_handler(context: ApplicationContext) -> AdoptCommandHan
 def _build_adopt_service(context: ApplicationContext) -> AdoptService:
     return AdoptService(
         dag_loader=context.get(TomlDagLoader),
+        graph_builder=context.get(GraphBuilder),
         code_repo=context.get(CodeRepo),
         node_repo=context.get(NodeRepo),
         node_importer=context.get(NodeImporter),
@@ -715,6 +729,22 @@ def _build_retry_command_handler(context: ApplicationContext) -> RetryCommandHan
         context.get(NotificationPublisher),
         context.get(NodeAgentRepo),
         context.get(RunScheduleService),
+        context.get(DependentReleaseService),
+    )
+
+
+def _build_dependent_release_service(
+    context: ApplicationContext,
+) -> DependentReleaseService:
+    graph_builder = context.get(GraphBuilder)
+    dag_spec = context.get(DagSpec)
+    graph = graph_builder.create_graph(dag_spec)
+
+    return DependentReleaseService(
+        graph=graph,
+        node_repo=context.get(NodeRepo),
+        audit_entry_repo=context.get(AuditEntryRepo),
+        notification_publisher=context.get(NotificationPublisher),
     )
 
 
@@ -723,7 +753,7 @@ def _build_node_skip_service(context: ApplicationContext) -> NodeSkipService:
         node_repo=context.get(NodeRepo),
         audit_entry_repo=context.get(AuditEntryRepo),
         notification_publisher=context.get(NotificationPublisher),
-        graph_builder=context.get(GraphBuilder),
+        dependent_release_service=context.get(DependentReleaseService),
         run_schedule_service=context.get(RunScheduleService),
     )
 
@@ -800,6 +830,13 @@ def _build_agent_launchers(
     }
 
 
+def _build_usage_limit_readers() -> dict[ExecutorAgent, UsageLimitReader]:
+    return {
+        ExecutorAgent.CLAUDE: ClaudeUsageLimitReader(),
+        ExecutorAgent.CODEX: CodexUsageLimitReader(),
+    }
+
+
 def _build_pending_node_handler(context: ApplicationContext) -> PendingNodeHandler:
     dag_spec = context.get(DagSpec)
     agent_launchers = _build_agent_launchers(dag_spec)
@@ -833,6 +870,8 @@ def _build_in_progress_node_handler(
         workspace=context.get(Workspace),
         agent_launchers=agent_launchers,
         code_repo=context.get(CodeRepo),
+        usage_limit_readers=_build_usage_limit_readers(),
+        node_wait_service=context.get(NodeWaitService),
     )
 
 
@@ -1009,6 +1048,7 @@ def _build_node_recovery_service(context: ApplicationContext) -> NodeRecoverySer
         graph_builder=context.get(GraphBuilder),
         agent_launchers=_build_agent_launchers(context.get(DagSpec)),
         run_schedule_service=context.get(RunScheduleService),
+        dependent_release_service=context.get(DependentReleaseService),
     )
 
 

@@ -48,9 +48,9 @@ class DagSpec:
         """Return where this dag's run keeps its database, its choice or the run's home."""
         return self.db_path or get_dag_db_path(self.name)
 
-    def get_project_root(self, node: NodeSpec) -> Path:
-        """Return the checkout this node works in, defaulting to this dag's own."""
-        return node.project_root or self.project_root or Path.cwd()
+    def get_project_root(self, node: NodeSpec) -> Path | None:
+        """Return the node's configured repository directory."""
+        return node.project_root or self.project_root
 
     def get_workspace_path(self, node: NodeSpec) -> Path:
         """Return where this node's worktrees are cut, defaulting to this dag's scratch home."""

@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 
 import pytest
+
 from virgo_agentic_dag.api.cli.dagctl import main
 
 pytestmark = pytest.mark.e2e
@@ -10,6 +11,7 @@ WEB_MODULE_PREFIXES = ("virgo_agentic_dag.api.web", "virgo_agentic_dag.infra.web
 WEB_EXTRA_PACKAGES = ("fastapi", "pydantic", "uvicorn")
 
 _VALID_DAG = """name = "live"
+project_root = "/projects/live"
 executor_agent = "claude"
 
 [[nodes]]

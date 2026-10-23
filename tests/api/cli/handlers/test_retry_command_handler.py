@@ -13,11 +13,13 @@ from virgo_agentic_dag.bootstrap.application_context import (
 )
 from virgo_agentic_dag.domain.command.exit_code import ExitCode
 from virgo_agentic_dag.domain.command.retry_command import RetryCommand
+from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.infra.locking.run_lock import RunLock
 from virgo_agentic_dag.domain.infra.scheduling.scheduled_job import ScheduledJob
 from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.notifications.notification_type import NotificationType
+from virgo_agentic_dag.domain.persistence.entities.audit_entry import AuditEntry
 from virgo_agentic_dag.domain.persistence.entities.node import Node
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
@@ -32,6 +34,9 @@ from virgo_agentic_dag.infra.persistence.memory.inmemory_audit_entry_repo import
 )
 from virgo_agentic_dag.infra.persistence.memory.inmemory_node_repo import (
     InMemoryNodeRepo,
+)
+from virgo_agentic_dag.services.run.dependent_release_service import (
+    DependentReleaseService,
 )
 from virgo_agentic_dag.services.scheduling.run_schedule_service import (
     RunScheduleService,
@@ -77,6 +82,7 @@ def handler(
         notification_publisher,
         mocker.MagicMock(spec=NodeAgentRepo),
         mocker.MagicMock(spec=RunScheduleService),
+        mocker.MagicMock(spec=DependentReleaseService),
     )
 
 
@@ -150,6 +156,7 @@ async def test_retry_clears_the_resume_token_when_reset_is_set(
         notification_publisher,
         node_agent_repo,
         mocker.MagicMock(spec=RunScheduleService),
+        mocker.MagicMock(spec=DependentReleaseService),
     )
 
     exit_code = await retry(handler, out, reset=True)
@@ -241,6 +248,7 @@ async def test_retry_registers_the_run_only_after_a_successful_state_change(
         notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
         node_agent_repo=mocker.MagicMock(spec=NodeAgentRepo),
         run_schedule_service=run_schedule_service,
+        dependent_release_service=mocker.MagicMock(spec=DependentReleaseService),
     )
 
     dag_path = Path("dag.toml")
@@ -273,3 +281,56 @@ async def test_retry_registers_the_run_only_after_a_successful_state_change(
     has_schedule_message = "this host will run fyi.virgo.dag.demo" in output
 
     assert has_schedule_message is (not is_registered)
+
+
+async def test_retry_returns_parked_dependents_to_pending_after_the_parent_restarts(
+    mocker: MockerFixture, out: io.StringIO
+) -> None:
+    graph_nodes = [
+        GraphNode(id=NODE_ID),
+        GraphNode(id="B", depends_on=(NODE_ID,)),
+        GraphNode(id="C", depends_on=(NODE_ID,)),
+    ]
+
+    graph = Graph(name="demo", nodes=graph_nodes)
+
+    node_repo = mocker.MagicMock(spec=NodeRepo)
+    node_repo.read.return_value = Node(id=NODE_ID, state=NodeState.ERRORED.value)
+    node_repo.get_nodes_by_ids.return_value = [
+        Node(id=node_id, state=NodeState.NEEDS_HUMAN.value) for node_id in ["B", "C"]
+    ]
+
+    audit_entry_repo = mocker.MagicMock(spec=AuditEntryRepo)
+    audit_entry_repo.get_all.return_value = [
+        AuditEntry(
+            node_id="B",
+            state=NodeState.NEEDS_HUMAN.value,
+            note=f"upstream node {NODE_ID} stopped, so this one can never start",
+            created_at=NOW,
+        )
+    ]
+
+    notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
+    dependent_release_service = DependentReleaseService(
+        graph=graph,
+        node_repo=node_repo,
+        audit_entry_repo=audit_entry_repo,
+        notification_publisher=notification_publisher,
+    )
+
+    handler = RetryCommandHandler(
+        run_lock=mocker.MagicMock(spec=RunLock),
+        node_repo=node_repo,
+        audit_entry_repo=audit_entry_repo,
+        notification_publisher=notification_publisher,
+        node_agent_repo=mocker.MagicMock(spec=NodeAgentRepo),
+        run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
+        dependent_release_service=dependent_release_service,
+    )
+
+    exit_code = await retry(handler, out)
+
+    state_changes = [call.args[:2] for call in node_repo.update_state.await_args_list]
+
+    assert exit_code is ExitCode.SUCCESS
+    assert state_changes == [(NODE_ID, NodeState.PENDING), ("B", NodeState.PENDING)]

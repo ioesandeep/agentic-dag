@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Mapping
 from datetime import UTC, datetime
@@ -20,6 +21,7 @@ from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
 from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
+from virgo_agentic_dag.domain.infra.agent.usage_limit_reader import UsageLimitReader
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
 from virgo_agentic_dag.domain.infra.workspace.workspace import Workspace
 from virgo_agentic_dag.domain.node.node_state import NodeState
@@ -41,6 +43,7 @@ from virgo_agentic_dag.domain.service.notification_publisher import (
 from virgo_agentic_dag.domain.specs.executor_agent import ExecutorAgent
 from virgo_agentic_dag.domain.tick.tick_response import TickResponse
 from virgo_agentic_dag.labels.en import LABELS
+from virgo_agentic_dag.services.run.node_wait_service import NodeWaitService
 from virgo_agentic_dag.utils.format_label import format_label
 
 logger = logging.getLogger(__name__)
@@ -60,6 +63,8 @@ class InProgressNodeHandler(NodeStateHandler):
         workspace: Workspace,
         agent_launchers: Mapping[ExecutorAgent, AgentLauncher],
         code_repo: CodeRepo,
+        usage_limit_readers: Mapping[ExecutorAgent, UsageLimitReader],
+        node_wait_service: NodeWaitService,
     ) -> None:
         super().__init__(node_repo, audit_entry_repo, notification_publisher)
 
@@ -70,6 +75,9 @@ class InProgressNodeHandler(NodeStateHandler):
         self._workspace = workspace
         self._agent_launchers = agent_launchers
         self._code_repo = code_repo
+
+        self._usage_limit_readers = usage_limit_readers
+        self._node_wait_service = node_wait_service
 
     async def handle(
         self,
@@ -140,6 +148,13 @@ class InProgressNodeHandler(NodeStateHandler):
         worktree: WorkTree,
         session_status: SessionStatus,
     ) -> TickResponse:
+        is_waiting = await self._wait_for_usage_limit(
+            graph_node, session, worktree, session_status
+        )
+
+        if is_waiting:
+            return TickResponse(events_applied=1)
+
         checked_out = await self._workspace.get_branch(worktree)
         branch = checked_out or worktree.branch
 
@@ -165,6 +180,63 @@ class InProgressNodeHandler(NodeStateHandler):
         return await self._record_resting(
             graph_node, worktree, branch, pr_details, commit_count, session_status
         )
+
+    async def _wait_for_usage_limit(
+        self,
+        graph_node: GraphNode,
+        session: AgentSession,
+        worktree: WorkTree,
+        session_status: SessionStatus,
+    ) -> bool:
+        executor_agent = graph_node.executor_agent
+        if executor_agent is None:
+            return False
+
+        current_time = datetime.now(UTC)
+        reset_time = await asyncio.to_thread(
+            self._get_usage_limit_reset_time, executor_agent, worktree
+        )
+
+        if reset_time is None:
+            return False
+
+        await self._close_session(
+            session, worktree, session_status, end_state="usage_limit"
+        )
+
+        note = format_label(
+            LABELS["usageLimitWait"],
+            {"executor": executor_agent.value, "reset_time": reset_time},
+        )
+
+        # TODO: Display a console countdown to the usage limit reset time.
+        await self._node_wait_service.wait(
+            graph_node.id, reset_time, note, current_time
+        )
+
+        return True
+
+    def _get_usage_limit_reset_time(
+        self, executor_agent: ExecutorAgent, worktree: WorkTree
+    ) -> datetime | None:
+        reader = self._usage_limit_readers.get(executor_agent)
+        if reader is None:
+            return None
+
+        log_tail = worktree.find_log_tail()
+        if log_tail is None:
+            return None
+
+        exit_path = worktree.get_exit_path()
+        try:
+            completion_stat = exit_path.stat()
+        except FileNotFoundError:
+            log_path = worktree.get_log_path()
+            completion_stat = log_path.stat()
+
+        ended_at = datetime.fromtimestamp(completion_stat.st_mtime, UTC)
+
+        return reader.get_reset_time(log_tail, ended_at)
 
     async def _get_pr_details(
         self, graph_node: GraphNode, pr_number: int
@@ -194,6 +266,8 @@ class InProgressNodeHandler(NodeStateHandler):
         session: AgentSession,
         worktree: WorkTree,
         session_status: SessionStatus,
+        *,
+        end_state: str | None = None,
     ) -> AgentSession:
         """Return the session closed with its final state."""
         current_time = datetime.now(UTC)
@@ -206,7 +280,7 @@ class InProgressNodeHandler(NodeStateHandler):
             agent_id=session.agent_id,
             started_at=session.started_at,
             ended_at=current_time,
-            end_state=session.end_state or session_status.value,
+            end_state=end_state or session.end_state or session_status.value,
             triggered_by=session.triggered_by,
             pid=session.pid,
             pid_start=session.pid_start,

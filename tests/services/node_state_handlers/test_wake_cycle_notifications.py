@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.domain.agent.session_status import SessionStatus
 from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
@@ -45,6 +46,7 @@ from virgo_agentic_dag.services.node_state_handlers.in_progress_node_handler imp
 from virgo_agentic_dag.services.node_state_handlers.resting_node_handler import (
     RestingNodeHandler,
 )
+from virgo_agentic_dag.services.run.node_wait_service import NodeWaitService
 from virgo_agentic_dag.services.signals.approval_signal import ApprovalSignal
 from virgo_agentic_dag.services.signals.check_signal import CheckSignal
 from virgo_agentic_dag.services.signals.comment_signal import CommentSignal
@@ -150,6 +152,8 @@ async def test_posts_only_the_pull_request_change_when_a_session_resumes_and_set
         workspace=workspace,
         agent_launchers=agent_launchers,
         code_repo=code_repo,
+        usage_limit_readers={},
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     poster = mocker.MagicMock(spec=JsonPoster)

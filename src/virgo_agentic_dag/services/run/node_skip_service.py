@@ -2,28 +2,25 @@
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime
 
 from virgo_agentic_dag.bootstrap.application_context import emit
 from virgo_agentic_dag.domain.command.skip_command import SkipCommand
-from virgo_agentic_dag.domain.events.node_event import NodeEvent
-from virgo_agentic_dag.domain.events.node_retried_event import NodeRetriedEvent
 from virgo_agentic_dag.domain.events.node_skipped_event import NodeSkippedEvent
 from virgo_agentic_dag.domain.exceptions.run.skip_refused import SkipRefused
-from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.notifications.notification_type import NotificationType
 from virgo_agentic_dag.domain.persistence.entities.audit_entry import AuditEntry
 from virgo_agentic_dag.domain.persistence.entities.node import Node
 from virgo_agentic_dag.domain.persistence.repos.audit_entry_repo import AuditEntryRepo
 from virgo_agentic_dag.domain.persistence.repos.node_repo import NodeRepo
-from virgo_agentic_dag.domain.service.graph_builder import GraphBuilder
-from virgo_agentic_dag.domain.service.graph_service import GraphService
 from virgo_agentic_dag.domain.service.notification_publisher import (
     NotificationPublisher,
 )
 from virgo_agentic_dag.labels.en import LABELS
+from virgo_agentic_dag.services.run.dependent_release_service import (
+    DependentReleaseService,
+)
 from virgo_agentic_dag.services.scheduling.run_schedule_service import (
     RunScheduleService,
 )
@@ -38,13 +35,13 @@ class NodeSkipService:
         node_repo: NodeRepo,
         audit_entry_repo: AuditEntryRepo,
         notification_publisher: NotificationPublisher,
-        graph_builder: GraphBuilder,
+        dependent_release_service: DependentReleaseService,
         run_schedule_service: RunScheduleService,
     ) -> None:
         self._node_repo = node_repo
         self._audit_entry_repo = audit_entry_repo
         self._notification_publisher = notification_publisher
-        self._graph_builder = graph_builder
+        self._dependent_release_service = dependent_release_service
         self._run_schedule_service = run_schedule_service
 
     async def skip(self, command: SkipCommand, current_time: datetime) -> list[str]:
@@ -58,19 +55,12 @@ class NodeSkipService:
         self._ensure_skippable(node)
         is_already_skipped = node.state == NodeState.SKIPPED.value
 
-        graph = self._graph_builder.build_from_path(command.dag_path)
-        graph_service = GraphService(graph)
-        descendants = graph_service.get_descendants(node.id)
+        await self._record(node, current_time)
 
-        await self._record(
-            node,
-            NodeState.SKIPPED,
-            LABELS["skippedByHuman"],
-            NotificationType.SKIPPED,
-            current_time,
+        pending_node_ids = await self._dependent_release_service.release(
+            node.id, current_time
         )
 
-        pending_node_ids = await self._return_to_pending(descendants, current_time)
         if is_already_skipped and not pending_node_ids:
             return []
 
@@ -92,70 +82,25 @@ class NodeSkipService:
 
             raise SkipRefused(format_label(LABELS[label_name], {"node_id": node.id}))
 
-    async def _return_to_pending(
-        self, descendants: list[GraphNode], current_time: datetime
-    ) -> list[str]:
-        """Move to pending every descendant that stopped before an agent was created for it."""
-        descendant_ids = [graph_node.id for graph_node in descendants]
-        descendant_nodes = await self._node_repo.get_nodes_by_ids(descendant_ids)
-        stopped_nodes = [
-            node for node in descendant_nodes if node.needs_human_without_agent()
-        ]
-
-        writes = [
-            self._record(
-                stopped_node,
-                NodeState.PENDING,
-                LABELS["upstreamSkipped"],
-                NotificationType.RETRIED,
-                current_time,
-            )
-            for stopped_node in stopped_nodes
-        ]
-
-        await asyncio.gather(*writes)
-
-        return [stopped_node.id for stopped_node in stopped_nodes]
-
-    async def _record(
-        self,
-        node: Node,
-        state: NodeState,
-        note: str,
-        notification_type: NotificationType,
-        current_time: datetime,
-    ) -> None:
-        """Records a node state change."""
-        await self._node_repo.update_state(node.id, state, current_time)
+    async def _record(self, node: Node, current_time: datetime) -> None:
+        await self._node_repo.update_state(node.id, NodeState.SKIPPED, current_time)
 
         audit_entry = AuditEntry(
-            node_id=node.id, state=state.value, note=note, created_at=current_time
+            node_id=node.id,
+            state=NodeState.SKIPPED.value,
+            note=LABELS["skippedByHuman"],
+            created_at=current_time,
         )
 
         await self._audit_entry_repo.save(audit_entry)
 
-        node_event = self._get_event(node, notification_type, current_time)
-        self._notification_publisher.publish(node_event)
-
-    def _get_event(
-        self, node: Node, notification_type: NotificationType, current_time: datetime
-    ) -> NodeEvent:
-        """Create a skip or retry event for the node."""
-        if notification_type is NotificationType.SKIPPED:
-            return NodeSkippedEvent(
-                node_id=node.id,
-                type=notification_type,
-                created_at=current_time,
-                updated_at=current_time,
-                title=node.title,
-                agent_name=node.get_agent_name(),
-            )
-
-        return NodeRetriedEvent(
+        node_event = NodeSkippedEvent(
             node_id=node.id,
-            type=notification_type,
+            type=NotificationType.SKIPPED,
             created_at=current_time,
             updated_at=current_time,
             title=node.title,
             agent_name=node.get_agent_name(),
         )
+
+        self._notification_publisher.publish(node_event)

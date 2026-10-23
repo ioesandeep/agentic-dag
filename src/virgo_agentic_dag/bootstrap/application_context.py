@@ -8,10 +8,15 @@ from pathlib import Path
 from typing import TextIO, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from virgo_agentic_dag.domain.command.command import Command
-from virgo_agentic_dag.utils.dag_utils import get_dag_db_path
+from virgo_agentic_dag.domain.exceptions.manifest.config_error import ConfigError
 from virgo_agentic_dag.domain.specs.dag_spec import DagSpec
 from virgo_agentic_dag.infra.persistence.sqlite.sqlite_database import SqliteDatabase
+from virgo_agentic_dag.labels.en import LABELS
+from virgo_agentic_dag.services.loading.toml.toml_dag_loader import TomlDagLoader
+from virgo_agentic_dag.utils.dag_utils import get_dag_db_path, get_dag_graph_path
+from virgo_agentic_dag.utils.format_label import format_label
 
 _application_context: ContextVar[ApplicationContext | None] = ContextVar(
     "application_context", default=None
@@ -26,6 +31,7 @@ class ApplicationContext:
         self._command = command
         self._output_writer = output_writer
         self._repo_slug = ""
+
         self._factories: dict[type, Callable[[ApplicationContext], object]] = {}
         self._beans: dict[type, object] = {}
 
@@ -72,11 +78,26 @@ class ApplicationContext:
         return self._command.dag_name or self.get(DagSpec).name
 
     def get_db_path(self) -> Path:
-        """Return where this run's database lives, from its graph or its name alone."""
-        if self._command.dag_name:
-            return get_dag_db_path(self._command.dag_name)
+        """Return the database path for the command's run."""
+        dag_name = self._command.dag_name
+        if not dag_name:
+            return self.get(DagSpec).get_db_path()
 
-        return self.get(DagSpec).get_db_path()
+        dag_path = get_dag_graph_path(dag_name)
+        has_dag_file = dag_path.is_file()
+        db_path = get_dag_db_path(dag_name)
+
+        if has_dag_file:
+            configured_db_path = self.get(TomlDagLoader).get_db_path(dag_path)
+            db_path = configured_db_path or db_path
+
+        has_database = db_path.is_file()
+        if not has_database:
+            message = format_label(LABELS["dagUnknown"], {"dag": dag_name})
+
+            raise ConfigError(message)
+
+        return db_path
 
     def open_session(self) -> AsyncSession:
         """Return a database session for one unit of work, wherever it is asked from."""

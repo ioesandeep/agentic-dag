@@ -5,8 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from virgo_agentic_dag.domain.exceptions.manifest.spec_error import SpecError
 from virgo_agentic_dag.domain.specs.dag_spec import DEFAULT_BASE_BRANCH
 from virgo_agentic_dag.domain.specs.executor_agent import ExecutorAgent
+from virgo_agentic_dag.labels.en import LABELS
 from virgo_agentic_dag.utils.attempt_budget import (
     get_default_recovery_attempts_allowed,
 )
@@ -21,7 +23,7 @@ class GraphNode:
     depends_on: tuple[str, ...] = ()
     executor_agent: ExecutorAgent | None = None
     # the checkout this node works in, which gh and git both resolve from
-    project_root: Path = field(default_factory=Path.cwd)
+    project_root: Path | None = None
     # where its worktree is cut, and the branch it is cut from
     workspace_path: Path = field(default_factory=Path.cwd)
     base_branch: str = DEFAULT_BASE_BRANCH
@@ -34,6 +36,13 @@ class GraphNode:
     def get_agent_name(self) -> str:
         """Return the display name of this node's agent."""
         return self.name or self.title or self.id
+
+    def get_project_root(self) -> Path:
+        """Return the repository directory required for node execution."""
+        if self.project_root is None:
+            raise SpecError(LABELS["missingProjectRoot"])
+
+        return self.project_root
 
     def is_adopted(self) -> bool:
         """Report whether this node takes over a pull request that already exists."""

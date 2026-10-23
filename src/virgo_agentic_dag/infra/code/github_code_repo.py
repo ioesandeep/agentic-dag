@@ -145,9 +145,11 @@ class GitHubCodeRepo(CodeRepo):
             )
 
         payload = self._parse_object(result.stdout, pr_url)
+
         number = int(payload.get("number") or 0)
         head_branch = str(payload.get("headRefName") or "")
         repository = self._get_repository(payload)
+
         if number == 0 or not head_branch or not repository:
             raise ObservationError(
                 format_label(LABELS["prDetailsIncomplete"], {"pr": pr_url})
@@ -165,6 +167,7 @@ class GitHubCodeRepo(CodeRepo):
         """Return owner/name of the repository the pull request's branch lives in."""
         owner = payload.get("headRepositoryOwner")
         repository = payload.get("headRepository")
+
         login = str(owner.get("login") or "") if isinstance(owner, dict) else ""
         name = str(repository.get("name") or "") if isinstance(repository, dict) else ""
         if not login or not name:
@@ -188,9 +191,9 @@ class GitHubCodeRepo(CodeRepo):
             )
 
     async def _run(self, graph_node: GraphNode, argv: tuple[str, ...]) -> RunResult:
-        return await asyncio.to_thread(
-            self._command_runner.run, argv, graph_node.project_root
-        )
+        project_root = graph_node.get_project_root()
+
+        return await asyncio.to_thread(self._command_runner.run, argv, project_root)
 
     def _get_newest(self, payload: str, branch: str) -> int:
         try:

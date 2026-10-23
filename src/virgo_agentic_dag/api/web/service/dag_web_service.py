@@ -90,10 +90,14 @@ class DagWebService:
     ) -> None:
         self._dag_service = dag_service
         self._database_registry = database_registry
+
         self._code_repo = code_repo
+
         self._transcript_locators = transcript_locators
         self._transcript_reader = transcript_reader
+
         self._graph_builder = graph_builder
+
         self._repo_urls: dict[Path, str] = {}
 
     async def list_dags(self) -> list[DagSummaryResponse]:
@@ -104,11 +108,11 @@ class DagWebService:
 
     async def _get_dag_summary(self, dag_spec: DagSpec) -> DagSummaryResponse:
         """Return one dag's entry for the listing."""
-        gateway = self._database_registry.open(dag_spec.name)
-        if gateway is None:
-            return dag_mapper.to_unreadable_response(dag_spec)
-
         try:
+            gateway = await self._database_registry.open(dag_spec.name)
+            if gateway is None:
+                return dag_mapper.to_unreadable_response(dag_spec)
+
             rows = await gateway.node_repo.get_all()
             scheduled_job = await gateway.scheduled_job_repo.get_by_dag_name(
                 dag_spec.name
@@ -138,11 +142,11 @@ class DagWebService:
 
     async def _get_dag_detail(self, dag_spec: DagSpec) -> DagDetailResponse:
         """Return one dag's detail."""
-        gateway = self._database_registry.open(dag_spec.name)
-        if gateway is None:
-            return dag_mapper.to_unreadable_detail_response(dag_spec)
-
         try:
+            gateway = await self._database_registry.open(dag_spec.name)
+            if gateway is None:
+                return dag_mapper.to_unreadable_detail_response(dag_spec)
+
             rows = await gateway.node_repo.get_all()
             scheduled_job = await gateway.scheduled_job_repo.get_by_dag_name(
                 dag_spec.name
@@ -273,7 +277,7 @@ class DagWebService:
     ) -> NodeResponse:
         """Return a single node's response."""
         node_spec = dag_spec.find_node(node_detail.id)
-        gateway = self._database_registry.open(dag_spec.name)
+        gateway = await self._database_registry.open(dag_spec.name)
         if gateway is None:
             return dag_mapper.to_node_response(
                 node_detail=node_detail,
@@ -317,7 +321,7 @@ class DagWebService:
         if dag_spec is None:
             return None
 
-        gateway = self._database_registry.open(dag_spec.name)
+        gateway = await self._database_registry.open(dag_spec.name)
         node: Node | None = None
         if gateway is not None:
             node = await gateway.node_repo.read(node_id)
@@ -458,7 +462,7 @@ class DagWebService:
         if dag_spec is None:
             return None
 
-        gateway = self._database_registry.open(dag_spec.name)
+        gateway = await self._database_registry.open(dag_spec.name)
         if gateway is None:
             return []
 

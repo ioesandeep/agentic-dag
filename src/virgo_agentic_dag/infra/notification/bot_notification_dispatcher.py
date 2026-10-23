@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from collections import defaultdict
 from typing import Any
 
 from virgo_agentic_dag.domain.events.agent_stopped_event import AgentStoppedEvent
@@ -88,10 +89,14 @@ class BotNotificationDispatcher(NotificationDispatcher):
     ) -> None:
         self._poster = poster
         self._slack_notification_repo = slack_notification_repo
+
         self._channel = channel
         self._token = os.getenv("SLACK_BOT_TOKEN", "")
+
         self._composer = composer
         self._dag_name = dag_name
+
+        self._node_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
     async def dispatch(self, event: Event) -> None:
         if not self._token:
@@ -101,7 +106,8 @@ class BotNotificationDispatcher(NotificationDispatcher):
 
         match event:
             case NodeEvent():
-                await self._dispatch_node_event(event)
+                async with self._node_locks[event.node_id]:
+                    await self._dispatch_node_event(event)
             case DagEvent():
                 await self._dispatch_dag_event(event)
 

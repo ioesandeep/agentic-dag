@@ -1,4 +1,4 @@
-"""The values a watcher resolves once at startup and never re-reads."""
+"""Defines the watcher configuration that remains fixed after startup."""
 
 from __future__ import annotations
 
@@ -13,7 +13,5 @@ class WatchPlan:
     # the stored start command the watcher fires
     argv: tuple[str, ...]
     working_directory: Path
-    # the owner/repo part of every topic this run subscribes to
-    repo_slug: str
-    # seconds of stream silence before the watcher re-reads the run's pull requests
+    # The watcher refreshes topics after this many seconds of stream inactivity.
     refresh_seconds: int

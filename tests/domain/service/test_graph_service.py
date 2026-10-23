@@ -1,11 +1,15 @@
 from datetime import UTC, datetime
 
 import pytest
+
 from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
-from virgo_agentic_dag.domain.persistence.entities.node import Node
 from virgo_agentic_dag.domain.node.node_state import NodeState
+from virgo_agentic_dag.domain.persistence.entities.node import Node
 from virgo_agentic_dag.domain.service.graph_service import GraphService
+from virgo_agentic_dag.infra.persistence.sqlite.sqlite_database import (  # noqa: F401
+    SqliteDatabase,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -66,22 +70,38 @@ def test_returns_nothing_when_the_node_has_no_dependencies(node_id: str) -> None
 
 
 @pytest.mark.parametrize(
-    ("states", "expected"),
+    ("states", "expected_status"),
     [
-        ([NodeState.MERGED, NodeState.IN_PROGRESS, NodeState.PENDING], False),
-        ([NodeState.MERGED, NodeState.NEEDS_HUMAN, NodeState.ERRORED], True),
-        ([NodeState.MERGED, NodeState.SKIPPED, NodeState.ERRORED], True),
-        ([], False),
+        ([NodeState.MERGED] * 3, "complete"),
+        ([NodeState.MERGED, NodeState.SKIPPED, NodeState.MERGED], "complete"),
+        ([NodeState.SKIPPED] * 3, "complete"),
+        ([NodeState.NEEDS_HUMAN, NodeState.ERRORED, NodeState.NEEDS_HUMAN], "errored"),
+        ([NodeState.NEEDS_HUMAN, NodeState.SKIPPED, NodeState.ERRORED], "errored"),
+        ([NodeState.MERGED, NodeState.NEEDS_HUMAN, NodeState.SKIPPED], "active"),
+        ([NodeState.MERGED, NodeState.SKIPPED, NodeState.PENDING], "active"),
+        ([], "active"),
     ],
-    ids=["still-working", "all-terminal", "one-skipped", "no-nodes"],
+    ids=[
+        "all-merged",
+        "merged-and-skipped",
+        "all-skipped",
+        "all-stopped",
+        "stopped-and-skipped",
+        "merged-and-needs-human",
+        "pending-node",
+        "missing-nodes",
+    ],
 )
-def test_reports_complete_only_when_every_node_is_terminal(
-    states: list[NodeState], expected: bool
+def test_graph_service_returns_the_run_status_for_the_graph_node_states(
+    states: list[NodeState], expected_status: str
 ) -> None:
-    service = GraphService(build_graph())
+    graph = build_graph()
+    service = GraphService(graph)
     nodes = [
         build_node(node_id, state)
         for node_id, state in zip("ABC", states, strict=False)
     ]
 
-    assert service.is_complete(nodes) is expected
+    run_status = service.get_run_status(nodes)
+
+    assert run_status == expected_status

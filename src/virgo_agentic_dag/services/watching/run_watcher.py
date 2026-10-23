@@ -39,6 +39,7 @@ class RunWatcher:
         self._subscription_factory = subscription_factory
         self._command_runner = command_runner
         self._sleeper = sleeper
+
         self._debounce_seconds = debounce_seconds
         self._no_topics_seconds = no_topics_seconds
 
@@ -47,7 +48,7 @@ class RunWatcher:
         plan = await self._plan_reader.get_plan(command)
 
         while True:
-            topics = await self._plan_reader.get_topics(plan)
+            topics = await self._plan_reader.get_topics()
             if not topics:
                 if not await self._plan_reader.is_scheduled(command.dag_name):
                     emit(format_label(LABELS["watchEnded"]) + "\n")
@@ -100,6 +101,8 @@ class RunWatcher:
         )
 
         emit(format_label(LABELS["watchFired"], {"code": result.returncode}) + "\n")
+        output = result.get_output()
+        emit(output)
 
         if result.returncode == int(ExitCode.RUN_COMPLETE):
             return ExitCode.RUN_COMPLETE

@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.domain.infra.spec.dag_loader import DagLoader
 from virgo_agentic_dag.domain.service.graph_builder import GraphBuilder
 from virgo_agentic_dag.domain.specs.dag_spec import (
@@ -75,6 +76,7 @@ def test_takes_the_dag_defaults_when_the_node_names_nothing(
 
     assert node.project_root == Path("/projects/virgo")
     assert node.workspace_path == Path("/ws/virgo")
+
     assert node.executor_agent is ExecutorAgent.CLAUDE
     assert node.base_branch == "develop"
     assert node.recovery_attempts_allowed == 5
@@ -118,7 +120,8 @@ def test_falls_back_to_the_package_defaults_when_the_dag_names_nothing(
 
     node = builder.build_from_path(DAG_PATH).nodes[0]
 
-    assert node.project_root == Path.cwd()
+    assert node.project_root is None
     assert node.workspace_path == WORKSPACE_HOME / "bare"
+
     assert node.base_branch == DEFAULT_BASE_BRANCH
     assert node.executor_agent is ExecutorAgent.CLAUDE

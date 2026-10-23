@@ -103,7 +103,7 @@ One TOML file. `dag.toml` describes the graph and how the host runs it:
 
 ```toml
 name = "auth-split"                        # the run's name, and its home under ~/.virgo-dag
-project_root = "/path/to/clone"            # the checkout agents work in; defaults to $PWD
+project_root = "/path/to/clone"
 workspace_path = "/path/to/worktrees"      # where per-node worktrees are cut
 base_branch = "develop"                    # what pull requests target
 executor_agent = "claude"                  # the agent every node inherits
@@ -141,6 +141,10 @@ instructions = """
 
 Node values override the graph defaults for `project_root`, `workspace_path`, `executor_agent`,
 `base_branch`, and `cooldown_seconds`.
+
+`project_root` is required at the DAG level. Validation reports `missing-project-root` when it is
+absent. A node may set its own `project_root` or use the DAG's directory. The current directory is
+never used as the default repository directory.
 
 `cooldown_seconds` specifies the number of seconds a node waits after its dependencies merge or are
 skipped. `cooldown_seconds` defaults to 0. A node's `cooldown_seconds` value overrides the graph's
@@ -223,6 +227,11 @@ its own `instructions`.
 Everything a run owns lives under `~/.virgo-dag/<name>/`: `db.sqlite3` (unless the graph names a
 `db_path`), the `.env.local` a scheduled pass reads its tokens from, and the `start.log` and
 `watch.log` the host job and the watcher write to.
+
+The name-based commands `abort`, `watch`, `status`, and `log` load `~/.virgo-dag/<name>/dag.toml`
+when it exists and use its `db_path`. Without that file, they use
+`~/.virgo-dag/<name>/db.sqlite3`. These commands exit 1 with the `dagUnknown` message when the
+selected database does not exist. They do not create a database for an unknown name.
 
 ## Running your first graph
 
@@ -507,12 +516,21 @@ Adopt one into a run that is already going with the command:
 dagctl adopt --pr https://github.com/acme/virgo/pull/412 --dag dag.toml
 ```
 
+After the database import succeeds, the command appends a `[[nodes]]` table to `dag.toml`.
+The table contains `id`, `title`, `pr`, and the takeover prompt as `instructions`.
+It includes `session`, `project_root`, and `workspace_path` when their command options are given.
+It includes `executor_agent` when `--executor` is given.
+The command preserves the existing file content and reloads the graph to validate the table.
+If the append or validation fails, the command reports the error and exits with code 1.
+The imported database rows remain in place.
+
 Either way the node lands **in progress**, with an agent working in a worktree cut from the pull
 request's head branch. A node the graph declares is launched with the `instructions` in the graph
-file; one the command adopts declares none, so it is launched with a standard takeover prompt that
-tells it to read the pull request, answer its review threads, resolve its conflicts, and fix its
-checks. When that session ends the node rests, and from there the resting handler owns it —
-comments wake it, the merge ends it.
+file. The command launches an adopted node with the standard takeover prompt it writes to the
+graph file. The prompt instructs the agent to review the pull request, respond to its review
+threads, resolve its conflicts, and fix its checks. When that session ends, the node enters the
+resting state. The resting handler resumes it for comments and completes it when its pull request
+merges.
 
 `--session` is the exception. Give the command an agent session id and the node rests on that
 session from the start, launching nothing, and its first wake resumes that conversation.

@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+from dataclasses import asdict, fields, replace
+from enum import Enum
 from pathlib import Path
+from typing import cast
+
+import tomli_w
 
 from virgo_agentic_dag.bootstrap.application_context import emit
 from virgo_agentic_dag.domain.command.adopt_command import AdoptCommand
@@ -12,14 +18,15 @@ from virgo_agentic_dag.domain.exceptions.manifest.spec_error import SpecError
 from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
     ObservationError,
 )
-from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
 from virgo_agentic_dag.domain.infra.code.pull_request_details import (
     PullRequestDetails,
 )
 from virgo_agentic_dag.domain.infra.spec.dag_loader import DagLoader
 from virgo_agentic_dag.domain.persistence.repos.node_repo import NodeRepo
+from virgo_agentic_dag.domain.service.graph_builder import GraphBuilder
 from virgo_agentic_dag.domain.specs.dag_spec import WORKSPACE_HOME, DagSpec
+from virgo_agentic_dag.domain.specs.node_spec import NodeSpec
 from virgo_agentic_dag.labels.en import LABELS
 from virgo_agentic_dag.services.run.node_importer import NodeImporter
 from virgo_agentic_dag.utils.format_label import format_label
@@ -34,8 +41,10 @@ class AdoptService:
         code_repo: CodeRepo,
         node_repo: NodeRepo,
         node_importer: NodeImporter,
+        graph_builder: GraphBuilder,
     ) -> None:
         self._dag_loader = dag_loader
+        self._graph_builder = graph_builder
         self._code_repo = code_repo
         self._node_repo = node_repo
         self._node_importer = node_importer
@@ -52,7 +61,9 @@ class AdoptService:
             raise SpecError(format_label(LABELS["prNotUrl"], {"pr": command.pr}))
 
         pr_details = await self._code_repo.get_pr_details_from_url(command.pr)
-        node_id = command.node_id or f"PR-{pr_details.number}"
+        node_spec = self._get_node_spec(command, pr_details)
+
+        node_id = node_spec.id
         if await self._node_repo.read(node_id) is not None:
             emit(
                 format_label(
@@ -73,17 +84,34 @@ class AdoptService:
             command, dag_spec, pr_details, workspace_path
         )
 
-        graph_node = GraphNode(
-            id=node_id,
-            title=pr_details.title,
-            executor_agent=command.executor or dag_spec.executor_agent,
-            instructions=self._render_takeover_brief(pr_details),
+        adopted_dag_spec = replace(
+            dag_spec,
+            nodes=(node_spec,),
             project_root=project_root,
             workspace_path=workspace_path,
-            pr=pr_details.url,
         )
 
-        await self._node_importer.import_node(graph_node, pr_details, command.session)
+        graph = self._graph_builder.create_graph(adopted_dag_spec)
+        graph_node = graph.nodes[0]
+        await self._node_importer.import_node(graph_node, pr_details, node_spec.session)
+
+        try:
+            await asyncio.to_thread(
+                self._append_node_to_dag, command.dag_path, node_spec
+            )
+        except (OSError, SpecError, TypeError, UnicodeError) as error:
+            message = format_label(
+                LABELS["adoptGraphUpdateFailed"],
+                {
+                    "dag_path": command.dag_path,
+                    "node_id": node_id,
+                    "error": error,
+                },
+            )
+
+            emit(message)
+
+            return ExitCode.FAILURE
 
         emit(
             format_label(
@@ -98,6 +126,55 @@ class AdoptService:
         )
 
         return ExitCode.SUCCESS
+
+    def _get_node_spec(
+        self, command: AdoptCommand, pr_details: PullRequestDetails
+    ) -> NodeSpec:
+        instructions = self._render_takeover_brief(pr_details)
+        command_values = asdict(command)
+        command_values.update(
+            id=command.node_id or f"PR-{pr_details.number}",
+            title=pr_details.title,
+            pr=pr_details.url,
+            instructions=instructions,
+            executor_agent=command.executor,
+        )
+
+        node_values = {
+            node_field.name: command_values[node_field.name]
+            for node_field in fields(NodeSpec)
+            if node_field.name in command_values
+        }
+
+        return NodeSpec(**node_values)
+
+    def _append_node_to_dag(self, dag_path: Path, node_spec: NodeSpec) -> None:
+        node_values = self._get_node_values(node_spec)
+        dag_values = {"nodes": [node_values]}
+        node_table = tomli_w.dumps(dag_values)
+
+        with dag_path.open("a", encoding="utf-8", newline="\n") as dag_file:
+            dag_file.write("\n\n" + node_table)
+
+        self._dag_loader.load(dag_path)
+
+    def _get_node_values(self, node_spec: NodeSpec) -> dict[str, object]:
+        node_values: dict[str, object] = asdict(node_spec)
+        for node_field in fields(node_spec):
+            value = node_values[node_field.name]
+            if value is None or value == node_field.default:
+                del node_values[node_field.name]
+                continue
+
+            is_path = isinstance(value, Path)
+            is_enum = isinstance(value, Enum)
+            if is_path:
+                node_values[node_field.name] = str(value)
+            elif is_enum:
+                enum_value = cast(Enum, value)
+                node_values[node_field.name] = enum_value.value
+
+        return node_values
 
     def _render_takeover_brief(self, pr_details: PullRequestDetails) -> str:
         """Return the brief for a node the command line adopts, since it declares none itself."""

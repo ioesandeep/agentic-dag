@@ -85,8 +85,11 @@ class CodexAgentLauncher(AgentLauncher):
     async def wake(
         self, graph_node: GraphNode, news: str, agent: NodeAgent
     ) -> AgentSession:
-        """Resume the node's Codex conversation with new work."""
+        """Start or resume the node's Codex conversation for new work."""
         resume_id = await asyncio.to_thread(self._get_resume_id, agent)
+        if resume_id is None:
+            return await self.launch(graph_node, graph_node.instructions, agent)
+
         prompt = await asyncio.to_thread(self._get_prompt_with_learnings, news)
         argv = [self._BINARY, "exec", "resume", *self._agent_flags, resume_id, prompt]
         started_at = datetime.now(UTC)
@@ -130,7 +133,7 @@ class CodexAgentLauncher(AgentLauncher):
         except (ProcessLookupError, PermissionError):
             return
 
-    def _get_resume_id(self, agent: NodeAgent) -> str:
+    def _get_resume_id(self, agent: NodeAgent) -> str | None:
         transcript_path = self._transcript_locator.get_transcript_path(agent)
         if transcript_path is None:
             raise WorktreeError("The Codex agent has no worktree.")
@@ -143,12 +146,7 @@ class CodexAgentLauncher(AgentLauncher):
 
             thread_id = None
 
-        if thread_id is not None:
-            return thread_id
-
-        raise WorktreeError(
-            "Codex did not record a thread ID; retry this node with --reset."
-        )
+        return thread_id
 
     def _find_thread_id(self, transcript_path: Path) -> str | None:
         with transcript_path.open(encoding="utf-8", errors="replace") as transcript:

@@ -105,7 +105,8 @@ class TickCommandHandler(CommandHandler[TickCommand]):
 
         nodes = await self.node_repo.get_all()
         graph_service = GraphService(graph)
-        if graph_service.is_complete(nodes):
+        run_status = graph_service.get_run_status(nodes)
+        if run_status != "active":
             self._out.write(LABELS["runComplete"])
 
             return ExitCode.RUN_COMPLETE

@@ -2,11 +2,13 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+
 from virgo_agentic_dag.api.cli.dagctl import main
 
 pytestmark = pytest.mark.e2e
 
 _VALID = """name = "live"
+project_root = "/projects/live"
 executor_agent = "claude"
 
 [[nodes]]
@@ -20,6 +22,7 @@ brief = "Do the second thing."
 """
 
 _INVALID = """name = "live"
+project_root = "/projects/live"
 
 [[nodes]]
 id = "A"
@@ -34,6 +37,7 @@ brief = "Do it again."
 """
 
 _MALFORMED_PR = """name = "live"
+project_root = "/projects/live"
 executor_agent = "claude"
 
 [[nodes]]

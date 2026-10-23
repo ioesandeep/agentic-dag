@@ -29,7 +29,11 @@ class GraphBuilder:
             self._build_node(dag_spec, node_spec) for node_spec in dag_spec.nodes
         ]
 
-        return Graph(name=dag_spec.name, nodes=graph_nodes)
+        return Graph(
+            name=dag_spec.name,
+            nodes=graph_nodes,
+            project_root=dag_spec.project_root,
+        )
 
     def _build_node(self, dag_spec: DagSpec, spec: NodeSpec) -> GraphNode:
         return GraphNode(

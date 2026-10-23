@@ -24,6 +24,9 @@ from virgo_agentic_dag.domain.service.notification_publisher import (
     NotificationPublisher,
 )
 from virgo_agentic_dag.labels.en import LABELS
+from virgo_agentic_dag.services.run.dependent_release_service import (
+    DependentReleaseService,
+)
 from virgo_agentic_dag.services.scheduling.run_schedule_service import (
     RunScheduleService,
 )
@@ -43,6 +46,7 @@ class RetryCommandHandler(CommandHandler[RetryCommand]):
         notification_publisher: NotificationPublisher,
         node_agent_repo: NodeAgentRepo,
         run_schedule_service: RunScheduleService,
+        dependent_release_service: DependentReleaseService,
     ) -> None:
         self._run_lock = run_lock
         self._node_repo = node_repo
@@ -50,6 +54,7 @@ class RetryCommandHandler(CommandHandler[RetryCommand]):
         self._notification_publisher = notification_publisher
         self._node_agent_repo = node_agent_repo
         self._run_schedule_service = run_schedule_service
+        self._dependent_release_service = dependent_release_service
 
     async def handle(self, command: RetryCommand) -> ExitCode:
         run_lock_config = RunLockConfig(timeout=command.timeout)
@@ -82,7 +87,10 @@ class RetryCommandHandler(CommandHandler[RetryCommand]):
         if command.reset:
             await self._clear_resume_token(node)
 
-        await self._record(node)
+        current_time = datetime.now(UTC)
+        await self._record(node, current_time)
+        await self._dependent_release_service.release(node.id, current_time)
+
         emit(format_label(LABELS["nodeRetried"], {"node_id": node.id}))
 
         scheduled_job = await self._run_schedule_service.ensure_registered(
@@ -112,10 +120,8 @@ class RetryCommandHandler(CommandHandler[RetryCommand]):
 
         await self._node_agent_repo.save(reset_agent)
 
-    async def _record(self, node: Node) -> None:
+    async def _record(self, node: Node, current_time: datetime) -> None:
         """Move this node to pending everywhere the run is recorded and read."""
-        current_time = datetime.now(UTC)
-
         await self._node_repo.update_state(node.id, NodeState.PENDING, current_time)
 
         audit_entry = AuditEntry(
