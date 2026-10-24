@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import func, select
+
 from virgo_agentic_dag.domain.persistence.entities.node_recovery import NodeRecovery
 from virgo_agentic_dag.domain.persistence.repos.node_recovery_repo import (
     NodeRecoveryRepo,
@@ -28,6 +29,19 @@ class SqliteNodeRecoveryRepo(NodeRecoveryRepo):
             statement = (
                 select(NodeRecovery)
                 .where(NodeRecovery.node_id == node_id)
+                .order_by(NodeRecovery.id.desc())
+                .limit(1)
+            )
+
+            return (await session.execute(statement)).scalar_one_or_none()
+
+    async def get_newest_recovery_by_session_id(
+        self, session_id: int
+    ) -> NodeRecovery | None:
+        async with self._database.open_session() as session:
+            statement = (
+                select(NodeRecovery)
+                .where(NodeRecovery.session_id == session_id)
                 .order_by(NodeRecovery.id.desc())
                 .limit(1)
             )

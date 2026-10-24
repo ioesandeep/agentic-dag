@@ -28,6 +28,13 @@ yourself. Determine whether and how to resume the node.
 | `recover <node> --cause <cause> --action <text> [--recover-at <t>] [--wake <text>] [--unrecoverable] [--restore-marks]` | Acts on the node and writes one recovery row stating your classification, what you did, and when the node is eligible again. `--wake` resumes the node's recorded conversation with that text as the new turn. `--restore-marks` puts the worktree's signal watermarks back to what they were before the latest session. `--unrecoverable` moves the node to `needs_human` with the cause in the audit history, and cannot be combined with `--wake`. |
 | `retry <node> [--reset]` | Returns an `errored` or `needs_human` node to `pending`, so the next tick starts it again in its worktree. `--reset` discards the recorded conversation and starts a new one. |
 
+Each verdict recorded by `recover` spends a recovery attempt. Starting a recovery session spends
+no attempt. A recovery session that records no verdict for a node delays its next recovery
+without moving it to `needs_human`. After k consecutive sessions without a verdict for that node,
+the delay is `tick_interval_seconds × 2^k` after the latest session ends, capped at 3600 seconds.
+Only recovery sessions since the node's latest agent session started count toward this delay.
+Recovery decisions from earlier agent sessions do not determine whether the node is due.
+
 Every command takes `--dag <path>` naming the run's graph file. The prompt states the executable
 and the path to use.
 

@@ -20,6 +20,12 @@ class NodeRecoveryRepo(ABC):
         """Return the last recorded failure of this node, or None before its first."""
 
     @abstractmethod
+    async def get_newest_recovery_by_session_id(
+        self, session_id: int
+    ) -> NodeRecovery | None:
+        """Return the latest recovery decision for an agent session."""
+
+    @abstractmethod
     async def get_due_recoveries(self, recover_at: datetime) -> list[NodeRecovery]:
         """Return the last recorded failure of each node when it is recoverable and eligible at or before the given recover_at."""
 

@@ -230,7 +230,9 @@ async def test_recover_resumes_the_conversation_and_writes_the_row_when_a_messag
         expected_changes.append(("B", NodeState.PENDING))
 
     assert state_changes == expected_changes
+
     assert (node_recovery.session_id, node_recovery.cause) == (7, "turn_cap_reached")
+    node_repo.spend_recovery_attempt.assert_awaited_once_with("A")
 
     run_schedule_service.ensure_registered.assert_awaited_once_with(command.dag_path)
 
@@ -283,6 +285,7 @@ async def test_recover_writes_the_row_and_wakes_nothing_when_no_message_is_given
 
     assert exit_code is ExitCode.SUCCESS
     assert (node_recovery.cause, node_recovery.recover_at) == ("usage_limit", reset_at)
+    node_repo.spend_recovery_attempt.assert_awaited_once_with("A")
 
 
 async def test_recover_moves_the_node_to_needs_human_when_it_is_unrecoverable(
@@ -318,6 +321,8 @@ async def test_recover_moves_the_node_to_needs_human_when_it_is_unrecoverable(
     audit_entry = audit_entry_repo.save.await_args.args[0]
 
     assert exit_code is ExitCode.SUCCESS
+    node_repo.spend_recovery_attempt.assert_awaited_once_with("A")
+
     assert node_repo.update_state.await_args.args[:2] == ("A", NodeState.NEEDS_HUMAN)
     assert audit_entry.note.startswith(
         "the recovery agent marked it unrecoverable: overdue"
@@ -391,6 +396,8 @@ async def test_recover_writes_no_row_when_the_session_recorded_no_marks(
 
     work_tree_repo.advance_marks.assert_not_awaited()
     node_recovery_repo.add.assert_not_awaited()
+    node_repo.spend_recovery_attempt.assert_not_awaited()
+
     assert exit_code is ExitCode.FAILURE
     assert "no watermarks recorded before its latest session" in out.getvalue()
 
@@ -426,6 +433,7 @@ async def test_recover_writes_no_row_when_the_process_of_the_node_is_alive(
 
     agent_launcher.wake.assert_not_awaited()
     node_recovery_repo.add.assert_not_awaited()
+    node_repo.spend_recovery_attempt.assert_not_awaited()
     run_schedule_service.ensure_registered.assert_not_awaited()
 
     assert exit_code is ExitCode.FAILURE
@@ -462,6 +470,7 @@ async def test_recover_writes_no_row_when_the_node_has_no_conversation_to_resume
 
     agent_launcher.wake.assert_not_awaited()
     node_recovery_repo.add.assert_not_awaited()
+    node_repo.spend_recovery_attempt.assert_not_awaited()
     run_schedule_service.ensure_registered.assert_not_awaited()
 
     assert exit_code is ExitCode.FAILURE
@@ -500,6 +509,7 @@ async def test_recover_writes_no_row_when_the_node_has_not_stopped(
 
     agent_launcher.wake.assert_not_awaited()
     node_recovery_repo.add.assert_not_awaited()
+    node_repo.spend_recovery_attempt.assert_not_awaited()
     run_schedule_service.ensure_registered.assert_not_awaited()
 
     assert exit_code is ExitCode.FAILURE

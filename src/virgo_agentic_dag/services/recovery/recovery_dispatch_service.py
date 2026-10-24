@@ -16,7 +16,6 @@ from virgo_agentic_dag.domain.persistence.entities.recovery_session import (
 )
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
 from virgo_agentic_dag.domain.persistence.repos.audit_entry_repo import AuditEntryRepo
-from virgo_agentic_dag.domain.persistence.repos.node_repo import NodeRepo
 from virgo_agentic_dag.domain.persistence.repos.recovery_session_repo import (
     RecoverySessionRepo,
 )
@@ -37,7 +36,6 @@ class RecoveryDispatchService:
     def __init__(
         self,
         recovery_session_repo: RecoverySessionRepo,
-        node_repo: NodeRepo,
         audit_entry_repo: AuditEntryRepo,
         agent_launcher: AgentLauncher,
         executor_agent: ExecutorAgent,
@@ -45,7 +43,6 @@ class RecoveryDispatchService:
         recovery_home: Path,
     ) -> None:
         self._recovery_session_repo = recovery_session_repo
-        self._node_repo = node_repo
         self._audit_entry_repo = audit_entry_repo
         self._agent_launcher = agent_launcher
         self._executor_agent = executor_agent
@@ -64,6 +61,8 @@ class RecoveryDispatchService:
 
             await self._close(open_recovery_session, current_time)
 
+            return TickResponse()
+
         if not recoverable_nodes:
             return TickResponse()
 
@@ -72,7 +71,6 @@ class RecoveryDispatchService:
         await self._recovery_session_repo.add(recovery_session)
 
         for node in recoverable_nodes:
-            await self._node_repo.spend_recovery_attempt(node.id)
             await self._record_dispatch(node, current_time)
 
         return TickResponse(sessions_started=1)

@@ -968,6 +968,8 @@ def _build_recovery_scan_service(context: ApplicationContext) -> RecoveryScanSer
         node_repo=context.get(NodeRepo),
         node_recovery_repo=context.get(NodeRecoveryRepo),
         audit_entry_repo=context.get(AuditEntryRepo),
+        recovery_session_repo=context.get(RecoverySessionRepo),
+        dag_spec=context.get(DagSpec),
     )
 
 
@@ -990,7 +992,6 @@ def _build_recovery_dispatch_service(
 
     return RecoveryDispatchService(
         recovery_session_repo=context.get(RecoverySessionRepo),
-        node_repo=context.get(NodeRepo),
         audit_entry_repo=context.get(AuditEntryRepo),
         agent_launcher=agent_launchers[executor_agent],
         executor_agent=executor_agent,

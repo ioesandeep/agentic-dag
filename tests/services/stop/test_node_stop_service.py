@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from pytest_mock import MockerFixture
 from sqlalchemy.ext.asyncio import create_async_engine
+
 from virgo_agentic_dag.domain.command.stop_command import StopCommand
 from virgo_agentic_dag.domain.exceptions.run.stop_refused import StopRefused
 from virgo_agentic_dag.domain.graph.graph import Graph
@@ -20,6 +21,7 @@ from virgo_agentic_dag.domain.service.graph_builder import GraphBuilder
 from virgo_agentic_dag.domain.service.notification_publisher import (
     NotificationPublisher,
 )
+from virgo_agentic_dag.domain.specs.dag_spec import DagSpec
 from virgo_agentic_dag.domain.specs.executor_agent import ExecutorAgent
 from virgo_agentic_dag.infra.persistence.sqlite.sqlite_agent_session_repo import (
     SqliteAgentSessionRepo,
@@ -32,6 +34,9 @@ from virgo_agentic_dag.infra.persistence.sqlite.sqlite_node_recovery_repo import
     SqliteNodeRecoveryRepo,
 )
 from virgo_agentic_dag.infra.persistence.sqlite.sqlite_node_repo import SqliteNodeRepo
+from virgo_agentic_dag.infra.persistence.sqlite.sqlite_recovery_session_repo import (
+    SqliteRecoverySessionRepo,
+)
 from virgo_agentic_dag.services.recovery.recovery_scan_service import (
     RecoveryScanService,
 )
@@ -122,7 +127,9 @@ async def test_stop_moves_the_node_to_needs_human_when_its_session_is_running(
 
     node_repo = SqliteNodeRepo(database)
     audit_entry_repo = SqliteAuditEntryRepo(database)
+
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
+
     graph_builder = mocker.MagicMock(spec=GraphBuilder)
     graph_builder.build_from_path.return_value = graph
     service = NodeStopService(
@@ -137,13 +144,16 @@ async def test_stop_moves_the_node_to_needs_human_when_its_session_is_running(
     await service.stop(COMMAND, NOW)
 
     stopped_node = await node_repo.read("A")
-    audit_entries = await audit_entry_repo.get_all()
     assert stopped_node is not None
+    assert stopped_node.state == NodeState.NEEDS_HUMAN.value
+
     stopped_session = stopped_node.get_latest_session()
     assert stopped_session is not None
-    assert agent_launcher.stop.await_args.args[0].pid == running_process.pid
     assert (stopped_session.end_state, stopped_session.exit_code) == ("stopped", None)
-    assert stopped_node.state == NodeState.NEEDS_HUMAN.value
+
+    assert agent_launcher.stop.await_args.args[0].pid == running_process.pid
+
+    audit_entries = await audit_entry_repo.get_all()
     assert audit_entries[0].note == "the stop command stops the session"
 
 
@@ -161,8 +171,10 @@ async def test_get_recoverable_nodes_returns_no_nodes_when_stop_command_stops_th
 
     node_repo = SqliteNodeRepo(database)
     audit_entry_repo = SqliteAuditEntryRepo(database)
+
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
     agent_launcher.stop.side_effect = lambda session: running_process.kill()
+
     graph_builder = mocker.MagicMock(spec=GraphBuilder)
     graph_builder.build_from_path.return_value = graph
     node_stop_service = NodeStopService(
@@ -174,10 +186,14 @@ async def test_get_recoverable_nodes_returns_no_nodes_when_stop_command_stops_th
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
     )
 
+    recovery_session_repo = SqliteRecoverySessionRepo(database)
+    dag_spec = DagSpec(name="demo", nodes=())
     recovery_scan_service = RecoveryScanService(
         node_repo=node_repo,
         node_recovery_repo=SqliteNodeRecoveryRepo(database),
         audit_entry_repo=audit_entry_repo,
+        recovery_session_repo=recovery_session_repo,
+        dag_spec=dag_spec,
     )
 
     await node_stop_service.stop(COMMAND, NOW)

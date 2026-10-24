@@ -117,6 +117,7 @@ class NodeRecoveryService:
         )
 
         await self._node_recovery_repo.add(node_recovery)
+        await self._node_repo.spend_recovery_attempt(node.id)
 
         if not command.recoverable and not node.needs_human():
             note = format_label(

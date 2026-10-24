@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
 from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSession
@@ -14,7 +15,6 @@ from virgo_agentic_dag.domain.persistence.entities.recovery_session import (
     RecoverySession,
 )
 from virgo_agentic_dag.domain.persistence.repos.audit_entry_repo import AuditEntryRepo
-from virgo_agentic_dag.domain.persistence.repos.node_repo import NodeRepo
 from virgo_agentic_dag.domain.persistence.repos.recovery_session_repo import (
     RecoverySessionRepo,
 )
@@ -78,11 +78,11 @@ async def test_dispatch_starts_a_single_session_when_two_nodes_fail(
 ) -> None:
     recovery_session_repo = mocker.MagicMock(spec=RecoverySessionRepo)
     recovery_session_repo.find_open_session.return_value = None
+
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
     agent_launcher.launch.return_value = started_agent_session
     service = RecoveryDispatchService(
         recovery_session_repo=recovery_session_repo,
-        node_repo=mocker.MagicMock(spec=NodeRepo),
         audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
         agent_launcher=agent_launcher,
         executor_agent=ExecutorAgent.CODEX,
@@ -94,6 +94,7 @@ async def test_dispatch_starts_a_single_session_when_two_nodes_fail(
 
     agent_launcher.launch.assert_awaited_once()
     assert agent_launcher.launch.await_args.args[2].name == "codex"
+
     recovery_session = recovery_session_repo.add.await_args.args[0]
     assert (
         tick_response.sessions_started,
@@ -116,7 +117,6 @@ async def test_dispatch_starts_nothing_when_the_previous_session_process_is_aliv
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
     service = RecoveryDispatchService(
         recovery_session_repo=recovery_session_repo,
-        node_repo=mocker.MagicMock(spec=NodeRepo),
         audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
         agent_launcher=agent_launcher,
         executor_agent=ExecutorAgent.CODEX,
@@ -148,7 +148,6 @@ async def test_dispatch_closes_the_previous_session_when_its_process_is_dead(
     agent_launcher.launch.return_value = started_agent_session
     service = RecoveryDispatchService(
         recovery_session_repo=recovery_session_repo,
-        node_repo=mocker.MagicMock(spec=NodeRepo),
         audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
         agent_launcher=agent_launcher,
         executor_agent=ExecutorAgent.CODEX,
@@ -160,7 +159,9 @@ async def test_dispatch_closes_the_previous_session_when_its_process_is_dead(
 
     closed_recovery_session = recovery_session_repo.close.await_args.args[0]
     assert (closed_recovery_session.id, closed_recovery_session.ended_at) == (1, NOW)
-    assert tick_response.sessions_started == 1
+
+    assert tick_response.sessions_started == 0
+    agent_launcher.launch.assert_not_awaited()
 
 
 async def test_dispatch_starts_nothing_when_no_node_fails(
@@ -168,10 +169,10 @@ async def test_dispatch_starts_nothing_when_no_node_fails(
 ) -> None:
     recovery_session_repo = mocker.MagicMock(spec=RecoverySessionRepo)
     recovery_session_repo.find_open_session.return_value = None
+
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
     service = RecoveryDispatchService(
         recovery_session_repo=recovery_session_repo,
-        node_repo=mocker.MagicMock(spec=NodeRepo),
         audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
         agent_launcher=agent_launcher,
         executor_agent=ExecutorAgent.CODEX,
@@ -185,7 +186,7 @@ async def test_dispatch_starts_nothing_when_no_node_fails(
     assert tick_response.sessions_started == 0
 
 
-async def test_dispatch_spends_a_recovery_attempt_of_each_node_when_the_session_starts(
+async def test_dispatch_preserves_recovery_attempts_when_the_session_starts(
     mocker: MockerFixture,
     tmp_path: Path,
     build_node: BuildNode,
@@ -193,12 +194,11 @@ async def test_dispatch_spends_a_recovery_attempt_of_each_node_when_the_session_
 ) -> None:
     recovery_session_repo = mocker.MagicMock(spec=RecoverySessionRepo)
     recovery_session_repo.find_open_session.return_value = None
+
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
     agent_launcher.launch.return_value = started_agent_session
-    node_repo = mocker.MagicMock(spec=NodeRepo)
     service = RecoveryDispatchService(
         recovery_session_repo=recovery_session_repo,
-        node_repo=node_repo,
         audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
         agent_launcher=agent_launcher,
         executor_agent=ExecutorAgent.CODEX,
@@ -206,13 +206,11 @@ async def test_dispatch_spends_a_recovery_attempt_of_each_node_when_the_session_
         recovery_home=tmp_path,
     )
 
-    await service.dispatch([build_node("A"), build_node("B")], NOW)
+    nodes = [build_node("A"), build_node("B")]
 
-    spent_node_ids = [
-        call.args[0] for call in node_repo.spend_recovery_attempt.await_args_list
-    ]
+    await service.dispatch(nodes, NOW)
 
-    assert spent_node_ids == ["A", "B"]
+    assert [node.recovery_attempts_allowed for node in nodes] == [1, 1]
 
 
 async def test_dispatch_records_an_audit_entry_for_each_node_when_the_session_starts(
@@ -223,12 +221,13 @@ async def test_dispatch_records_an_audit_entry_for_each_node_when_the_session_st
 ) -> None:
     recovery_session_repo = mocker.MagicMock(spec=RecoverySessionRepo)
     recovery_session_repo.find_open_session.return_value = None
+
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
     agent_launcher.launch.return_value = started_agent_session
+
     audit_entry_repo = mocker.MagicMock(spec=AuditEntryRepo)
     service = RecoveryDispatchService(
         recovery_session_repo=recovery_session_repo,
-        node_repo=mocker.MagicMock(spec=NodeRepo),
         audit_entry_repo=audit_entry_repo,
         agent_launcher=agent_launcher,
         executor_agent=ExecutorAgent.CODEX,
