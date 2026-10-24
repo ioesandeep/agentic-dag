@@ -156,6 +156,7 @@ LABELS: dict[str, str] = {
         "Node has utilized all its allowed recovery attempts: {count} attempts"
     ),
     "recoveryStarted": "a recovery agent session started to examine it",
+    "recoverySessionOverdue": "its recovery session exceeds the timeout and is killed",
     "recoveryPrompt": (
         "You are the recovery agent of this run. The batch at the end lists the nodes "
         "whose agent session ended and did not resume, a section for each node.\n\n"

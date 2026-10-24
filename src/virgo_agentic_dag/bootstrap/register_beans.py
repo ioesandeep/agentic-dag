@@ -992,9 +992,11 @@ def _build_recovery_dispatch_service(
 
     return RecoveryDispatchService(
         recovery_session_repo=context.get(RecoverySessionRepo),
+        node_repo=context.get(NodeRepo),
         audit_entry_repo=context.get(AuditEntryRepo),
         agent_launcher=agent_launchers[executor_agent],
-        executor_agent=executor_agent,
+        recovery_session_killer=context.get(RecoverySessionKiller),
+        dag_spec=dag_spec,
         prompt_composer=prompt_composer,
         recovery_home=recovery_home,
     )
