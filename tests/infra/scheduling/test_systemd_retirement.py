@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 from pytest_mock import MockerFixture
-
 from virgo_agentic_dag.domain.exceptions.host.scheduling_error import SchedulingError
 from virgo_agentic_dag.domain.execution.run_result import RunResult
 from virgo_agentic_dag.domain.infra.host.command_runner import CommandRunner
 from virgo_agentic_dag.domain.infra.scheduling.scheduled_job import ScheduledJob
 from virgo_agentic_dag.infra.scheduling.systemd_retirement import (
+    get_retirement_command,
     lock_units,
     retire_service,
 )
@@ -49,13 +49,16 @@ async def test_retirement_defers_service_removal_without_waiting_for_its_exit(
     unit_files = SystemdUnit.list_for_job(job)
     service_path = unit_files[0].path
     timer_path = unit_files[1].path
+
     service_path.parent.mkdir(parents=True)
     service_path.write_text("service")
     timer_path.write_text("timer")
-    command_runner = mocker.MagicMock(spec=CommandRunner)
+
     present = RunResult(returncode=0, stdout="LoadState=loaded\nActiveState=active\n")
     enabled = RunResult(returncode=0, stdout="enabled\n")
     success = RunResult(returncode=0)
+
+    command_runner = mocker.MagicMock(spec=CommandRunner)
     command_runner.run.side_effect = [present, enabled] * 2 + [success] * 3
 
     scheduler = SystemdScheduler(command_runner=command_runner)
@@ -74,12 +77,11 @@ async def test_retirement_defers_service_removal_without_waiting_for_its_exit(
 
     commands = [call.args[0] for call in command_runner.run.call_args_list]
     cleanup_command = commands[-1]
-    assert cleanup_command[:5] == [
+    assert cleanup_command[:4] == [
         "systemd-run",
         "--user",
         "--collect",
         "--no-block",
-        "--expand-environment=no",
     ]
 
     service_name = service_path.name.replace("\\", "\\\\")
@@ -87,11 +89,27 @@ async def test_retirement_defers_service_removal_without_waiting_for_its_exit(
     assert cleanup_command[-1] == str(service_path)
 
 
+def test_retirement_command_escapes_dollars_in_executable_and_service_paths(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    service_path = tmp_path / "$HOME" / "demo.service"
+    mocker.patch(
+        "virgo_agentic_dag.infra.scheduling.systemd_retirement.sys.executable",
+        "/venv$HOME/bin/python",
+    )
+
+    retirement_command = get_retirement_command(service_path)
+
+    assert retirement_command[3] == "/venv$$HOME/bin/python"
+    assert retirement_command[-1] == f"{tmp_path}/$$HOME/demo.service"
+
+
 def test_cleanup_removes_retired_service_and_is_repeatable(
     tmp_path: Path, mocker: MockerFixture
 ) -> None:
     service_path = tmp_path / "demo.service"
     service_path.write_text("service")
+
     command_runner = mocker.MagicMock(spec=CommandRunner)
     command_runner.run.return_value = RunResult(returncode=0)
     mocker.patch(
@@ -115,6 +133,7 @@ async def test_cleanup_waits_for_registration_and_preserves_new_units(
 ) -> None:
     service_path = tmp_path / "demo.service"
     timer_path = tmp_path / "demo.timer"
+
     command_runner = mocker.MagicMock(spec=CommandRunner)
     command_runner.run.return_value = RunResult(returncode=0)
     mocker.patch(
@@ -126,6 +145,7 @@ async def test_cleanup_waits_for_registration_and_preserves_new_units(
     try:
         async with lock_units(service_path):
             service_path.write_text("new service")
+
             cleanup = asyncio.to_thread(retire_service, service_path)
             cleanup_task = asyncio.create_task(cleanup)
             pending_cleanup = asyncio.shield(cleanup_task)
@@ -148,10 +168,12 @@ async def test_registration_waits_for_cleanup_before_replacing_service(
     job = get_job()
     unit_files = SystemdUnit.list_for_job(job)
     service_path = unit_files[0].path
-    command_runner = mocker.MagicMock(spec=CommandRunner)
+
     missing = RunResult(returncode=1, stdout="LoadState=not-found\n")
     not_enabled = RunResult(returncode=4, stdout="not-found\n")
     success = RunResult(returncode=0)
+
+    command_runner = mocker.MagicMock(spec=CommandRunner)
     command_runner.run.side_effect = [missing, not_enabled] * 2 + [success] * 3
 
     scheduler = SystemdScheduler(command_runner=command_runner)
@@ -160,6 +182,7 @@ async def test_registration_waits_for_cleanup_before_replacing_service(
     try:
         async with lock_units(service_path):
             service_path.write_text("previous service")
+
             registration = scheduler.register(job)
             registration_task = asyncio.create_task(registration)
             pending_registration = asyncio.shield(registration_task)

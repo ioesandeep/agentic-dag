@@ -65,15 +65,17 @@ async def _acquire_lock(unit_lock: DagRunLock) -> None:
 
 def get_retirement_command(service_path: Path) -> list[str]:
     """Orders service cleanup after the current systemd invocation."""
-    service_argument = str(service_path)
+    service_path_text = str(service_path)
+    service_argument = service_path_text.replace("$", "$$")
+
+    python_executable = sys.executable.replace("$", "$$")
     service_name = service_path.name.replace("\\", "\\\\")
 
     return [
         "--collect",
         "--no-block",
-        "--expand-environment=no",
         "--property=After=" + service_name,
-        sys.executable,
+        python_executable,
         "-m",
         "virgo_agentic_dag.infra.scheduling.systemd_retirement",
         service_argument,

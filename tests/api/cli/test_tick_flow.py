@@ -7,10 +7,12 @@ from pathlib import Path
 
 import anyio
 import pytest
-
+from pytest_mock import MockerFixture
 from virgo_agentic_dag.api.cli.dagctl import main
+from virgo_agentic_dag.domain.infra.scheduling.scheduler import Scheduler
 from virgo_agentic_dag.infra.agent.claude_agent_launcher import ClaudeAgentLauncher
 from virgo_agentic_dag.infra.locking.dag_run_lock import DagRunLock
+from virgo_agentic_dag.infra.scheduling.scheduler_factory import SchedulerFactory
 from virgo_agentic_dag.services.learning.extraction_lock import ExtractionLock
 
 pytestmark = pytest.mark.e2e
@@ -93,6 +95,13 @@ def install_agent(
     stub.chmod(0o755)
 
     monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+
+
+@pytest.fixture(autouse=True)
+def mock_scheduler(mocker: MockerFixture) -> None:
+    scheduler = mocker.MagicMock(spec=Scheduler)
+    scheduler.is_registered.side_effect = lambda _: scheduler.register.called
+    mocker.patch.object(SchedulerFactory, "get_scheduler", return_value=scheduler)
 
 
 @pytest.fixture(autouse=True)
