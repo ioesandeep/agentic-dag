@@ -58,7 +58,7 @@ export const FAILED_CONNECTOR_IMPORT: RepositoryImport = {
   requestId: 'request-connector-1',
   status: ImportStatusEnum.FAILED,
   cancelRequestedAt: null,
-  errorMessage: 'GitHub denied access to acme/connector.',
+  errorMessage: 'GitHub denied access to virgo/connector.',
   createdAt: '2026-10-15T11:00:00Z',
   startedAt: '2026-10-15T11:00:00Z',
   finishedAt: '2026-10-15T11:01:00Z',

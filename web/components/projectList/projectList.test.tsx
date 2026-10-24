@@ -84,9 +84,9 @@ test('ProjectList displays project details when archived projects are included',
   expect(activeStatuses).toHaveLength(3);
 
   expect(repositoryNames).toEqual([
-    'acme/service',
-    'acme/worker',
-    'acme/connector',
+    'virgo/service',
+    'virgo/worker',
+    'virgo/connector',
   ]);
 
   expect(researchProjectCard).toHaveTextContent(
@@ -128,7 +128,7 @@ test('ProjectList includes every repository in the bar when the text preview is 
 
   const repositoryQueries = within(repositoryList);
   const repositoryItems = repositoryQueries.getAllByRole('listitem');
-  const fourthRepository = repositoryQueries.queryByText('acme/console');
+  const fourthRepository = repositoryQueries.queryByText('virgo/console');
   const repositoryBar = screen.getByRole('group', {
     name: LABELS.projectRepositories,
   });
@@ -179,9 +179,9 @@ test('ProjectList displays repository segments when a project has repositories',
   const emptySegments = emptyBarQueries.queryAllByRole('img');
 
   expect(repositoryNames).toEqual([
-    'acme/service',
-    'acme/worker',
-    'acme/connector',
+    'virgo/service',
+    'virgo/worker',
+    'virgo/connector',
   ]);
 
   expect(emptyBar).toBeVisible();

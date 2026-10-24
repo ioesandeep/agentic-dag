@@ -1,10 +1,30 @@
 import type { SignalKind } from '@/entities/nodeDetail';
 import { RecoveryCauseEnum, SessionEndStateEnum } from '@/entities/nodeDetail';
 import { NodeStateEnum } from '@/entities/nodeState';
+import { RepositoryPresentationStatusEnum } from '@/entities/catalog/repository';
 import { DagState } from '@/utils/dagState';
 import { RecoverySessionState } from '@/utils/recoverySessionState';
 
 export const LOCALE = 'en';
+
+/**
+ * Defines the repository status labels.
+ */
+export const REPOSITORY_STATUS_LABELS: Record<
+  RepositoryPresentationStatusEnum,
+  string
+> = {
+  [RepositoryPresentationStatusEnum.QUEUED]: 'Clone queued',
+  [RepositoryPresentationStatusEnum.CLONING]: 'Cloning',
+  [RepositoryPresentationStatusEnum.READY]: 'Ready',
+  [RepositoryPresentationStatusEnum.FAILED]: 'Clone failed',
+  [RepositoryPresentationStatusEnum.CANCELLED]: 'Clone cancelled',
+  [RepositoryPresentationStatusEnum.INTERRUPTED]: 'Clone interrupted',
+  [RepositoryPresentationStatusEnum.MISSING]: 'Folder missing',
+  [RepositoryPresentationStatusEnum.INVALID]: 'Invalid checkout',
+  [RepositoryPresentationStatusEnum.PENDING]: 'Checkout pending',
+  [RepositoryPresentationStatusEnum.ARCHIVED]: 'Archived',
+};
 
 export const NODE_STATE_LABELS: Record<NodeStateEnum, string> = {
   [NodeStateEnum.PENDING]: 'Pending',
@@ -153,6 +173,22 @@ export const LABELS = {
   durationSeconds: '{count} seconds',
   durationMinutes: '{count} minutes',
   themeToggle: 'Switch between light and dark',
+  repositoryCancellationRequested: 'Cancellation requested',
+  repositoryCloneElapsed: 'Elapsed {duration}',
+  repositoryExternal: 'Local clone',
+  repositoryDetails: 'Details',
+  repositoryDetailsOpen: 'Open details for {repository}',
+  repositoryChangeBranch: 'Change branch',
+  repositoryRemoveFromProject: 'Remove from project',
+  repositoryRetryClone: 'Retry clone',
+  repositoryProjects: 'Projects',
+  repositoryDefaultBranch: 'Default branch: {branch}',
+  repositoryDefaultBranchUnknown: 'Default branch unavailable',
+  repositoryClonedDate: 'Cloned {date}',
+  repositoryProjectBranch: '{project}: {branch}',
+  repositoryNoProjects: 'No projects use this repository.',
+  repositoriesEmpty: 'No repositories',
+  repositoriesEmptyHint: 'Add a GitHub repository or register a local clone.',
   notBuiltTitle: 'Not built yet',
   notBuiltBody: 'This page arrives with the next node.',
   nodeBack: 'Back to the dag',
