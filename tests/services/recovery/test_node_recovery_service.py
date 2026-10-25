@@ -49,6 +49,7 @@ from virgo_agentic_dag.services.recovery.node_recovery_service import (
 from virgo_agentic_dag.services.run.dependent_release_service import (
     DependentReleaseService,
 )
+from virgo_agentic_dag.services.run.node_wait_service import NodeWaitService
 from virgo_agentic_dag.services.scheduling.run_schedule_service import (
     RunScheduleService,
 )
@@ -212,6 +213,7 @@ async def test_recover_resumes_the_conversation_and_writes_the_row_when_a_messag
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
         run_schedule_service=run_schedule_service,
         dependent_release_service=dependent_release_service,
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     command = build_command(wake_message=WAKE_MESSAGE)
@@ -242,7 +244,18 @@ async def test_recover_resumes_the_conversation_and_writes_the_row_when_a_messag
     assert has_schedule_message is (not is_registered)
 
 
-async def test_recover_writes_the_row_and_wakes_nothing_when_no_message_is_given(
+@pytest.mark.parametrize(
+    ("cause", "delay_hours"),
+    [
+        (RecoveryCauseEnum.NO_PULL_REQUEST, 2),
+        (RecoveryCauseEnum.USAGE_LIMIT, 0),
+        (RecoveryCauseEnum.PROVIDER_FAILURE, -1),
+        (RecoveryCauseEnum.USAGE_LIMIT, None),
+    ],
+)
+async def test_recover_preserves_node_state_when_the_verdict_requires_no_wait(
+    cause: RecoveryCauseEnum,
+    delay_hours: int | None,
     mocker: MockerFixture,
     out: io.StringIO,
     build_command: BuildCommand,
@@ -250,6 +263,12 @@ async def test_recover_writes_the_row_and_wakes_nothing_when_no_message_is_given
     dead_pid: int,
     now: datetime,
 ) -> None:
+    recovery_datetime = mocker.patch(
+        "virgo_agentic_dag.services.recovery.node_recovery_service.datetime"
+    )
+
+    recovery_datetime.now.return_value = now
+
     node_repo = mocker.MagicMock(spec=NodeRepo)
     node_repo.read.return_value = build_node(
         NodeState.RESTING, dead_pid, "token-A", None
@@ -257,7 +276,10 @@ async def test_recover_writes_the_row_and_wakes_nothing_when_no_message_is_given
 
     node_recovery_repo = mocker.MagicMock(spec=NodeRecoveryRepo)
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
+
     run_schedule_service = mocker.MagicMock(spec=RunScheduleService)
+    node_wait_service = mocker.MagicMock(spec=NodeWaitService)
+    dependent_release_service = mocker.MagicMock(spec=DependentReleaseService)
     service = NodeRecoveryService(
         node_repo=node_repo,
         node_recovery_repo=node_recovery_repo,
@@ -268,24 +290,95 @@ async def test_recover_writes_the_row_and_wakes_nothing_when_no_message_is_given
         graph_builder=mocker.MagicMock(spec=GraphBuilder),
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
         run_schedule_service=run_schedule_service,
-        dependent_release_service=mocker.MagicMock(spec=DependentReleaseService),
+        dependent_release_service=dependent_release_service,
+        node_wait_service=node_wait_service,
     )
 
-    reset_at = now + timedelta(hours=2)
+    recover_at = now + timedelta(hours=delay_hours) if delay_hours is not None else None
+    command = build_command(cause=cause, recover_at=recover_at)
 
-    exit_code = await service.recover(
-        build_command(cause=RecoveryCauseEnum.USAGE_LIMIT, recover_at=reset_at)
-    )
-
-    node_recovery = node_recovery_repo.add.await_args.args[0]
-
-    agent_launcher.wake.assert_not_awaited()
-    node_repo.update_state.assert_not_awaited()
-    run_schedule_service.ensure_registered.assert_not_awaited()
+    exit_code = await service.recover(command)
 
     assert exit_code is ExitCode.SUCCESS
-    assert (node_recovery.cause, node_recovery.recover_at) == ("usage_limit", reset_at)
+    agent_launcher.wake.assert_not_awaited()
+
+    node_repo.update_state.assert_not_awaited()
+    node_wait_service.wait.assert_not_awaited()
+    dependent_release_service.release.assert_not_awaited()
+    run_schedule_service.ensure_registered.assert_not_awaited()
+
+    node_recovery = node_recovery_repo.add.await_args.args[0]
+    assert node_recovery.cause == cause.value
+    assert node_recovery.recover_at == (recover_at or now)
     node_repo.spend_recovery_attempt.assert_awaited_once_with("A")
+
+
+@pytest.mark.parametrize(
+    "cause", [RecoveryCauseEnum.USAGE_LIMIT, RecoveryCauseEnum.PROVIDER_FAILURE]
+)
+async def test_recover_waits_when_usage_limit_or_provider_failure_has_a_future_recover_at(
+    cause: RecoveryCauseEnum,
+    mocker: MockerFixture,
+    out: io.StringIO,
+    build_command: BuildCommand,
+    build_node: BuildNode,
+    dead_pid: int,
+    now: datetime,
+) -> None:
+    recovery_datetime = mocker.patch(
+        "virgo_agentic_dag.services.recovery.node_recovery_service.datetime"
+    )
+
+    recovery_datetime.now.return_value = now
+
+    node_repo = mocker.MagicMock(spec=NodeRepo)
+    node_repo.read.return_value = build_node(
+        NodeState.ERRORED, dead_pid, "token-A", None
+    )
+
+    node_wait_service = mocker.MagicMock(spec=NodeWaitService)
+    dependent_release_service = mocker.MagicMock(spec=DependentReleaseService)
+
+    scheduled_job = ScheduledJob(dag_name="demo", label="fyi.virgo.dag.demo")
+    run_schedule_service = mocker.MagicMock(spec=RunScheduleService)
+    run_schedule_service.ensure_registered.return_value = scheduled_job
+
+    node_recovery_repo = mocker.MagicMock(spec=NodeRecoveryRepo)
+    agent_launcher = mocker.MagicMock(spec=AgentLauncher)
+    service = NodeRecoveryService(
+        node_repo=node_repo,
+        node_recovery_repo=node_recovery_repo,
+        agent_session_repo=mocker.MagicMock(spec=AgentSessionRepo),
+        audit_entry_repo=mocker.MagicMock(spec=AuditEntryRepo),
+        work_tree_repo=mocker.MagicMock(spec=WorkTreeRepo),
+        notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
+        graph_builder=mocker.MagicMock(spec=GraphBuilder),
+        agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
+        run_schedule_service=run_schedule_service,
+        dependent_release_service=dependent_release_service,
+        node_wait_service=node_wait_service,
+    )
+
+    recover_at = now + timedelta(hours=2)
+    command = build_command(cause=cause, recover_at=recover_at)
+
+    exit_code = await service.recover(command)
+
+    assert exit_code is ExitCode.SUCCESS
+    agent_launcher.wake.assert_not_awaited()
+
+    node_wait_service.wait.assert_awaited_once_with("A", recover_at, mocker.ANY, now)
+    wait_note = node_wait_service.wait.await_args.args[2]
+    assert cause.value in wait_note
+
+    dependent_release_service.release.assert_awaited_once_with("A", now)
+
+    node_recovery = node_recovery_repo.add.await_args.args[0]
+    assert node_recovery.recover_at == recover_at
+    node_repo.spend_recovery_attempt.assert_awaited_once_with("A")
+
+    run_schedule_service.ensure_registered.assert_awaited_once_with(command.dag_path)
+    assert "this host will run fyi.virgo.dag.demo" in out.getvalue()
 
 
 async def test_recover_moves_the_node_to_needs_human_when_it_is_unrecoverable(
@@ -312,6 +405,7 @@ async def test_recover_moves_the_node_to_needs_human_when_it_is_unrecoverable(
         agent_launchers={},
         run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
         dependent_release_service=mocker.MagicMock(spec=DependentReleaseService),
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     exit_code = await service.recover(
@@ -354,6 +448,7 @@ async def test_recover_restores_the_marks_of_the_latest_session_when_asked(
         agent_launchers={},
         run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
         dependent_release_service=mocker.MagicMock(spec=DependentReleaseService),
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     exit_code = await service.recover(build_command(restore_marks=True))
@@ -390,6 +485,7 @@ async def test_recover_writes_no_row_when_the_session_recorded_no_marks(
         agent_launchers={},
         run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
         dependent_release_service=mocker.MagicMock(spec=DependentReleaseService),
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     exit_code = await service.recover(build_command(restore_marks=True))
@@ -427,6 +523,7 @@ async def test_recover_writes_no_row_when_the_process_of_the_node_is_alive(
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
         run_schedule_service=run_schedule_service,
         dependent_release_service=mocker.MagicMock(spec=DependentReleaseService),
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     exit_code = await service.recover(build_command(wake_message=WAKE_MESSAGE))
@@ -464,6 +561,7 @@ async def test_recover_writes_no_row_when_the_node_has_no_conversation_to_resume
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
         run_schedule_service=run_schedule_service,
         dependent_release_service=mocker.MagicMock(spec=DependentReleaseService),
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     exit_code = await service.recover(build_command(wake_message=WAKE_MESSAGE))
@@ -503,6 +601,7 @@ async def test_recover_writes_no_row_when_the_node_has_not_stopped(
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
         run_schedule_service=run_schedule_service,
         dependent_release_service=mocker.MagicMock(spec=DependentReleaseService),
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     exit_code = await service.recover(build_command(wake_message=WAKE_MESSAGE))
@@ -547,6 +646,7 @@ async def test_recover_registers_nothing_when_the_agent_fails_to_wake(
         agent_launchers={ExecutorAgent.CLAUDE: agent_launcher},
         run_schedule_service=run_schedule_service,
         dependent_release_service=mocker.MagicMock(spec=DependentReleaseService),
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
     )
 
     command = build_command(wake_message=WAKE_MESSAGE)

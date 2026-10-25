@@ -1057,6 +1057,7 @@ def _build_node_recovery_service(context: ApplicationContext) -> NodeRecoverySer
         agent_launchers=_build_agent_launchers(context.get(DagSpec)),
         run_schedule_service=context.get(RunScheduleService),
         dependent_release_service=context.get(DependentReleaseService),
+        node_wait_service=context.get(NodeWaitService),
     )
 
 

@@ -251,6 +251,7 @@ LABELS: dict[str, str] = {
         "{node_id} recovery row written: {cause}, recoverable {recoverable}, "
         "recover at {recover_at}\n"
     ),
+    "recoveryWait": "{cause} recovery waits until {recover_at}",
     "markedUnrecoverable": (
         "the recovery agent marked it unrecoverable: {cause}; {action}"
     ),

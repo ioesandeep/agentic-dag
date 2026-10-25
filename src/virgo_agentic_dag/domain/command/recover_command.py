@@ -26,6 +26,22 @@ class RecoverCommand(DagCommand):
     # the maximum run lock wait in seconds, or None for an unlimited wait
     timeout: float | None = None
 
+    def get_resume_at(self, current_time: datetime) -> datetime | None:
+        """Return the resume time for an automatic recovery wait."""
+        if not self.recoverable or self.wake_message:
+            return None
+
+        if self.cause not in (
+            RecoveryCauseEnum.USAGE_LIMIT,
+            RecoveryCauseEnum.PROVIDER_FAILURE,
+        ):
+            return None
+
+        if self.recover_at is None or self.recover_at <= current_time:
+            return None
+
+        return self.recover_at
+
     def requires_run_lock(self) -> bool:
         """Recover claims the run itself, waiting out the pass that has it instead of failing."""
         return False

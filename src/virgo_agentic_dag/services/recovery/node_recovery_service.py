@@ -39,6 +39,7 @@ from virgo_agentic_dag.labels.en import LABELS
 from virgo_agentic_dag.services.run.dependent_release_service import (
     DependentReleaseService,
 )
+from virgo_agentic_dag.services.run.node_wait_service import NodeWaitService
 from virgo_agentic_dag.services.scheduling.run_schedule_service import (
     RunScheduleService,
 )
@@ -62,6 +63,7 @@ class NodeRecoveryService:
         agent_launchers: Mapping[ExecutorAgent, AgentLauncher],
         run_schedule_service: RunScheduleService,
         dependent_release_service: DependentReleaseService,
+        node_wait_service: NodeWaitService,
     ) -> None:
         self._node_repo = node_repo
         self._node_recovery_repo = node_recovery_repo
@@ -73,6 +75,7 @@ class NodeRecoveryService:
         self._agent_launchers = agent_launchers
         self._run_schedule_service = run_schedule_service
         self._dependent_release_service = dependent_release_service
+        self._node_wait_service = node_wait_service
 
     async def recover(self, command: RecoverCommand) -> ExitCode:
         """Apply what the recovery agent decided and record the failure, or change nothing."""
@@ -119,6 +122,8 @@ class NodeRecoveryService:
         await self._node_recovery_repo.add(node_recovery)
         await self._node_repo.spend_recovery_attempt(node.id)
 
+        await self._wait(node, command, current_time)
+
         if not command.recoverable and not node.needs_human():
             note = format_label(
                 LABELS["markedUnrecoverable"],
@@ -141,6 +146,30 @@ class NodeRecoveryService:
         }
 
         emit(format_label(LABELS["recoveryRecorded"], values))
+
+    async def _wait(
+        self, node: Node, command: RecoverCommand, current_time: datetime
+    ) -> None:
+        resume_at = command.get_resume_at(current_time)
+        if resume_at is None:
+            return
+
+        note = format_label(
+            LABELS["recoveryWait"],
+            {"cause": command.cause.value, "recover_at": resume_at},
+        )
+
+        await self._node_wait_service.wait(node.id, resume_at, note, current_time)
+
+        await self._dependent_release_service.release(node.id, current_time)
+
+        scheduled_job = await self._run_schedule_service.ensure_registered(
+            command.dag_path
+        )
+
+        if scheduled_job is not None:
+            message = format_label(LABELS["runScheduled"], {"job": scheduled_job.label})
+            emit(message + "\n")
 
     async def _restore_marks(self, node: Node, latest_session: AgentSession) -> bool:
         """Put this worktree's watermarks back to the latest session's, reporting whether it happened."""

@@ -64,6 +64,18 @@ A skipped node is taken out of the graph rather than counted as merged. Its depe
 dependencies: skip `B` in `A -> B -> C` and the graph becomes `A -> C`, so `C` still waits for `A`
 to merge before it starts.
 
+## Recovery
+
+A recoverable `usage_limit` or `provider_failure` verdict with a future `--recover-at` and no
+`--wake` returns the node to `PENDING` with a scheduled resume time. The framework returns
+dependents stopped by the upstream failure to `PENDING`. It registers a missing host job even
+when the run ended as errored. The node waits until that time, then resumes its recorded
+conversation on the next pass without another recovery session.
+
+The recovery agent uses the same account, so it usually examines a usage-limit failure after the
+limit has reset. It passes `--wake` when the stated reset time has passed and `--recover-at` only
+when that time is still ahead. Delayed verdicts for other causes keep the node's current state.
+
 ## Signals
 
 The four questions in step 3 are the extension point. Each is a **signal**: a small class that
