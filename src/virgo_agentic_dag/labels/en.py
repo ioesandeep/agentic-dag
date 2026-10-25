@@ -155,6 +155,9 @@ LABELS: dict[str, str] = {
     "outOfRecoveryAttempts": (
         "Node has utilized all its allowed recovery attempts: {count} attempts"
     ),
+    "outOfRecoveryAttemptsObservingPullRequest": (
+        "Recovery is exhausted after {count} attempts. The pull request is still observed."
+    ),
     "recoveryStarted": "a recovery agent session started to examine it",
     "recoverySessionOverdue": "its recovery session exceeds the timeout and is killed",
     "recoveryPrompt": (
@@ -235,6 +238,9 @@ LABELS: dict[str, str] = {
     ),
     "nodeProcessAlive": (
         "{node_id} has a running session, pid {pid}; nothing acts on a live process\n"
+    ),
+    "mergedNodeNotRecoverable": (
+        "{node_id} is merged. An unrecoverable verdict cannot change it.\n"
     ),
     "nodeHasNoConversation": (
         "{node_id} has no conversation to resume; retry --reset starts a new one\n"

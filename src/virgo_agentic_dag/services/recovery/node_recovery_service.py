@@ -91,6 +91,11 @@ class NodeRecoveryService:
 
             return ExitCode.FAILURE
 
+        if not command.recoverable:
+            can_record = self._can_record_unrecoverable(node, latest_session)
+            if not can_record:
+                return ExitCode.FAILURE
+
         if command.restore_marks and not await self._restore_marks(
             node, latest_session
         ):
@@ -102,6 +107,25 @@ class NodeRecoveryService:
         await self._record(node, command, latest_session)
 
         return ExitCode.SUCCESS
+
+    def _can_record_unrecoverable(self, node: Node, session: AgentSession) -> bool:
+        if node.state == NodeState.MERGED.value:
+            message = format_label(
+                LABELS["mergedNodeNotRecoverable"], {"node_id": node.id}
+            )
+
+            emit(message)
+
+            return False
+
+        if node.state == NodeState.IN_PROGRESS.value:
+            is_process_alive = session.is_process_alive()
+            if is_process_alive:
+                self._report_process_alive(node, session)
+
+                return False
+
+        return True
 
     async def _record(
         self, node: Node, command: RecoverCommand, latest_session: AgentSession

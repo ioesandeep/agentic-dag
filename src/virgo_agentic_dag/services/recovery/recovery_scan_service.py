@@ -137,6 +137,12 @@ class RecoveryScanService:
         if node.needs_human():
             return
 
+        pr_number = node.get_pr_number()
+        if node.state == NodeState.RESTING.value and pr_number is not None:
+            await self._record_observed_out_of_attempts(node, current_time)
+
+            return
+
         await self._node_repo.update_state(node.id, NodeState.NEEDS_HUMAN, current_time)
 
         attempt_count = await self._node_recovery_repo.count_by_node_id(node.id)
@@ -144,6 +150,33 @@ class RecoveryScanService:
         audit_entry = AuditEntry(
             node_id=node.id,
             state=NodeState.NEEDS_HUMAN.value,
+            note=note,
+            created_at=current_time,
+        )
+
+        await self._audit_entry_repo.save(audit_entry)
+
+    async def _record_observed_out_of_attempts(
+        self, node: Node, current_time: datetime
+    ) -> None:
+        attempt_count = await self._node_recovery_repo.count_by_node_id(node.id)
+        note = format_label(
+            LABELS["outOfRecoveryAttemptsObservingPullRequest"],
+            {"count": attempt_count},
+        )
+
+        audit_entries = await self._audit_entry_repo.get_all()
+        is_recorded = any(
+            audit_entry.node_id == node.id and audit_entry.note == note
+            for audit_entry in audit_entries
+        )
+
+        if is_recorded:
+            return
+
+        audit_entry = AuditEntry(
+            node_id=node.id,
+            state=node.state,
             note=note,
             created_at=current_time,
         )

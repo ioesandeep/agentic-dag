@@ -8,6 +8,9 @@ from pathlib import Path
 import pytest
 from pytest_mock import MockerFixture
 
+from virgo_agentic_dag.api.cli.handlers.recover_command_handler import (
+    RecoverCommandHandler,
+)
 from virgo_agentic_dag.bootstrap.application_context import (
     ApplicationContext,
     bind_context,
@@ -18,6 +21,7 @@ from virgo_agentic_dag.domain.command.recover_command import RecoverCommand
 from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
+from virgo_agentic_dag.domain.infra.locking.run_lock import RunLock
 from virgo_agentic_dag.domain.infra.scheduling.scheduled_job import ScheduledJob
 from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.node.recovery_cause_enum import RecoveryCauseEnum
@@ -381,7 +385,9 @@ async def test_recover_waits_when_usage_limit_or_provider_failure_has_a_future_r
     assert "this host will run fyi.virgo.dag.demo" in out.getvalue()
 
 
-async def test_recover_moves_the_node_to_needs_human_when_it_is_unrecoverable(
+@pytest.mark.parametrize("state", [NodeState.ERRORED, NodeState.IN_PROGRESS])
+async def test_recover_moves_the_node_to_needs_human_when_it_is_unrecoverable_and_its_process_is_dead(
+    state: NodeState,
     mocker: MockerFixture,
     out: io.StringIO,
     build_command: BuildCommand,
@@ -389,9 +395,7 @@ async def test_recover_moves_the_node_to_needs_human_when_it_is_unrecoverable(
     dead_pid: int,
 ) -> None:
     node_repo = mocker.MagicMock(spec=NodeRepo)
-    node_repo.read.return_value = build_node(
-        NodeState.ERRORED, dead_pid, "token-A", None
-    )
+    node_repo.read.return_value = build_node(state, dead_pid, "token-A", None)
 
     audit_entry_repo = mocker.MagicMock(spec=AuditEntryRepo)
     service = NodeRecoveryService(
@@ -421,6 +425,76 @@ async def test_recover_moves_the_node_to_needs_human_when_it_is_unrecoverable(
     assert audit_entry.note.startswith(
         "the recovery agent marked it unrecoverable: overdue"
     )
+
+
+@pytest.mark.parametrize(
+    ("state", "is_process_alive", "message"),
+    [
+        (NodeState.MERGED, False, "A is merged"),
+        (NodeState.MERGED, True, "A is merged"),
+        (NodeState.IN_PROGRESS, True, "A has a running session"),
+    ],
+)
+@pytest.mark.parametrize("restore_marks", [False, True])
+async def test_recover_rejects_an_unrecoverable_verdict_for_a_merged_or_running_node(
+    state: NodeState,
+    is_process_alive: bool,
+    message: str,
+    restore_marks: bool,
+    mocker: MockerFixture,
+    out: io.StringIO,
+    build_command: BuildCommand,
+    build_node: BuildNode,
+    dead_pid: int,
+) -> None:
+    pid = os.getpid() if is_process_alive else dead_pid
+    node = build_node(state, pid, "token-A", '{"comment": 4}')
+    node_repo = mocker.MagicMock(spec=NodeRepo)
+    node_repo.read.return_value = build_node(
+        NodeState.ERRORED, dead_pid, "token-A", None
+    )
+
+    run_lock = mocker.MagicMock(spec=RunLock)
+    run_lock.acquire_lock.side_effect = lambda _: setattr(
+        node_repo.read, "return_value", node
+    )
+
+    node_recovery_repo = mocker.MagicMock(spec=NodeRecoveryRepo)
+    audit_entry_repo = mocker.MagicMock(spec=AuditEntryRepo)
+    work_tree_repo = mocker.MagicMock(spec=WorkTreeRepo)
+    notification_publisher = mocker.MagicMock(spec=NotificationPublisher)
+
+    service = NodeRecoveryService(
+        node_repo=node_repo,
+        node_recovery_repo=node_recovery_repo,
+        agent_session_repo=mocker.MagicMock(spec=AgentSessionRepo),
+        audit_entry_repo=audit_entry_repo,
+        work_tree_repo=work_tree_repo,
+        notification_publisher=notification_publisher,
+        graph_builder=mocker.MagicMock(spec=GraphBuilder),
+        agent_launchers={},
+        run_schedule_service=mocker.MagicMock(spec=RunScheduleService),
+        dependent_release_service=mocker.MagicMock(spec=DependentReleaseService),
+        node_wait_service=mocker.MagicMock(spec=NodeWaitService),
+    )
+
+    handler = RecoverCommandHandler(run_lock=run_lock, node_recovery_service=service)
+    command = build_command(recoverable=False, restore_marks=restore_marks)
+
+    exit_code = await handler.handle(command)
+
+    assert exit_code is ExitCode.FAILURE
+    assert message in out.getvalue()
+
+    assert node.state == state.value
+    node_repo.update_state.assert_not_awaited()
+    node_repo.spend_recovery_attempt.assert_not_awaited()
+
+    node_recovery_repo.add.assert_not_awaited()
+    audit_entry_repo.save.assert_not_awaited()
+    work_tree_repo.advance_marks.assert_not_awaited()
+
+    notification_publisher.publish.assert_not_called()
 
 
 async def test_recover_restores_the_marks_of_the_latest_session_when_asked(

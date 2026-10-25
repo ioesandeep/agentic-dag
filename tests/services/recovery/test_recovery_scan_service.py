@@ -6,11 +6,20 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from pytest_mock import MockerFixture
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from virgo_agentic_dag.domain.agent.session_status import SessionStatus
+from virgo_agentic_dag.domain.graph.graph import Graph
+from virgo_agentic_dag.domain.graph.graph_node import GraphNode
+from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
+from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
 from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.node.recovery_cause_enum import RecoveryCauseEnum
+from virgo_agentic_dag.domain.observation.pull_request_snapshot import (
+    PullRequestSnapshot,
+)
+from virgo_agentic_dag.domain.observation.pull_request_state import PullRequestState
 from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSession
 from virgo_agentic_dag.domain.persistence.entities.node import Node
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
@@ -18,11 +27,23 @@ from virgo_agentic_dag.domain.persistence.entities.node_recovery import NodeReco
 from virgo_agentic_dag.domain.persistence.entities.recovery_session import (
     RecoverySession,
 )
+from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
+from virgo_agentic_dag.domain.persistence.repos.agent_session_repo import (
+    AgentSessionRepo,
+)
+from virgo_agentic_dag.domain.persistence.repos.work_tree_repo import WorkTreeRepo
+from virgo_agentic_dag.domain.service.notification_publisher import (
+    NotificationPublisher,
+)
 from virgo_agentic_dag.domain.specs.dag_spec import DagSpec
+from virgo_agentic_dag.domain.specs.executor_agent import ExecutorAgent
 from virgo_agentic_dag.infra.persistence.sqlite.sqlite_audit_entry_repo import (
     SqliteAuditEntryRepo,
 )
 from virgo_agentic_dag.infra.persistence.sqlite.sqlite_database import SqliteDatabase
+from virgo_agentic_dag.infra.persistence.sqlite.sqlite_node_agent_repo import (
+    SqliteNodeAgentRepo,
+)
 from virgo_agentic_dag.infra.persistence.sqlite.sqlite_node_recovery_repo import (
     SqliteNodeRecoveryRepo,
 )
@@ -31,6 +52,9 @@ from virgo_agentic_dag.infra.persistence.sqlite.sqlite_recovery_session_repo imp
     SqliteRecoverySessionRepo,
 )
 from virgo_agentic_dag.labels.en import LABELS
+from virgo_agentic_dag.services.node_state_handlers.resting_node_handler import (
+    RestingNodeHandler,
+)
 from virgo_agentic_dag.services.recovery.recovery_scan_service import (
     RecoveryScanService,
 )
@@ -283,6 +307,80 @@ async def test_get_recoverable_nodes_writes_no_audit_entry_when_the_needs_human_
 
     audit_entries = await audit_entry_repo.get_all()
     assert (recoverable_nodes, audit_entries) == ([], [])
+
+
+async def test_resting_node_reaches_merged_after_recovery_attempts_are_exhausted(
+    database: SqliteDatabase,
+    dead_pid: int,
+    build_node: BuildNode,
+    current_time: datetime,
+    mocker: MockerFixture,
+) -> None:
+    node = build_node(NodeState.RESTING, 1, dead_pid, 0)
+    assert node.agent is not None
+    node.agent.worktree = WorkTree(
+        name="A", absolute_path="/ws/A", pr_number=12, created_at=current_time
+    )
+
+    async with database.open_session() as db_session:
+        db_session.add(node)
+        await db_session.commit()
+
+    node_repo = SqliteNodeRepo(database)
+    audit_entry_repo = SqliteAuditEntryRepo(database)
+    dag_spec = DagSpec(name="demo", nodes=())
+    service = RecoveryScanService(
+        node_repo=node_repo,
+        node_recovery_repo=SqliteNodeRecoveryRepo(database),
+        audit_entry_repo=audit_entry_repo,
+        recovery_session_repo=SqliteRecoverySessionRepo(database),
+        dag_spec=dag_spec,
+    )
+
+    for _ in range(2):
+        recoverable_nodes = await service.get_recoverable_nodes(current_time)
+
+        assert recoverable_nodes == []
+
+    resting_nodes = await node_repo.get_nodes_by_state(NodeState.RESTING)
+    assert [resting_node.id for resting_node in resting_nodes] == ["A"]
+    assert resting_nodes[0].recovery_attempts_allowed == 0
+
+    audit_entries = await audit_entry_repo.get_all()
+    assert len(audit_entries) == 1
+    assert audit_entries[0].state == NodeState.RESTING.value
+    assert audit_entries[0].note == format_label(
+        LABELS["outOfRecoveryAttemptsObservingPullRequest"], {"count": 0}
+    )
+
+    code_repo = mocker.MagicMock(spec=CodeRepo)
+    code_repo.get_pull_request.return_value = PullRequestSnapshot(
+        state=PullRequestState.MERGED, head_sha="sha1", base_branch="develop"
+    )
+
+    graph_node = GraphNode(id="A", executor_agent=ExecutorAgent.CLAUDE)
+    graph = Graph(name="demo", nodes=[graph_node])
+    handler = RestingNodeHandler(
+        node_repo=node_repo,
+        audit_entry_repo=audit_entry_repo,
+        notification_publisher=mocker.MagicMock(spec=NotificationPublisher),
+        node_agent_repo=SqliteNodeAgentRepo(database),
+        agent_session_repo=mocker.MagicMock(spec=AgentSessionRepo),
+        work_tree_repo=mocker.MagicMock(spec=WorkTreeRepo),
+        agent_launchers={ExecutorAgent.CLAUDE: mocker.MagicMock(spec=AgentLauncher)},
+        dag_spec=dag_spec,
+        code_repo=code_repo,
+        pr_signals=[],
+    )
+
+    resting_node_ids = [resting_node.id for resting_node in resting_nodes]
+    resting_graph_nodes = [node for node in graph.nodes if node.id in resting_node_ids]
+
+    await handler.handle(graph, resting_graph_nodes, current_time)
+
+    merged_node = await node_repo.read("A")
+    assert merged_node is not None
+    assert merged_node.state == NodeState.MERGED.value
 
 
 @pytest.mark.parametrize(
