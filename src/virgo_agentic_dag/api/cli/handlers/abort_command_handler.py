@@ -95,7 +95,7 @@ class AbortCommandHandler(CommandHandler[AbortCommand]):
         await self._recovery_session_killer.kill(recovery_session, current_time)
 
     async def _kill_learning_session(self) -> None:
-        pid = await self._extraction_lock.get_session_pid()
+        pid = await self._extraction_lock.get_live_session_pid()
         if pid is None:
             return
 

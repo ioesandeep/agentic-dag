@@ -447,8 +447,16 @@ async def test_recover_rejects_an_unrecoverable_verdict_for_a_merged_or_running_
     build_node: BuildNode,
     dead_pid: int,
 ) -> None:
+    if state is NodeState.IN_PROGRESS and is_process_alive:
+        process_status = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=b"Sat Sep 05 00:00:00 2026\n"
+        )
+
+        mocker.patch("anyio.run_process", return_value=process_status)
+
     pid = os.getpid() if is_process_alive else dead_pid
     node = build_node(state, pid, "token-A", '{"comment": 4}')
+
     node_repo = mocker.MagicMock(spec=NodeRepo)
     node_repo.read.return_value = build_node(
         NodeState.ERRORED, dead_pid, "token-A", None
@@ -578,6 +586,11 @@ async def test_recover_writes_no_row_when_the_process_of_the_node_is_alive(
     build_command: BuildCommand,
     build_node: BuildNode,
 ) -> None:
+    process_status = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout=b"Sat Sep 05 00:00:00 2026\n"
+    )
+
+    mocker.patch("anyio.run_process", return_value=process_status)
     node_repo = mocker.MagicMock(spec=NodeRepo)
     node_repo.read.return_value = build_node(
         NodeState.RESTING, os.getpid(), "token-A", None

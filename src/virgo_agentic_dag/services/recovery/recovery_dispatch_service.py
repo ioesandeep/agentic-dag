@@ -84,7 +84,7 @@ class RecoveryDispatchService:
     async def _end_open_session(
         self, recovery_session: RecoverySession, current_time: datetime
     ) -> None:
-        is_process_alive = recovery_session.is_process_alive()
+        is_process_alive = await recovery_session.is_process_alive()
         if not is_process_alive:
             await self._close(recovery_session, current_time)
 

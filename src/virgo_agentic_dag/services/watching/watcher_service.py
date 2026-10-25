@@ -28,8 +28,13 @@ class WatcherService:
     async def watch(self, dag_name: str) -> None:
         """Make sure this run's watcher is running."""
         watcher = await self._watcher_repo.get_by_dag_name(dag_name)
-        if watcher is not None and is_process_alive(watcher.pid):
-            return
+        if watcher is not None:
+            is_watcher_process_alive = await is_process_alive(
+                watcher.pid, watcher.started_at
+            )
+
+            if is_watcher_process_alive:
+                return
 
         pid = await asyncio.to_thread(self._spawn, dag_name)
         fresh = Watcher(dag_name=dag_name, pid=pid, started_at=datetime.now(UTC))
@@ -42,7 +47,7 @@ class WatcherService:
         if watcher is None:
             return
 
-        self.kill(watcher)
+        await self.kill(watcher)
 
     async def forget(self, dag_name: str) -> Watcher | None:
         """Delete the run's watcher row and return it, leaving the kill to the caller."""
@@ -55,8 +60,15 @@ class WatcherService:
 
         return watcher
 
-    def kill(self, watcher: Watcher) -> None:
+    async def kill(self, watcher: Watcher) -> None:
         """Terminate the watcher's process group, idempotently."""
+        is_watcher_process_alive = await is_process_alive(
+            watcher.pid, watcher.started_at
+        )
+
+        if not is_watcher_process_alive:
+            return
+
         try:
             os.killpg(watcher.pid, signal.SIGKILL)
         except (ProcessLookupError, PermissionError):

@@ -488,7 +488,7 @@ async def test_stops_the_watcher_when_the_run_completes(
         unbind_context(token)
 
     watcher_service.forget.assert_awaited_once_with("demo")
-    watcher_service.kill.assert_called_once_with(watcher)
+    watcher_service.kill.assert_awaited_once_with(watcher)
     watcher_service.watch.assert_not_awaited()
 
 
@@ -569,7 +569,7 @@ async def test_conclude_completes_cleanup_before_terminating_the_current_pass(
         *shutdown_calls,
     ]
 
-    watcher_service.kill.assert_called_once_with(watcher)
+    watcher_service.kill.assert_awaited_once_with(watcher)
     run_schedule_service.retire.assert_awaited_once_with("demo")
 
 

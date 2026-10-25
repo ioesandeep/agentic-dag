@@ -59,7 +59,7 @@ class NodeStopService:
 
         self._ensure_in_progress(node)
 
-        is_process_dead = node.is_process_dead()
+        is_process_dead = await node.is_process_dead()
         latest_session = node.get_latest_session()
         worktree = node.agent.worktree if node.agent is not None else None
         if is_process_dead or latest_session is None or worktree is None:

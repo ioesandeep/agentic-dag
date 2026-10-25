@@ -46,7 +46,7 @@ def test_has_failed_returns_false_only_when_a_resting_node_has_a_finished_sessio
 
 
 @pytest.mark.parametrize("has_agent", [False, True])
-def test_can_recover_returns_false_when_the_node_has_no_session(
+async def test_can_recover_returns_false_when_the_node_has_no_session(
     has_agent: bool,
 ) -> None:
     agent = NodeAgent(id="agent-A", node_id="A", sessions=[]) if has_agent else None
@@ -57,12 +57,12 @@ def test_can_recover_returns_false_when_the_node_has_no_session(
         agent=agent,
     )
 
-    can_recover = node.can_recover()
+    can_recover = await node.can_recover()
 
     assert can_recover is False
 
 
-def test_can_recover_returns_false_when_a_person_stops_the_session() -> None:
+async def test_can_recover_returns_false_when_a_person_stops_the_session() -> None:
     current_time = datetime(2026, 9, 4, tzinfo=UTC)
     session = AgentSession(
         agent_id="agent-A",
@@ -80,6 +80,6 @@ def test_can_recover_returns_false_when_a_person_stops_the_session() -> None:
         agent=agent,
     )
 
-    can_recover = node.can_recover()
+    can_recover = await node.can_recover()
 
     assert can_recover is False

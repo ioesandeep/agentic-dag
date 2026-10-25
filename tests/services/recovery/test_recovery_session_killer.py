@@ -1,3 +1,4 @@
+import subprocess
 from datetime import UTC, datetime
 
 import pytest
@@ -31,6 +32,11 @@ async def test_kill_closes_the_recovery_session_when_the_process_is_alive_or_exi
         "os.kill", side_effect=None if is_process_alive else ProcessLookupError
     )
 
+    process_status = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout=b"Sun Aug 02 00:00:00 2026\n"
+    )
+
+    mocker.patch("anyio.run_process", return_value=process_status)
     started_at = datetime(2026, 8, 2, tzinfo=UTC)
     recovery_session = RecoverySession(
         id=1,

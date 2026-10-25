@@ -116,7 +116,7 @@ class LearningDispatchService:
         if elapsed_seconds < self._dag_spec.caps.session_timeout_seconds:
             return
 
-        pid = await self._extraction_lock.get_session_pid()
+        pid = await self._extraction_lock.get_live_session_pid()
         if pid is None:
             return
 

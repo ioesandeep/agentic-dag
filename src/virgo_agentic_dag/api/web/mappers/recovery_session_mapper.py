@@ -13,24 +13,26 @@ from virgo_agentic_dag.domain.persistence.entities.recovery_session import (
 )
 
 
-def to_recovery_session_list_response(
+async def to_recovery_session_list_response(
     recovery_sessions: list[RecoverySession],
 ) -> list[RecoverySessionResponse]:
     """Convert every recovery session to its API response."""
     return [
-        _to_recovery_session_response(recovery_session)
+        await _to_recovery_session_response(recovery_session)
         for recovery_session in recovery_sessions
     ]
 
 
-def _to_recovery_session_response(
+async def _to_recovery_session_response(
     recovery_session: RecoverySession,
 ) -> RecoverySessionResponse:
     """Convert a single recovery session to its API response."""
+    is_process_alive = await recovery_session.is_process_alive()
+
     return RecoverySessionResponse(
         id=recovery_session.id,
         started_at=recovery_session.started_at.replace(tzinfo=UTC),
         ended_at=to_utc(recovery_session.ended_at),
         node_ids=recovery_session.get_node_ids(),
-        is_process_alive=recovery_session.is_process_alive(),
+        is_process_alive=is_process_alive,
     )

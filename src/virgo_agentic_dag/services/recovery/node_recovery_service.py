@@ -92,7 +92,7 @@ class NodeRecoveryService:
             return ExitCode.FAILURE
 
         if not command.recoverable:
-            can_record = self._can_record_unrecoverable(node, latest_session)
+            can_record = await self._can_record_unrecoverable(node, latest_session)
             if not can_record:
                 return ExitCode.FAILURE
 
@@ -108,7 +108,9 @@ class NodeRecoveryService:
 
         return ExitCode.SUCCESS
 
-    def _can_record_unrecoverable(self, node: Node, session: AgentSession) -> bool:
+    async def _can_record_unrecoverable(
+        self, node: Node, session: AgentSession
+    ) -> bool:
         if node.state == NodeState.MERGED.value:
             message = format_label(
                 LABELS["mergedNodeNotRecoverable"], {"node_id": node.id}
@@ -119,7 +121,7 @@ class NodeRecoveryService:
             return False
 
         if node.state == NodeState.IN_PROGRESS.value:
-            is_process_alive = session.is_process_alive()
+            is_process_alive = await session.is_process_alive()
             if is_process_alive:
                 self._report_process_alive(node, session)
 
@@ -197,7 +199,9 @@ class NodeRecoveryService:
 
     async def _restore_marks(self, node: Node, latest_session: AgentSession) -> bool:
         """Put this worktree's watermarks back to the latest session's, reporting whether it happened."""
-        if latest_session.is_process_alive():
+        is_session_process_alive = await latest_session.is_process_alive()
+
+        if is_session_process_alive:
             self._report_process_alive(node, latest_session)
 
             return False
@@ -239,7 +243,9 @@ class NodeRecoveryService:
 
             return False
 
-        if latest_session.is_process_alive():
+        is_session_process_alive = await latest_session.is_process_alive()
+
+        if is_session_process_alive:
             self._report_process_alive(node, latest_session)
 
             return False

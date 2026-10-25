@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.persistence.entities.node import Node
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
@@ -34,6 +35,7 @@ def learnings_path(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def popen(mocker: MockerFixture) -> MagicMock:
+    mocker.patch("anyio.run_process", side_effect=PermissionError)
     spawned = mocker.patch.object(subprocess, "Popen")
     spawned.return_value.pid = 4242
 
@@ -175,3 +177,30 @@ async def test_wake_omits_append_system_prompt_file_from_the_command_line_when_t
 
     argv = popen.call_args.args[0]
     assert "--append-system-prompt-file" not in argv
+
+
+@pytest.mark.parametrize("is_wake", [False, True])
+async def test_launcher_records_the_process_start_time_when_a_session_starts(
+    mocker: MockerFixture,
+    agent: NodeAgent,
+    popen: MagicMock,
+    learnings_path: Path,
+    is_wake: bool,
+) -> None:
+    process_status = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout=b"Sat Aug 15 00:00:00 2026\n"
+    )
+
+    mocker.patch("anyio.run_process", return_value=process_status)
+    launcher = ClaudeAgentLauncher(
+        timeout_seconds=1800, max_turns=40, learnings_path=learnings_path
+    )
+
+    graph_node = GraphNode(id="A")
+
+    if is_wake:
+        session = await launcher.wake(graph_node, "Fix the review", agent)
+    else:
+        session = await launcher.launch(graph_node, "Implement the feature", agent)
+
+    assert session.pid_start == NOW.isoformat()

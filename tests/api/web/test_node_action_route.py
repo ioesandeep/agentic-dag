@@ -335,8 +335,9 @@ async def test_stop_responds_with_the_node_in_needs_human_state_when_its_session
         created_at=STARTED_AT,
     )
 
+    started_at = datetime.now(UTC)
     agent_session = AgentSession(
-        started_at=STARTED_AT, triggered_by="launch", pid=sleeping_process.pid
+        started_at=started_at, triggered_by="launch", pid=sleeping_process.pid
     )
 
     node_agent = NodeAgent(

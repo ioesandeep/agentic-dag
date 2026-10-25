@@ -15,7 +15,7 @@ from anyio.lowlevel import checkpoint_if_cancelled
 from virgo_agentic_dag.services.learning.extraction_lock_state_enum import (
     ExtractionLockStateEnum,
 )
-from virgo_agentic_dag.utils.process import is_process_alive
+from virgo_agentic_dag.utils.process import get_process_started_at, is_process_alive
 
 logger = logging.getLogger(__name__)
 
@@ -34,16 +34,41 @@ class ExtractionLock:
             return ExtractionLockStateEnum.FREE
 
         try:
-            pid_text = lock_file_content.partition("\n")[0]
-            pid = int(pid_text)
+            pid = await self._get_live_pid_from_content(lock_file_content)
         except ValueError:
             return ExtractionLockStateEnum.UNREADABLE
 
-        is_lock_process_alive = is_process_alive(pid)
-        if is_lock_process_alive:
+        if pid is not None:
             return ExtractionLockStateEnum.HELD
 
         return ExtractionLockStateEnum.FREE
+
+    async def _get_live_pid_from_content(self, lock_file_content: str) -> int | None:
+        pid_text = lock_file_content.partition("\n")[0]
+        pid = int(pid_text)
+        started_at = await self._get_recorded_started_at(lock_file_content)
+        if started_at is None:
+            return None
+
+        is_lock_process_alive = await is_process_alive(pid, started_at)
+
+        if is_lock_process_alive:
+            return pid
+
+        return None
+
+    async def _get_recorded_started_at(self, lock_file_content: str) -> datetime | None:
+        lock_file_lines = lock_file_content.splitlines()
+        has_recorded_start = len(lock_file_lines) > 1 and lock_file_lines[1].startswith(
+            "started_at="
+        )
+
+        if has_recorded_start:
+            started_at_text = lock_file_lines[1].removeprefix("started_at=")
+
+            return datetime.fromisoformat(started_at_text)
+
+        return await self.get_written_at()
 
     async def is_free(self) -> bool:
         """Report whether this lock may be taken."""
@@ -93,7 +118,7 @@ class ExtractionLock:
             return False
 
         pid = os.getpid()
-        await self._lock_path.write_text(str(pid), encoding="utf-8")
+        await self.record_session_pid(pid)
 
         return True
 
@@ -101,9 +126,24 @@ class ExtractionLock:
         self, pid: int, node_ids: list[str] | None = None
     ) -> None:
         """Record the learning session's process id and node ids."""
-        lock_file_lines = [str(pid), *(node_ids or [])]
+        process_started_at = await get_process_started_at(pid)
+        lock_file_lines = [str(pid)]
+        if process_started_at is not None:
+            started_at_text = process_started_at.isoformat()
+            lock_file_lines.append(f"started_at={started_at_text}")
+
+        lock_file_lines.extend(node_ids or [])
         lock_file_content = "\n".join(lock_file_lines)
         await self._lock_path.write_text(lock_file_content, encoding="utf-8")
+
+    async def get_live_session_pid(self) -> int | None:
+        """Return the learning session's process id when its identity matches."""
+        try:
+            lock_file_content = await self._lock_path.read_text(encoding="utf-8")
+
+            return await self._get_live_pid_from_content(lock_file_content)
+        except (FileNotFoundError, ValueError):
+            return None
 
     async def get_session_pid(self) -> int | None:
         """Return the learning session's recorded process id."""
@@ -126,7 +166,15 @@ class ExtractionLock:
         except FileNotFoundError:
             return []
 
-        return lock_file_content.splitlines()[1:]
+        lock_file_lines = lock_file_content.splitlines()[1:]
+        has_recorded_start = bool(lock_file_lines) and lock_file_lines[0].startswith(
+            "started_at="
+        )
+
+        if has_recorded_start:
+            return lock_file_lines[1:]
+
+        return lock_file_lines
 
     async def get_written_at(self) -> datetime | None:
         """Return when the extraction lock was last written."""

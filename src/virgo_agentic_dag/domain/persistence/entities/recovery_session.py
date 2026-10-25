@@ -7,6 +7,7 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
+
 from virgo_agentic_dag.domain.persistence.entities.entity_base import EntityBase
 from virgo_agentic_dag.utils.process import is_process_alive
 
@@ -30,9 +31,9 @@ class RecoverySession(EntityBase):
         """Return the ids of the nodes in this session's batch."""
         return [str(node_id) for node_id in json.loads(self.node_ids)]
 
-    def is_process_alive(self) -> bool:
+    async def is_process_alive(self) -> bool:
         """Report whether the process recorded on this session is still running."""
         if self.pid is None:
             return False
 
-        return is_process_alive(self.pid)
+        return await is_process_alive(self.pid, self.started_at)

@@ -1,6 +1,7 @@
 import asyncio
 import os
 import subprocess
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,7 @@ from virgo_agentic_dag.services.learning.extraction_lock import ExtractionLock
 from virgo_agentic_dag.services.learning.extraction_lock_state_enum import (
     ExtractionLockStateEnum,
 )
+from virgo_agentic_dag.utils.process import get_process_started_at
 
 pytestmark = pytest.mark.behavior
 
@@ -30,7 +32,7 @@ def dead_pid() -> int:
 
 @pytest.fixture
 def session_pid() -> int:
-    return 4242
+    return os.getpid()
 
 
 async def test_get_state_returns_free_when_the_lock_file_is_missing(
@@ -49,7 +51,10 @@ async def test_get_state_returns_held_when_the_process_of_the_lock_file_is_runni
 ) -> None:
     pid = os.getpid()
 
-    lock_file_lines = [str(pid), *node_ids]
+    started_at = await get_process_started_at(pid)
+    assert started_at is not None
+
+    lock_file_lines = [str(pid), f"started_at={started_at.isoformat()}", *node_ids]
     lock_file_content = "\n".join(lock_file_lines)
     lock_path.write_text(lock_file_content, encoding="utf-8")
 
@@ -96,7 +101,7 @@ async def test_acquire_writes_the_process_id_of_the_caller_when_the_previous_pro
     is_acquired = await lock.acquire()
 
     assert is_acquired is True
-    assert lock_path.read_text(encoding="utf-8") == str(pid)
+    assert await lock.get_live_session_pid() == pid
 
 
 async def test_acquire_returns_false_when_the_lock_is_held(lock_path: Path) -> None:
@@ -149,7 +154,7 @@ async def test_acquire_records_the_pid_before_propagating_task_cancellation(
         await lock_acquisition_task
 
     assert is_acquisition_pending is True
-    assert lock_path.read_text(encoding="utf-8") == str(os.getpid())
+    assert await lock.get_live_session_pid() == os.getpid()
 
 
 async def test_record_session_pid_preserves_the_node_ids_for_the_learning_session(
@@ -160,6 +165,27 @@ async def test_record_session_pid_preserves_the_node_ids_for_the_learning_sessio
 
     await lock.record_session_pid(session_pid, ["A", "B"])
 
-    assert lock_path.read_text(encoding="utf-8") == f"{session_pid}\nA\nB"
     assert await lock.get_session_pid() == session_pid
     assert await lock.get_session_node_ids() == ["A", "B"]
+
+
+@pytest.mark.parametrize("has_recorded_start", [False, True])
+async def test_get_state_returns_free_when_the_pid_belongs_to_a_different_process(
+    lock_path: Path, has_recorded_start: bool
+) -> None:
+    recorded_started_at = datetime.now(UTC) - timedelta(days=1)
+    pid = os.getpid()
+    lock_file_content = str(pid)
+    if has_recorded_start:
+        lock_file_content += f"\nstarted_at={recorded_started_at.isoformat()}\nA"
+
+    lock_path.write_text(lock_file_content, encoding="utf-8")
+    recorded_timestamp = recorded_started_at.timestamp()
+    os.utime(lock_path, (recorded_timestamp, recorded_timestamp))
+    lock = ExtractionLock(lock_path)
+
+    state = await lock.get_state()
+    live_pid = await lock.get_live_session_pid()
+
+    assert state is ExtractionLockStateEnum.FREE
+    assert live_pid is None

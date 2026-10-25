@@ -22,7 +22,7 @@ from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.specs.codex_spec import CodexSpec
 from virgo_agentic_dag.labels.en import LABELS
 from virgo_agentic_dag.utils.format_label import format_label
-from virgo_agentic_dag.utils.process import is_process_alive
+from virgo_agentic_dag.utils.process import get_process_started_at
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +78,15 @@ class CodexAgentLauncher(AgentLauncher):
         started_at = datetime.now(UTC)
         pid = await asyncio.to_thread(self._spawn, argv, agent)
 
+        process_started_at = await get_process_started_at(pid)
+        pid_start = process_started_at.isoformat() if process_started_at else ""
+
         return AgentSession(
-            agent_id=agent.id, started_at=started_at, triggered_by="launch", pid=pid
+            agent_id=agent.id,
+            started_at=started_at,
+            triggered_by="launch",
+            pid=pid,
+            pid_start=pid_start,
         )
 
     async def wake(
@@ -95,11 +102,15 @@ class CodexAgentLauncher(AgentLauncher):
         started_at = datetime.now(UTC)
         pid = await asyncio.to_thread(self._spawn, argv, agent)
 
+        process_started_at = await get_process_started_at(pid)
+        pid_start = process_started_at.isoformat() if process_started_at else ""
+
         return AgentSession(
             agent_id=agent.id,
             started_at=started_at,
             triggered_by="wake",
             pid=pid,
+            pid_start=pid_start,
             marks_before=agent.worktree.marks if agent.worktree else None,
         )
 
@@ -108,7 +119,7 @@ class CodexAgentLauncher(AgentLauncher):
         if session.pid is None:
             return SessionStatus.FINISHED
 
-        process_alive = is_process_alive(session.pid)
+        process_alive = await session.is_process_alive()
         if not process_alive:
             return SessionStatus.FINISHED
 
@@ -125,7 +136,8 @@ class CodexAgentLauncher(AgentLauncher):
 
     async def stop(self, session: AgentSession) -> None:
         """Stop the execution and its child processes."""
-        if session.pid is None:
+        is_session_process_alive = await session.is_process_alive()
+        if not is_session_process_alive or session.pid is None:
             return
 
         try:

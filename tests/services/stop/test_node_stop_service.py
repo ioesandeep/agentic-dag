@@ -81,6 +81,8 @@ async def database(tmp_path: Path) -> AsyncGenerator[SqliteDatabase]:
 
 @pytest.fixture
 def build_node(tmp_path: Path) -> BuildNode:
+    started_at = datetime.now(UTC)
+
     return lambda state, pid: Node(
         id="A",
         state=state.value,
@@ -99,7 +101,10 @@ def build_node(tmp_path: Path) -> BuildNode:
             ),
             sessions=[
                 AgentSession(
-                    agent_id="agent-A", started_at=NOW, triggered_by="launch", pid=pid
+                    agent_id="agent-A",
+                    started_at=started_at,
+                    triggered_by="launch",
+                    pid=pid,
                 )
             ],
         ),

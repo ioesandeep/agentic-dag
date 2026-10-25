@@ -17,7 +17,7 @@ from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
 from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSession
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
-from virgo_agentic_dag.utils.process import is_process_alive
+from virgo_agentic_dag.utils.process import get_process_started_at
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +59,15 @@ class ClaudeAgentLauncher(AgentLauncher):
         started = datetime.now(UTC)
         pid = await asyncio.to_thread(self._spawn, argv, worktree)
 
+        process_started_at = await get_process_started_at(pid)
+        pid_start = process_started_at.isoformat() if process_started_at else ""
+
         return AgentSession(
-            agent_id=agent.id, started_at=started, triggered_by="launch", pid=pid
+            agent_id=agent.id,
+            started_at=started,
+            triggered_by="launch",
+            pid=pid,
+            pid_start=pid_start,
         )
 
     async def wake(
@@ -71,16 +78,21 @@ class ClaudeAgentLauncher(AgentLauncher):
         started = datetime.now(UTC)
         pid = await asyncio.to_thread(self._spawn, argv, worktree)
 
+        process_started_at = await get_process_started_at(pid)
+        pid_start = process_started_at.isoformat() if process_started_at else ""
+
         return AgentSession(
             agent_id=agent.id,
             started_at=started,
             triggered_by="wake",
             pid=pid,
+            pid_start=pid_start,
             marks_before=worktree.marks,
         )
 
     async def supervise(self, session: AgentSession) -> SessionStatus:
-        if session.pid is None or not is_process_alive(session.pid):
+        is_session_process_alive = await session.is_process_alive()
+        if not is_session_process_alive:
             return SessionStatus.FINISHED
 
         started_at = session.started_at
@@ -94,7 +106,8 @@ class ClaudeAgentLauncher(AgentLauncher):
         return SessionStatus.ALIVE
 
     async def stop(self, session: AgentSession) -> None:
-        if session.pid is None:
+        is_session_process_alive = await session.is_process_alive()
+        if not is_session_process_alive or session.pid is None:
             return
 
         try:

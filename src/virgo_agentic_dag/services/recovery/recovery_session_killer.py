@@ -22,7 +22,8 @@ class RecoverySessionKiller:
         self, recovery_session: RecoverySession, current_time: datetime
     ) -> None:
         """End the recovery agent's execution."""
-        is_recovery_process_alive = recovery_session.is_process_alive()
+        is_recovery_process_alive = await recovery_session.is_process_alive()
+
         if is_recovery_process_alive and recovery_session.pid is not None:
             self._process_killer.kill(recovery_session.pid)
 

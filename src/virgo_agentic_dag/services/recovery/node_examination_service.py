@@ -44,7 +44,7 @@ class NodeExaminationService:
 
         self._report_node(node)
         self._report_worktree(node)
-        self._report_session(node)
+        await self._report_session(node)
         await self._report_recovery(node)
 
         return ExitCode.SUCCESS
@@ -77,7 +77,7 @@ class NodeExaminationService:
             "pr_number": worktree.pr_number or LABELS["recoveryValueMissing"],
         }
 
-    def _report_session(self, node: Node) -> None:
+    async def _report_session(self, node: Node) -> None:
         agent = node.agent
         latest_session = node.get_latest_session()
         if agent is None or latest_session is None:
@@ -85,7 +85,7 @@ class NodeExaminationService:
 
             return
 
-        session_values = self._get_session_values(latest_session)
+        session_values = await self._get_session_values(latest_session)
         emit(format_label(LABELS["examineSession"], session_values))
 
         overdue_count = agent.count_overdue_sessions()
@@ -99,9 +99,10 @@ class NodeExaminationService:
         log_tail = latest_session.log_tail or LABELS["recoveryValueMissing"]
         emit(format_label(LABELS["examineLogTail"], {"log_tail": log_tail}))
 
-    def _get_session_values(self, session: AgentSession) -> dict[str, object]:
+    async def _get_session_values(self, session: AgentSession) -> dict[str, object]:
         missing = LABELS["recoveryValueMissing"]
         exit_code = missing if session.exit_code is None else session.exit_code
+        is_process_alive = await session.is_process_alive()
 
         return {
             "session_id": session.id,
@@ -109,7 +110,7 @@ class NodeExaminationService:
             "ended_at": session.ended_at or missing,
             "end_state": session.end_state or missing,
             "exit_code": exit_code,
-            "alive": session.is_process_alive(),
+            "alive": is_process_alive,
         }
 
     async def _report_recovery(self, node: Node) -> None:

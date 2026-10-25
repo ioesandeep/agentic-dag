@@ -195,6 +195,7 @@ async def test_get_recoverable_nodes_returns_the_node_when_its_process_is_dead_a
     ],
 )
 async def test_get_recoverable_nodes_returns_nothing_when_the_node_is_not_due(
+    mocker: MockerFixture,
     state: NodeState,
     exit_code: int | None,
     is_process_alive: bool,
@@ -206,6 +207,11 @@ async def test_get_recoverable_nodes_returns_nothing_when_the_node_is_not_due(
     build_node_recovery: BuildNodeRecovery,
     current_time: datetime,
 ) -> None:
+    process_status = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout=b"Fri Sep 04 00:00:00 2026\n"
+    )
+
+    mocker.patch("anyio.run_process", return_value=process_status)
     pid = os.getpid() if is_process_alive else dead_pid
     node = build_node(state, exit_code, pid, 3)
     if not has_agent:

@@ -47,12 +47,12 @@ class RecoveryScanService:
 
         recoverable_nodes: list[Node] = []
         for node in stopped_nodes:
-            is_out_of_attempts = node.is_out_of_attempts()
+            is_out_of_attempts = await node.is_out_of_attempts()
             if is_out_of_attempts:
                 await self._record_out_of_attempts(node, current_time)
                 continue
 
-            can_recover = node.can_recover()
+            can_recover = await node.can_recover()
             if not can_recover:
                 continue
 

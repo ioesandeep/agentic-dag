@@ -64,13 +64,13 @@ class Node(EntityBase):
 
         return worktree.pr_number
 
-    def is_process_dead(self) -> bool:
+    async def is_process_dead(self) -> bool:
         """Report whether no process of this node's latest session is running."""
         latest_session = self.get_latest_session()
         if latest_session is None:
             return True
 
-        return not latest_session.is_process_alive()
+        return not await latest_session.is_process_alive()
 
     def needs_human(self) -> bool:
         """Report whether this node is in the NEEDS_HUMAN state."""
@@ -106,7 +106,7 @@ class Node(EntityBase):
         """Report whether this node has a recovery attempt left."""
         return self.recovery_attempts_allowed > 0
 
-    def can_recover(self) -> bool:
+    async def can_recover(self) -> bool:
         """Report whether a recovery agent may examine this node."""
         latest_session = self.get_latest_session()
         if latest_session is None:
@@ -116,16 +116,20 @@ class Node(EntityBase):
             latest_session.end_state == STOPPED_SESSION_END_STATE
         )
 
+        is_process_dead = await self.is_process_dead()
+
         return (
-            self.is_process_dead()
+            is_process_dead
             and self.has_failed()
             and self.can_attempt()
             and not is_latest_session_stopped
         )
 
-    def is_out_of_attempts(self) -> bool:
+    async def is_out_of_attempts(self) -> bool:
         """Report whether this node failed with no process running and no recovery attempt left."""
-        return self.is_process_dead() and self.has_failed() and not self.can_attempt()
+        is_process_dead = await self.is_process_dead()
+
+        return is_process_dead and self.has_failed() and not self.can_attempt()
 
     def has_pull_request_settled(self) -> bool:
         """Report whether this node's pull request merged or closed."""

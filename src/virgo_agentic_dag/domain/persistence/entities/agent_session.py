@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from virgo_agentic_dag.domain.persistence.entities.entity_base import EntityBase
 from virgo_agentic_dag.utils.process import is_process_alive
 
@@ -47,9 +48,13 @@ class AgentSession(EntityBase):
 
         return self.log_tail or ""
 
-    def is_process_alive(self) -> bool:
+    async def is_process_alive(self) -> bool:
         """Report whether the process recorded on this session is still running."""
         if self.pid is None:
             return False
 
-        return is_process_alive(self.pid)
+        started_at = self.started_at
+        if self.pid_start:
+            started_at = datetime.fromisoformat(self.pid_start)
+
+        return await is_process_alive(self.pid, started_at)

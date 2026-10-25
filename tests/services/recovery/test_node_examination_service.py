@@ -1,11 +1,13 @@
 import io
 import os
+import subprocess
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.bootstrap.application_context import (
     ApplicationContext,
     bind_context,
@@ -95,8 +97,15 @@ def errored_node(now: datetime) -> Node:
 async def test_examine_prints_the_row_and_the_latest_session_when_the_node_has_a_latest_session(
     mocker: MockerFixture, command: ExamineCommand, out: io.StringIO, errored_node: Node
 ) -> None:
+    process_status = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout=b"Sat Sep 05 00:00:00 2026\n"
+    )
+
+    mocker.patch("anyio.run_process", return_value=process_status)
+
     node_repo = mocker.MagicMock(spec=NodeRepo)
     node_repo.read.return_value = errored_node
+
     node_recovery_repo = mocker.MagicMock(spec=NodeRecoveryRepo)
     node_recovery_repo.count_by_node_id.return_value = 1
     node_recovery_repo.get_newest_recovery_by_node_id.return_value = NodeRecovery(

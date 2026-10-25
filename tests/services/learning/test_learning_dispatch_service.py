@@ -231,7 +231,7 @@ async def test_dispatch_kills_an_overdue_session_and_allows_a_later_learning_ses
     extraction_lock.acquire.return_value = True
 
     extraction_lock.get_written_at.return_value = NOW
-    extraction_lock.get_session_pid.return_value = 4242
+    extraction_lock.get_live_session_pid.return_value = 4242
     extraction_lock.get_session_node_ids.side_effect = [["A", "B"], []]
 
     node_repo = mocker.MagicMock(spec=NodeRepo)

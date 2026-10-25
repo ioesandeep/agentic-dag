@@ -38,12 +38,13 @@ class AgentSessionKiller(SessionKiller):
 
     async def kill(self, session: AgentSession, current_time: datetime) -> None:
         """End this execution and record its ending, whether or not it was still running."""
-        self._kill_processes(session)
+        await self._kill_processes(session)
         await self._close_session(session, current_time)
         await self._park_node(session.agent.node_id, current_time)
 
-    def _kill_processes(self, session: AgentSession) -> None:
-        if session.pid is None:
+    async def _kill_processes(self, session: AgentSession) -> None:
+        is_session_process_alive = await session.is_process_alive()
+        if not is_session_process_alive or session.pid is None:
             return
 
         self._process_killer.kill(session.pid)

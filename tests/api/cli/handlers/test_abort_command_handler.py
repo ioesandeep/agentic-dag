@@ -71,7 +71,7 @@ async def test_abort_retires_the_schedule_by_dag_name(
     recovery_session_repo.find_open_session.return_value = None
 
     extraction_lock = mocker.MagicMock(spec=ExtractionLock)
-    extraction_lock.get_session_pid.return_value = None
+    extraction_lock.get_live_session_pid.return_value = None
 
     handler = AbortCommandHandler(
         run_lock=mocker.MagicMock(spec=RunLock),
@@ -121,11 +121,12 @@ async def test_abort_kills_open_sessions_before_releasing_the_run_lock(
     recovery_process = subprocess.Popen(["sleep", "30"], start_new_session=True)
     learning_process = subprocess.Popen(["sleep", "30"], start_new_session=True)
 
+    recovery_started_at = datetime.now(UTC)
     recovery_session = RecoverySession(
         id=1,
         session_token="token-1",
         pid=recovery_process.pid,
-        started_at=NOW,
+        started_at=recovery_started_at,
         node_ids='["A"]',
     )
 

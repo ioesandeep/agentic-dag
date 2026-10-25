@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.bootstrap.application_context import (
     ApplicationContext,
     bind_context,
@@ -19,6 +20,7 @@ from virgo_agentic_dag.domain.command.abort_command import AbortCommand
 from virgo_agentic_dag.domain.persistence.entities.watcher import Watcher
 from virgo_agentic_dag.domain.persistence.repos.watcher_repo import WatcherRepo
 from virgo_agentic_dag.services.watching.watcher_service import WatcherService
+from virgo_agentic_dag.utils.process import get_process_started_at
 
 pytestmark = pytest.mark.integration
 
@@ -83,10 +85,12 @@ async def test_spawns_nothing_when_the_recorded_watcher_still_runs(
         "virgo_agentic_dag.utils.dag_utils.get_dag_root", lambda: tmp_path
     )
 
+    pid = os.getpid()
+    started_at = await get_process_started_at(pid)
+    watcher = Watcher(dag_name="demo", pid=pid, started_at=started_at)
+
     watcher_repo = mocker.AsyncMock(spec=WatcherRepo)
-    watcher_repo.get_by_dag_name.return_value = Watcher(
-        dag_name="demo", pid=os.getpid(), started_at=NOW
-    )
+    watcher_repo.get_by_dag_name.return_value = watcher
 
     watcher_service = WatcherService(watcher_repo, Path("/bin/echo"))
 
@@ -122,7 +126,9 @@ async def test_kills_and_forgets_the_watcher_when_stopped(
     mocker: MockerFixture,
 ) -> None:
     running = subprocess.Popen(["sleep", "30"], start_new_session=True)
-    recorded = Watcher(dag_name="demo", pid=running.pid, started_at=NOW)
+    started_at = datetime.now(UTC)
+    recorded = Watcher(dag_name="demo", pid=running.pid, started_at=started_at)
+
     watcher_repo = mocker.AsyncMock(spec=WatcherRepo)
     watcher_repo.get_by_dag_name.return_value = recorded
     watcher_service = WatcherService(watcher_repo, Path("/bin/echo"))
@@ -149,7 +155,9 @@ async def test_forget_removes_the_record_and_leaves_the_process_running(
     mocker: MockerFixture,
 ) -> None:
     running = subprocess.Popen(["sleep", "30"], start_new_session=True)
-    recorded = Watcher(dag_name="demo", pid=running.pid, started_at=NOW)
+    started_at = datetime.now(UTC)
+    recorded = Watcher(dag_name="demo", pid=running.pid, started_at=started_at)
+
     watcher_repo = mocker.AsyncMock(spec=WatcherRepo)
     watcher_repo.get_by_dag_name.return_value = recorded
     watcher_service = WatcherService(watcher_repo, Path("/bin/echo"))
@@ -170,6 +178,61 @@ async def test_kill_ends_the_process_without_needing_a_record(
     watcher_repo = mocker.AsyncMock(spec=WatcherRepo)
     watcher_service = WatcherService(watcher_repo, Path("/bin/echo"))
 
-    watcher_service.kill(Watcher(dag_name="demo", pid=running.pid, started_at=NOW))
+    started_at = datetime.now(UTC)
+    watcher = Watcher(dag_name="demo", pid=running.pid, started_at=started_at)
+
+    await watcher_service.kill(watcher)
 
     assert wait_until_dead(running.pid)
+
+
+@pytest.mark.parametrize("has_signal_permission", [False, True])
+async def test_watch_replaces_a_watcher_when_its_process_identity_does_not_match(
+    tmp_path: Path, mocker: MockerFixture, has_signal_permission: bool
+) -> None:
+    mocker.patch(
+        "virgo_agentic_dag.utils.dag_utils.get_dag_root", return_value=tmp_path
+    )
+
+    if not has_signal_permission:
+        mocker.patch("os.kill", side_effect=PermissionError)
+
+    pid = os.getpid()
+    watcher = Watcher(dag_name="demo", pid=pid, started_at=NOW)
+
+    watcher_repo = mocker.MagicMock(spec=WatcherRepo)
+    watcher_repo.get_by_dag_name.return_value = watcher
+    executable = Path("/bin/echo")
+    watcher_service = WatcherService(watcher_repo, executable)
+
+    with bound_out():
+        await watcher_service.watch("demo")
+
+    watcher_repo.save.assert_awaited_once()
+    saved_watcher = watcher_repo.save.await_args.args[0]
+    assert saved_watcher.pid != watcher.pid
+
+
+@pytest.mark.parametrize("has_signal_permission", [False, True])
+async def test_stop_deletes_a_watcher_without_killing_a_different_process(
+    mocker: MockerFixture, has_signal_permission: bool
+) -> None:
+    if not has_signal_permission:
+        mocker.patch("os.kill", side_effect=PermissionError)
+
+    kill_process_group = mocker.patch("os.killpg")
+
+    pid = os.getpid()
+    watcher = Watcher(dag_name="demo", pid=pid, started_at=NOW)
+
+    watcher_repo = mocker.MagicMock(spec=WatcherRepo)
+    watcher_repo.get_by_dag_name.return_value = watcher
+    executable = Path("/bin/echo")
+    watcher_service = WatcherService(watcher_repo, executable)
+
+    with bound_out():
+        await watcher_service.stop("demo")
+
+    kill_process_group.assert_not_called()
+
+    watcher_repo.delete.assert_awaited_once_with(watcher)

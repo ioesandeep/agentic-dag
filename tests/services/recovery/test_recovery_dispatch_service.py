@@ -121,6 +121,11 @@ async def test_dispatch_leaves_a_live_session_running_before_its_deadline(
     build_open_recovery_session: BuildOpenRecoverySession,
     elapsed_seconds: int,
 ) -> None:
+    process_status = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout=b"Sat Sep 05 00:00:00 2026\n"
+    )
+
+    mocker.patch("anyio.run_process", return_value=process_status)
     recovery_session_repo = mocker.MagicMock(spec=RecoverySessionRepo)
     recovery_session_repo.find_open_session.return_value = build_open_recovery_session(
         os.getpid()
@@ -166,6 +171,11 @@ async def test_dispatch_ends_an_overdue_session_to_allow_a_later_batch(
     elapsed_seconds: int,
     started_at: datetime,
 ) -> None:
+    process_status = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout=b"Sat Sep 05 00:00:00 2026\n"
+    )
+
+    mocker.patch("anyio.run_process", return_value=process_status)
     recovery_session = RecoverySession(
         id=1,
         session_token="token-1",

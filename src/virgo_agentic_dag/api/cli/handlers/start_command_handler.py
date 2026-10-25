@@ -95,12 +95,12 @@ class StartCommandHandler(CommandHandler[StartCommand]):
         )
 
         if watcher is not None and not is_watcher_process_group:
-            self._watcher_service.kill(watcher)
+            await self._watcher_service.kill(watcher)
 
         await self._retire(dag_name)
 
         if watcher is not None and is_watcher_process_group:
-            self._watcher_service.kill(watcher)
+            await self._watcher_service.kill(watcher)
 
     async def _register(self, command: StartCommand) -> ScheduledJob | None:
         job = await self._run_schedule_service.reconcile(command.dag_path)

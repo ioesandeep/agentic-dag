@@ -468,7 +468,7 @@ class DagWebService:
 
         recovery_sessions = await gateway.recovery_session_repo.get_all()
 
-        return recovery_session_mapper.to_recovery_session_list_response(
+        return await recovery_session_mapper.to_recovery_session_list_response(
             recovery_sessions
         )
 
