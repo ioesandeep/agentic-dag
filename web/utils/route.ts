@@ -1,5 +1,7 @@
 export const DAGS_ROUTE = '/dags';
 
+export const PROJECTS_ROUTE = '/projects';
+
 /**
  * Returns the route of a dag's screen.
  */
