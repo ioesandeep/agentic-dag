@@ -244,8 +244,10 @@ async def test_retire_deletes_the_plist_before_asking_launchd(
 ) -> None:
     agents_directory = tmp_path / "agents"
     agents_directory.mkdir()
+
     plist_path = agents_directory / f"{LABEL}.plist"
     plist_path.write_bytes(b"stub")
+
     present_at_bootout: list[bool] = []
 
     def watch_plist(_: tuple[str, ...]) -> RunResult:

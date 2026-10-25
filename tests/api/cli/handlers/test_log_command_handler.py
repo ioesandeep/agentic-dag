@@ -45,6 +45,7 @@ async def test_prints_every_entry_in_the_order_it_was_written(
     command = LogCommand(dag_name="demo")
     context = ApplicationContext(command, out)
     token = bind_context(context)
+
     try:
         exit_code = await handler.handle(command)
     finally:
@@ -70,6 +71,7 @@ async def test_says_there_is_no_history_when_the_trail_is_empty(
     command = LogCommand(dag_name="demo")
     context = ApplicationContext(command, out)
     token = bind_context(context)
+
     try:
         exit_code = await handler.handle(command)
     finally:

@@ -82,6 +82,7 @@ class WebhookSseHandler(BaseHTTPRequestHandler):
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "text/plain")
         self.send_header("Content-Length", str(len(body)))
+
         self.end_headers()
         self.wfile.write(body)
 
@@ -93,6 +94,7 @@ class WebhookSseHandler(BaseHTTPRequestHandler):
     def _stream_events(self, topics: list[str]) -> None:
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "text/event-stream")
+
         self.send_header("Cache-Control", "no-cache")
         self.send_header("X-Accel-Buffering", "no")
         self.end_headers()

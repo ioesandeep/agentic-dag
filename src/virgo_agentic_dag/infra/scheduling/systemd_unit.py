@@ -48,6 +48,7 @@ class SystemdUnit:
 
         current_config_home = os.getenv("XDG_CONFIG_HOME", "")
         config_home = environment.get("XDG_CONFIG_HOME", current_config_home)
+
         config_path = Path(config_home)
         is_absolute = config_path.is_absolute()
         if not is_absolute:

@@ -52,6 +52,7 @@ async def test_registration_installs_escaped_units_before_enabling_only_the_time
     unit_name = r"fyi.virgo.dag.a\x20\x22\x27\x5c\x24\x25\x2d-\xc3\xa9"
     arguments = ["/venv a\"'\\$%/dagctl", "start", "--dag", "/run a\"'\\$%/dag.toml"]
     argv = json.dumps(arguments)
+
     working_directory = str(tmp_path / "run a\"'\\$%")
     environment = {
         "HOME": str(tmp_path),
@@ -72,6 +73,7 @@ async def test_registration_installs_escaped_units_before_enabling_only_the_time
     unit_directory = tmp_path / "config custom" / "systemd" / "user"
     service_path = unit_directory / f"{unit_name}.service"
     timer_path = unit_directory / f"{unit_name}.timer"
+
     expected_command = 'ExecStart=:"/venv a\\"\'\\\\$%%/dagctl" "start" "--dag" "/run a\\"\'\\\\$%%/dag.toml"\n'
     expected_timer = "[Timer]\nOnActiveSec=7s\nOnUnitActiveSec=7s\nAccuracySec=1s\n\n[Install]\nWantedBy=timers.target\n"
     enable_operations = ["link", "daemon-reload", "enable"]
@@ -86,6 +88,7 @@ async def test_registration_installs_escaped_units_before_enabling_only_the_time
 
     service = service_path.read_text()
     timer = timer_path.read_text()
+
     assert expected_command in service
     assert f"WorkingDirectory={tmp_path}/run a\"'\\$%%\n" in service
     for stream in ("StandardOutput", "StandardError"):
@@ -94,6 +97,7 @@ async def test_registration_installs_escaped_units_before_enabling_only_the_time
     assert '"PATH=/bin a\\"\'\\\\$%%"' in service
     assert "Type=oneshot\n" in service and "KillMode=process\n" in service
     assert "SuccessExitStatus=3 75\n" in service
+
     assert "StartLimitIntervalSec=0\n" in service
     assert "Restart=" not in service and "RemainAfterExit=" not in service
 
@@ -110,8 +114,10 @@ async def test_registration_installs_escaped_units_before_enabling_only_the_time
 
     commands = [invocation.args[0] for invocation in command_runner.run.call_args_list]
     assert all(command[:2] == ["systemctl", "--user"] for command in commands)
+
     operations = [command[2] for command in commands]
     assert operations[:7] == ["show", "is-enabled"] * 2 + enable_operations
+
     assert commands[4][3:] == ["--no-reload", "--", str(service_path), str(timer_path)]
     assert commands[-1][3:] == ["--now", "--", f"{unit_name}.timer"]
 
@@ -141,8 +147,10 @@ async def test_registration_lookup_uses_timer_and_service_state(
     command_runner = mocker.MagicMock(spec=CommandRunner)
     timer_properties = f"LoadState={load_state}\nActiveState={active_state}"
     timer_result = RunResult(returncode=0, stdout=timer_properties)
+
     service_properties = "LoadState=loaded\nActiveState=failed"
     service_result = RunResult(returncode=0, stdout=service_properties)
+
     states = [timer_result, file_result, service_result, service_file_result]
     command_runner.run.side_effect = states
 
@@ -201,6 +209,7 @@ async def test_failed_registration_restores_previous_unit_files(
     job = get_job()
     unit_directory = tmp_path / "config" / "systemd" / "user"
     unit_directory.mkdir(parents=True)
+
     service_path = unit_directory / f"{UNIT_NAME}.service"
     timer_path = unit_directory / f"{UNIT_NAME}.timer"
     if was_registered:
@@ -209,6 +218,7 @@ async def test_failed_registration_restores_previous_unit_files(
 
     command_runner = mocker.MagicMock(spec=CommandRunner)
     failure_result = RunResult(returncode=1, stderr="activation failed")
+
     initial_state = [PRESENT, ENABLED] if was_registered else [MISSING, NOT_FOUND]
     activation = [SUCCESS] * (1 if failed_command == "reload" else 2) + [failure_result]
     if failed_command == "write":

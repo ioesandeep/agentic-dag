@@ -76,9 +76,11 @@ async def open_database(
     async def open_for(dag_name: str) -> DagDatabaseGateway:
         db_path = dag_home / dag_name / "db.sqlite3"
         db_path.parent.mkdir(parents=True, exist_ok=True)
+
         engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
         database = SqliteDatabase(engine)
         await database.upgrade_to_head()
+
         gateway = DagDatabaseGateway(database)
         opened.append(gateway)
 
@@ -192,7 +194,9 @@ async def test_dag_listing_returns_is_readable_false_where_the_database_does_not
     write_graph("alpha", "name = 'alpha'\n[[nodes]]\nid = 'seed'\n")
     gateway = await open_database("alpha")
     await gateway.node_repo.ensure_rows([GraphNode(id="seed")], STARTED_AT)
+
     write_graph("beta", "name = 'beta'\n[[nodes]]\nid = 'x'\n")
+
     write_graph("gamma", "name = 'gamma'\n[[nodes]]\nid = 'y'\n")
     dag_home.joinpath("gamma", "db.sqlite3").write_bytes(b"not a database")
 

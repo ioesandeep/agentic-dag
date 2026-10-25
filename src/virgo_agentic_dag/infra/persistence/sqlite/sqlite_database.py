@@ -55,6 +55,7 @@ class SqliteDatabase:
         migrations_path = files(virgo_agentic_dag) / "migrations"
         config = Config()
         config.set_main_option("script_location", str(migrations_path))
+
         config.attributes["connection"] = connection
         command.upgrade(config, "head")
 

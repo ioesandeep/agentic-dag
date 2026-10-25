@@ -78,9 +78,11 @@ class SystemdScheduler(Scheduler):
         try:
             timer_files = unit_files[1:]
             await self._disable_units(timer_files)
+
             removed_files = [SystemdUnit(unit.path, None) for unit in timer_files]
             await asyncio.to_thread(self._write_files, removed_files)
             await self._run(["daemon-reload"])
+
             cleanup_command = get_retirement_command(unit_files[0].path)
             await self._run(cleanup_command, executable="systemd-run")
         except OSError as error:
@@ -127,6 +129,7 @@ class SystemdScheduler(Scheduler):
 
         run_result = await self._run(command, missing_ok=True)
         properties = run_result.stdout.splitlines()
+
         assignments = [line.split("=", 1) for line in properties if "=" in line]
         unit_state = dict(assignments)
         if "LoadState" not in unit_state:

@@ -101,9 +101,11 @@ async def open_database(
     async def open_for(dag_name: str) -> SqliteDatabase:
         db_path = dag_home / dag_name / "db.sqlite3"
         db_path.parent.mkdir(parents=True, exist_ok=True)
+
         engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
         database = SqliteDatabase(engine)
         await database.upgrade_to_head()
+
         opened.append(database)
 
         return database
@@ -395,9 +397,11 @@ async def test_node_detail_returns_the_newest_agent_sessions_recovery_when_the_s
     response = TestClient(build_application(code_repo)).get("/api/dags/alpha/seed")
 
     assert response.status_code == 200
+
     node_response = response.json()
     assert node_response["exitCode"] == 137
     assert node_response["logTail"] == "Error: Reached max turns (120)"
+
     assert node_response["nodeRecovery"]["cause"] == "turn_cap_reached"
 
 

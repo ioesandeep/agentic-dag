@@ -57,6 +57,7 @@ def main() -> int:
     exit_path = Path(sys.argv[1])
     transcript_path = Path(sys.argv[2])
     command = sys.argv[3:]
+
     exit_code = SPAWN_FAILURE_EXIT_CODE
     try:
         with transcript_path.open("a", encoding="utf-8") as transcript:

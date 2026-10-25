@@ -82,6 +82,7 @@ def test_claims_the_run_without_waiting_when_it_is_free(tmp_path: Path) -> None:
 def test_waits_out_the_holder_and_then_claims_the_run(tmp_path: Path) -> None:
     holder = build_lock(tmp_path)
     holder.acquire()
+
     release_delay = threading.Timer(0.2, holder.release)
     release_delay.start()
     started = time.monotonic()
@@ -99,6 +100,7 @@ def test_acquires_the_run_lock_when_the_current_holder_releases_it(
 ) -> None:
     holder = build_lock(tmp_path)
     holder.acquire()
+
     release_delay = threading.Timer(0.2, holder.release)
     release_delay.start()
     run_lock_config = RunLockConfig(timeout=timeout)

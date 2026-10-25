@@ -84,9 +84,11 @@ async def open_database(
     async def open_for(dag_name: str) -> DagDatabaseGateway:
         db_path = dag_home / dag_name / "db.sqlite3"
         db_path.parent.mkdir(parents=True, exist_ok=True)
+
         engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
         database = SqliteDatabase(engine)
         await database.upgrade_to_head()
+
         gateway = DagDatabaseGateway(database)
         opened.append(gateway)
 

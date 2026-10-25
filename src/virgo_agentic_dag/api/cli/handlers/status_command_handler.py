@@ -58,6 +58,7 @@ class StatusCommandHandler(CommandHandler[StatusCommand]):
 
         self._report_nodes(nodes)
         self._report_sessions(sessions)
+
         self._report_watcher(watcher)
         self._report_job(job)
         await self._report_sse_health(job)

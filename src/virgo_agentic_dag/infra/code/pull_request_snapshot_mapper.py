@@ -31,6 +31,7 @@ class PullRequestSnapshotMapper:
         state = self._get_state(payload)
         complete = all(field in payload for field in REQUIRED_FIELDS)
         still_computing = state is PullRequestState.OPEN and mergeable == "UNKNOWN"
+
         rollup = payload.get("statusCheckRollup") or []
 
         return PullRequestSnapshot(

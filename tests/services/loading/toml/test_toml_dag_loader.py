@@ -83,6 +83,7 @@ def test_leaves_the_overrides_empty_when_a_node_names_none() -> None:
 
     assert node.project_root is None
     assert node.workspace_path is None
+
     assert node.executor_agent is None
     assert node.base_branch == ""
     assert node.cooldown_seconds is None
@@ -118,9 +119,11 @@ def test_reads_the_run_behavior_when_the_dag_names_it() -> None:
 
     assert spec.max_workers == 4
     assert spec.tick_interval_seconds == 120
+
     assert spec.slack_channel == "#dag"
     assert spec.sse_url == "http://stream/events"
     assert spec.agent_account == "bot"
+
     assert spec.caps == AttemptBudget(
         node_wakes=5,
         node_recoveries=2,
@@ -134,8 +137,10 @@ def test_defaults_the_run_behavior_when_the_dag_says_nothing() -> None:
 
     assert spec.max_workers == 2
     assert spec.tick_interval_seconds == 300
+
     assert spec.cooldown_seconds == 0
     assert spec.caps == AttemptBudget()
+
     assert spec.notification_dispatcher is NotificationDispatcherType.BOT
     assert spec.sse_url == ""
 

@@ -40,6 +40,7 @@ async def initialize_context(
     context = ApplicationContext(command, output_writer)
     register_beans(context)
     context.set_repo_slug(await _get_repo_slug(context))
+
     run_lock = _acquire_run_lock(context)
     token: Token[ApplicationContext | None] | None = None
     database: SqliteDatabase | None = None

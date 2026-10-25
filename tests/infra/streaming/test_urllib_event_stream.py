@@ -100,6 +100,7 @@ def post_webhook(port: int, body: bytes) -> int:
     connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
     headers = {"X-Hub-Signature-256": sign(body), "X-GitHub-Event": "pull_request"}
     connection.request("POST", "/webhook", body, headers)
+
     status = connection.getresponse().status
     connection.close()
 

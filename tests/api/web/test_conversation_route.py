@@ -237,6 +237,7 @@ async def test_conversation_page_returns_a_distinct_id_for_each_message_when_a_r
 ) -> None:
     node_agent = await save_node_agent(ExecutorAgent.CLAUDE)
     transcript_path = ClaudeTranscriptLocator().get_transcript_path(node_agent)
+
     text_block = {"type": "text", "text": "running the tests"}
     tool_use_block = {"type": "tool_use", "id": "toolu-a", "name": "Bash", "input": {}}
     records = [build_claude_record("assistant", [text_block, tool_use_block])]
@@ -258,6 +259,7 @@ async def test_conversation_page_returns_all_messages_from_the_boundary_record_w
 ) -> None:
     node_agent = await save_node_agent(ExecutorAgent.CLAUDE)
     transcript_path = ClaudeTranscriptLocator().get_transcript_path(node_agent)
+
     text_block = {"type": "text", "text": "running the tests"}
     tool_use_block = {"type": "tool_use", "id": "toolu-a", "name": "Bash", "input": {}}
     records = [
@@ -325,6 +327,7 @@ async def test_conversation_page_returns_the_latest_state_of_each_codex_item_whe
 ) -> None:
     node_agent = await save_node_agent(ExecutorAgent.CODEX)
     transcript_path = CodexTranscriptLocator().get_transcript_path(node_agent)
+
     pytest_item = {"id": "item_0", "type": "command_execution", "command": "pytest"}
     ruff_item = {"id": "item_1", "type": "command_execution", "command": "ruff"}
     records = [
@@ -394,6 +397,7 @@ async def test_conversation_page_responds_404_when_the_cursor_is_past_the_end_of
 ) -> None:
     node_agent = await save_node_agent(ExecutorAgent.CLAUDE)
     transcript_path = ClaudeTranscriptLocator().get_transcript_path(node_agent)
+
     records = [build_claude_record("user", [{"type": "text", "text": "fix the build"}])]
     write_transcript(transcript_path, records)
     past_end = transcript_path.stat().st_size + 1

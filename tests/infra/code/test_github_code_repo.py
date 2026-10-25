@@ -139,8 +139,10 @@ async def test_reads_pull_request_details_from_the_url_alone(
 
     assert details.number == 412
     assert details.repository == "acme/virgo"
+
     assert details.head_branch == "human/half-done"
     assert details.title == "feat(auth): add the login page"
+
     assert command_runner.run.call_args == call(
         ("gh", "pr", "view", PR_URL, "--json", ANY)
     )

@@ -59,6 +59,7 @@ class ScheduledJobBuilder:
             home = Path.home()
             config_home = os.getenv("XDG_CONFIG_HOME", "")
             config_path = Path(config_home)
+
             is_absolute = config_path.is_absolute()
             if not is_absolute:
                 config_path = home / ".config"

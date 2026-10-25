@@ -59,6 +59,7 @@ class RecoveryPromptComposer:
         agent = node.agent
         worktree = agent.worktree if agent is not None else None
         transcript_path = self._get_transcript_path(agent)
+
         latest_session = node.get_latest_session()
         values = {
             "node_id": node.id,

@@ -110,6 +110,7 @@ async def test_prints_every_record_when_the_run_is_live(
     command = StatusCommand(dag_name="demo")
     context = ApplicationContext(command, out)
     token = bind_context(context)
+
     try:
         exit_code = await handler.handle(command)
     finally:
@@ -159,6 +160,7 @@ async def test_status_reports_the_bridge_answered_when_it_is_reachable(
     command = StatusCommand(dag_name="demo")
     context = ApplicationContext(command, out)
     token = bind_context(context)
+
     try:
         exit_code = await handler.handle(command)
     finally:
@@ -205,6 +207,7 @@ async def test_status_reports_the_url_it_tried_when_the_bridge_refuses(
     command = StatusCommand(dag_name="demo")
     context = ApplicationContext(command, out)
     token = bind_context(context)
+
     try:
         exit_code = await handler.handle(command)
     finally:
@@ -247,6 +250,7 @@ async def test_status_says_nothing_about_the_bridge_when_no_sse_url_is_named(
     command = StatusCommand(dag_name="demo")
     context = ApplicationContext(command, out)
     token = bind_context(context)
+
     try:
         exit_code = await handler.handle(command)
     finally:
@@ -285,6 +289,7 @@ async def test_says_nothing_is_recorded_when_the_run_is_empty(
     command = StatusCommand(dag_name="demo")
     context = ApplicationContext(command, out)
     token = bind_context(context)
+
     try:
         exit_code = await handler.handle(command)
     finally:

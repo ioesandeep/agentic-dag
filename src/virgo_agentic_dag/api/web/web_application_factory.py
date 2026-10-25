@@ -42,8 +42,10 @@ class WebApplicationFactory:
         """Return the web api application."""
         application = FastAPI(title=TITLE, description=DESCRIPTION)
         application.include_router(self._health_route.build())
+
         application.include_router(self._memory_route.build())
         application.include_router(self._conversation_route.build())
+
         application.include_router(self._node_action_route.build())
         application.include_router(self._recovery_session_route.build())
         application.include_router(self._dag_route.build())

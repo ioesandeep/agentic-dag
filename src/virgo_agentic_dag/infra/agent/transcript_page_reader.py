@@ -54,6 +54,7 @@ class TranscriptPageReader(TranscriptReader):
                 text = line_bytes.decode("utf-8", errors="replace")
                 transcript_line = TranscriptLine(offset=line_offset, text=text)
                 transcript_lines.append(transcript_line)
+
                 line_offset += len(line)
 
         return transcript_lines

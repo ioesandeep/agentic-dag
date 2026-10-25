@@ -112,8 +112,10 @@ def project_root(tmp_path: Path) -> Path:
     repository = tmp_path / "repo"
     repository.mkdir()
     subprocess.run(["git", "init", "-q", "-b", "develop"], cwd=repository, check=True)
+
     subprocess.run(["git", "config", "user.email", "t@t"], cwd=repository, check=True)
     subprocess.run(["git", "config", "user.name", "t"], cwd=repository, check=True)
+
     (repository / "README.md").write_text("seed\n", encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=repository, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "seed"], cwd=repository, check=True)
@@ -166,9 +168,11 @@ async def test_start_posts_messages_to_the_channel_when_the_pull_requests_for_tw
 
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
+
     agent_stub = bin_dir / ClaudeAgentLauncher._BINARY
     agent_stub.write_text(AGENT_SCRIPT, encoding="utf-8")
     agent_stub.chmod(0o755)
+
     mocker.patch.dict(
         os.environ, {"PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
     )

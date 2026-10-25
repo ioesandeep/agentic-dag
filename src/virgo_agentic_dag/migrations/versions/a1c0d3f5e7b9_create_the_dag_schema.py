@@ -134,6 +134,7 @@ def downgrade() -> None:
     op.drop_table(WORK_TREES_TABLE_NAME)
     op.drop_table(AGENT_SESSIONS_TABLE_NAME)
     op.drop_table(NODE_AGENTS_TABLE_NAME)
+
     op.drop_table(WATCHERS_TABLE_NAME)
     op.drop_index(
         SLACK_NOTIFICATIONS_NODE_ID_INDEX_NAME,
@@ -143,5 +144,6 @@ def downgrade() -> None:
     op.drop_table(SLACK_NOTIFICATIONS_TABLE_NAME)
     op.drop_table(SCHEDULED_JOBS_TABLE_NAME)
     op.drop_table(NODES_TABLE_NAME)
+
     op.drop_index(AUDIT_ENTRIES_NODE_ID_INDEX_NAME, table_name=AUDIT_ENTRIES_TABLE_NAME)
     op.drop_table(AUDIT_ENTRIES_TABLE_NAME)

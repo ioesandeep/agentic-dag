@@ -42,8 +42,10 @@ async def test_reads_back_the_job_when_one_was_saved(tmp_path: Path) -> None:
     await repo.save(build_job())
 
     stored = await repo.get_by_dag_name("demo")
+
     assert stored is not None
     assert stored.label == "fyi.virgo.dag.demo"
+
     assert stored.get_argv() == ["/venv/bin/dagctl", "start"]
     assert stored.get_environment() == {"PATH": "/usr/bin"}
 

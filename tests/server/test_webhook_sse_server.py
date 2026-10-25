@@ -51,6 +51,7 @@ def post_webhook(
     connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
     headers = {"X-Hub-Signature-256": signature, "X-GitHub-Event": event}
     connection.request("POST", "/webhook", body, headers)
+
     status = connection.getresponse().status
     connection.close()
 
@@ -80,8 +81,10 @@ def test_scoped_subscriber_hears_only_its_own_pull_request(
 ) -> None:
     subscriber = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
     subscriber.request("GET", "/events?topics=acme/virgo%2312")
+
     response = subscriber.getresponse()
     wait_for_subscription(server.hub)
+
     elsewhere = build_pull_request_body(99)
     watched = build_pull_request_body(12)
 
