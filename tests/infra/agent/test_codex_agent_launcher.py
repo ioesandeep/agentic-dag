@@ -13,6 +13,7 @@ from virgo_agentic_dag.api.web.mappers.codex_transcript_mapper import (
 )
 from virgo_agentic_dag.domain.agent.session_status import SessionStatus
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
+from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentWakeTriggerEnum
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
 from virgo_agentic_dag.infra.agent.codex_agent_launcher import CodexAgentLauncher
@@ -101,7 +102,10 @@ async def test_wake_resumes_the_existing_codex_thread_when_a_new_launcher_wakes_
         codex_spec=spec.codex,
     )
 
-    woken_session = await restarted_launcher.wake(graph_node, "Fix the review", agent)
+    woken_session = await restarted_launcher.wake(
+        graph_node, "Fix the review", agent, AgentWakeTriggerEnum.WAKE
+    )
+
     await asyncio.to_thread(os.waitpid, woken_session.pid, 0)
 
     transcript_path = transcript_locator.get_transcript_path(agent)
@@ -169,7 +173,10 @@ async def test_wake_starts_a_new_conversation_when_codex_records_no_thread_id(
     work_path.write_text("Keep the previous work.")
     binary.write_text(f"#!{sys.executable}\n{CODEX_SCRIPT}")
 
-    woken_session = await launcher.wake(graph_node, "Try again", agent)
+    woken_session = await launcher.wake(
+        graph_node, "Try again", agent, AgentWakeTriggerEnum.RETRY
+    )
+
     await asyncio.to_thread(os.waitpid, woken_session.pid, 0)
 
     transcript_path = transcript_locator.get_transcript_path(agent)
@@ -186,8 +193,20 @@ async def test_wake_starts_a_new_conversation_when_codex_records_no_thread_id(
 
 
 @pytest.mark.parametrize("first_wake_fails", [False, True])
+@pytest.mark.parametrize(
+    "trigger",
+    [
+        AgentWakeTriggerEnum.WAKE,
+        AgentWakeTriggerEnum.RETRY,
+        AgentWakeTriggerEnum.RECOVERY,
+    ],
+)
 async def test_wake_resumes_the_adopted_thread_when_no_prior_wake_succeeds(
-    mocker: MockerFixture, tmp_path: Path, agent: NodeAgent, first_wake_fails: bool
+    mocker: MockerFixture,
+    tmp_path: Path,
+    agent: NodeAgent,
+    first_wake_fails: bool,
+    trigger: AgentWakeTriggerEnum,
 ) -> None:
     agent.resume_token = THREAD_ID
 
@@ -206,14 +225,17 @@ async def test_wake_resumes_the_adopted_thread_when_no_prior_wake_succeeds(
     graph_node = GraphNode(id="A")
     if first_wake_fails:
         binary.write_text("#!/bin/sh\necho 'authentication failed' >&2\nexit 9\n")
-        failed_session = await launcher.wake(graph_node, "Address the review", agent)
+        failed_session = await launcher.wake(
+            graph_node, "Address the review", agent, trigger
+        )
+
         await asyncio.to_thread(os.waitpid, failed_session.pid, 0)
 
         agent.sessions.append(failed_session)
 
         binary.write_text(f"#!{sys.executable}\n{CODEX_SCRIPT}")
 
-    session = await launcher.wake(graph_node, "Address the review", agent)
+    session = await launcher.wake(graph_node, "Address the review", agent, trigger)
     await asyncio.to_thread(os.waitpid, session.pid, 0)
 
     transcript_path = transcript_locator.get_transcript_path(agent)
@@ -223,6 +245,8 @@ async def test_wake_resumes_the_adopted_thread_when_no_prior_wake_succeeds(
     arguments = json.loads(messages[-1].text)
 
     assert arguments[-2:] == [THREAD_ID, "Address the review"]
+
+    assert session.triggered_by == trigger.value
 
 
 async def test_launch_records_exit_code_127_when_the_codex_binary_is_missing(

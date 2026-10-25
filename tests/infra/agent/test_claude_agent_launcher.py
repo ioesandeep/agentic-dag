@@ -7,6 +7,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
+from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentWakeTriggerEnum
 from virgo_agentic_dag.domain.persistence.entities.node import Node
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
@@ -62,7 +63,11 @@ async def test_wakes_with_the_turn_limit_it_was_given(
         timeout_seconds=1800, max_turns=40, learnings_path=learnings_path
     )
 
-    await launcher.wake(GraphNode(id="A"), "the check failed", agent)
+    graph_node = GraphNode(id="A")
+
+    await launcher.wake(
+        graph_node, "the check failed", agent, AgentWakeTriggerEnum.WAKE
+    )
 
     argv = popen.call_args.args[0]
     assert argv[argv.index("--max-turns") + 1] == "40"
@@ -89,7 +94,11 @@ async def test_wake_passes_the_node_exit_file_path_immediately_before_claude(
         timeout_seconds=1800, max_turns=40, learnings_path=learnings_path
     )
 
-    await launcher.wake(GraphNode(id="A"), "the check failed", agent)
+    graph_node = GraphNode(id="A")
+
+    await launcher.wake(
+        graph_node, "the check failed", agent, AgentWakeTriggerEnum.WAKE
+    )
 
     argv = popen.call_args.args[0]
     assert argv[:2] == ["sh", "-c"]
@@ -105,21 +114,39 @@ async def test_wake_removes_the_node_exit_file_when_it_exists(
         timeout_seconds=1800, max_turns=40, learnings_path=learnings_path
     )
 
-    await launcher.wake(GraphNode(id="A"), "the check failed", agent)
+    graph_node = GraphNode(id="A")
+
+    await launcher.wake(
+        graph_node, "the check failed", agent, AgentWakeTriggerEnum.WAKE
+    )
 
     assert not previous_exit_path.exists()
 
 
-async def test_wake_records_the_worktree_marks_from_the_previous_session(
-    agent: NodeAgent, popen: MagicMock, learnings_path: Path
+@pytest.mark.parametrize(
+    "trigger",
+    [
+        AgentWakeTriggerEnum.WAKE,
+        AgentWakeTriggerEnum.RETRY,
+        AgentWakeTriggerEnum.RECOVERY,
+    ],
+)
+async def test_wake_records_the_trigger_and_previous_worktree_marks(
+    agent: NodeAgent,
+    popen: MagicMock,
+    learnings_path: Path,
+    trigger: AgentWakeTriggerEnum,
 ) -> None:
     agent.worktree.marks = '{"pr": "412"}'
     launcher = ClaudeAgentLauncher(
         timeout_seconds=1800, max_turns=40, learnings_path=learnings_path
     )
 
-    session = await launcher.wake(GraphNode(id="A"), "the check failed", agent)
+    graph_node = GraphNode(id="A")
 
+    session = await launcher.wake(graph_node, "the check failed", agent, trigger)
+
+    assert session.triggered_by == trigger.value
     assert session.marks_before == '{"pr": "412"}'
 
 
@@ -159,7 +186,11 @@ async def test_wake_passes_the_learnings_file_only_as_an_appended_system_prompt(
         timeout_seconds=1800, max_turns=40, learnings_path=learnings_path
     )
 
-    await launcher.wake(GraphNode(id="A"), "the check failed", agent)
+    graph_node = GraphNode(id="A")
+
+    await launcher.wake(
+        graph_node, "the check failed", agent, AgentWakeTriggerEnum.WAKE
+    )
 
     argv = popen.call_args.args[0]
     assert argv[argv.index("--append-system-prompt-file") + 1] == str(learnings_path)
@@ -173,7 +204,11 @@ async def test_wake_omits_append_system_prompt_file_from_the_command_line_when_t
         timeout_seconds=1800, max_turns=40, learnings_path=learnings_path
     )
 
-    await launcher.wake(GraphNode(id="A"), "the check failed", agent)
+    graph_node = GraphNode(id="A")
+
+    await launcher.wake(
+        graph_node, "the check failed", agent, AgentWakeTriggerEnum.WAKE
+    )
 
     argv = popen.call_args.args[0]
     assert "--append-system-prompt-file" not in argv
@@ -199,7 +234,9 @@ async def test_launcher_records_the_process_start_time_when_a_session_starts(
     graph_node = GraphNode(id="A")
 
     if is_wake:
-        session = await launcher.wake(graph_node, "Fix the review", agent)
+        session = await launcher.wake(
+            graph_node, "Fix the review", agent, AgentWakeTriggerEnum.WAKE
+        )
     else:
         session = await launcher.launch(graph_node, "Implement the feature", agent)
 

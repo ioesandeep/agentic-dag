@@ -20,7 +20,10 @@ from virgo_agentic_dag.domain.command.exit_code import ExitCode
 from virgo_agentic_dag.domain.command.recover_command import RecoverCommand
 from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
-from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
+from virgo_agentic_dag.domain.infra.agent.agent_launcher import (
+    AgentLauncher,
+    AgentWakeTriggerEnum,
+)
 from virgo_agentic_dag.domain.infra.locking.run_lock import RunLock
 from virgo_agentic_dag.domain.infra.scheduling.scheduled_job import ScheduledJob
 from virgo_agentic_dag.domain.node.node_state import NodeState
@@ -188,7 +191,7 @@ async def test_recover_resumes_the_conversation_and_writes_the_row_when_a_messag
     )
 
     woken_session = AgentSession(
-        agent_id="agent-A", started_at=now, triggered_by="wake", pid=4242
+        agent_id="agent-A", started_at=now, triggered_by="recovery", pid=4242
     )
 
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
@@ -224,11 +227,13 @@ async def test_recover_resumes_the_conversation_and_writes_the_row_when_a_messag
 
     exit_code = await service.recover(command)
 
-    node_recovery = node_recovery_repo.add.await_args.args[0]
+    assert exit_code is ExitCode.SUCCESS
 
     agent_session_repo.add.assert_awaited_once_with(woken_session)
-    assert exit_code is ExitCode.SUCCESS
-    assert agent_launcher.wake.await_args.args[1] == WAKE_MESSAGE
+
+    wake_arguments = agent_launcher.wake.await_args.args
+    assert wake_arguments[1] == WAKE_MESSAGE
+    assert wake_arguments[3] is AgentWakeTriggerEnum.RECOVERY
 
     state_changes = [call.args[:2] for call in node_repo.update_state.await_args_list]
     expected_changes = [("A", NodeState.IN_PROGRESS)]
@@ -237,6 +242,7 @@ async def test_recover_resumes_the_conversation_and_writes_the_row_when_a_messag
 
     assert state_changes == expected_changes
 
+    node_recovery = node_recovery_repo.add.await_args.args[0]
     assert (node_recovery.session_id, node_recovery.cause) == (7, "turn_cap_reached")
     node_repo.spend_recovery_attempt.assert_awaited_once_with("A")
 

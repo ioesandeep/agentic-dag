@@ -17,7 +17,10 @@ from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
 )
 from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
-from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
+from virgo_agentic_dag.domain.infra.agent.agent_launcher import (
+    AgentLauncher,
+    AgentWakeTriggerEnum,
+)
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
 from virgo_agentic_dag.domain.infra.code.pull_request_details import (
     PullRequestDetails,
@@ -211,12 +214,12 @@ async def test_leaves_the_node_pending_without_audit_updates_before_its_resume_t
 
 
 @pytest.mark.parametrize(
-    ("resume_at", "pr", "label_name"),
+    ("resume_at", "pr", "label_name", "trigger"),
     [
-        (None, "", "retryMessage"),
-        (NOW, "", "resumeMessage"),
-        (PAST_RESUME_AT, "", "resumeMessage"),
-        (NOW, PR_URL, "resumeMessage"),
+        (None, "", "retryMessage", AgentWakeTriggerEnum.RETRY),
+        (NOW, "", "resumeMessage", AgentWakeTriggerEnum.RECOVERY),
+        (PAST_RESUME_AT, "", "resumeMessage", AgentWakeTriggerEnum.RECOVERY),
+        (NOW, PR_URL, "resumeMessage", AgentWakeTriggerEnum.RECOVERY),
     ],
     ids=["human_retry", "wait_ends", "wait_ended", "wait_ends_with_pr"],
 )
@@ -226,6 +229,7 @@ async def test_resumes_the_recorded_agent_when_the_node_has_run_before(
     resume_at: datetime | None,
     pr: str,
     label_name: str,
+    trigger: AgentWakeTriggerEnum,
 ) -> None:
     graph_node = GraphNode(
         id="A", executor_agent=ExecutorAgent.CLAUDE, instructions="do it", pr=pr
@@ -267,7 +271,7 @@ async def test_resumes_the_recorded_agent_when_the_node_has_run_before(
 
     agent_launcher = mocker.MagicMock(spec=AgentLauncher)
     agent_launcher.wake.return_value = AgentSession(
-        agent_id="agent-1", started_at=NOW, triggered_by="wake", pid=4242
+        agent_id="agent-1", started_at=NOW, triggered_by=trigger.value, pid=4242
     )
 
     agent_launchers = {ExecutorAgent.CLAUDE: agent_launcher}
@@ -293,7 +297,7 @@ async def test_resumes_the_recorded_agent_when_the_node_has_run_before(
     await handler.handle(graph, [graph_node], NOW)
 
     agent_launcher.wake.assert_awaited_once_with(
-        graph_node, LABELS[label_name], recorded_agent
+        graph_node, LABELS[label_name], recorded_agent, trigger
     )
 
     agent_launcher.launch.assert_not_awaited()

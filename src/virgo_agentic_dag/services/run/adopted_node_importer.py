@@ -13,7 +13,10 @@ from virgo_agentic_dag.domain.events.pull_request_adopted_event import (
 )
 from virgo_agentic_dag.domain.exceptions.manifest.config_error import ConfigError
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
-from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
+from virgo_agentic_dag.domain.infra.agent.agent_launcher import (
+    AgentLauncher,
+    AgentWakeTriggerEnum,
+)
 from virgo_agentic_dag.domain.infra.code.pull_request_details import (
     PullRequestDetails,
 )
@@ -104,7 +107,9 @@ class AdoptedNodeImporter(NodeImporter):
 
         launcher = self._get_launcher(graph_node)
         if agent.resume_token:
-            session = await launcher.wake(graph_node, LABELS["retryMessage"], agent)
+            session = await launcher.wake(
+                graph_node, LABELS["retryMessage"], agent, AgentWakeTriggerEnum.RETRY
+            )
         else:
             agent.resume_token = create_session_token()
             session = await launcher.launch(graph_node, graph_node.instructions, agent)

@@ -8,6 +8,7 @@ from pathlib import Path
 import anyio
 import pytest
 from pytest_mock import MockerFixture
+
 from virgo_agentic_dag.api.cli.dagctl import main
 from virgo_agentic_dag.domain.infra.scheduling.scheduler import Scheduler
 from virgo_agentic_dag.infra.agent.claude_agent_launcher import ClaudeAgentLauncher
@@ -393,7 +394,7 @@ def test_retry_resumes_the_recorded_agent_in_its_worktree(tmp_path: Path) -> Non
     ]
 
     assert tokens == [(first_token,)]
-    assert triggers == [("launch",), ("wake",), ("wake",)]
+    assert triggers == [("launch",), ("retry",), ("retry",)]
 
     assert worktree_names == [("A",)]
     assert directory_names == ["A"]
@@ -472,7 +473,7 @@ def test_recover_resumes_the_existing_agent_when_the_command_includes_a_wake_mes
     assert int(exit_code) == 0
     assert get_states(paths["db"])["A"] == "in_progress"
 
-    assert triggers == [("launch",), ("wake",)]
+    assert triggers == [("launch",), ("recovery",)]
     assert notes[-1] == ("the recovery agent resumed it: open the pull request",)
 
     assert rows == [("no_pull_request",)]

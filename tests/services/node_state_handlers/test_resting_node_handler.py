@@ -1,6 +1,7 @@
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
+from unittest.mock import ANY
 
 import pytest
 from pytest_mock import MockerFixture
@@ -11,7 +12,10 @@ from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
 )
 from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
-from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
+from virgo_agentic_dag.domain.infra.agent.agent_launcher import (
+    AgentLauncher,
+    AgentWakeTriggerEnum,
+)
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
 from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.notifications.notification_type import NotificationType
@@ -357,11 +361,11 @@ async def test_wakes_the_agent_when_a_signal_reports_news(
     node_repo.update_state.assert_awaited_once_with("A", NodeState.IN_PROGRESS, NOW)
     node_repo.record_pull_request_settled.assert_not_awaited()
 
-    agent_launcher.wake.assert_awaited_once()
+    agent_launcher.wake.assert_awaited_once_with(
+        graph_node, ANY, agent, AgentWakeTriggerEnum.WAKE
+    )
 
-    woken_node, news, woken_agent = agent_launcher.wake.await_args.args
-    assert woken_node.id == "A"
-    assert woken_agent.resume_token == agent.resume_token
+    news = agent_launcher.wake.await_args.args[1]
     assert expected_phrase in news
 
     agent_session_repo.add.assert_awaited_once_with(wake_session)
@@ -751,10 +755,40 @@ async def test_announces_without_waking_when_the_pull_request_is_approved(
     assert event.type is NotificationType.APPROVED
 
 
-async def test_needs_a_human_when_the_wake_budget_is_spent(
+@pytest.mark.parametrize(
+    ("triggers", "expected_state"),
+    [
+        (["launch", "wake"], NodeState.IN_PROGRESS),
+        (["launch", "wake", "wake"], NodeState.NEEDS_HUMAN),
+        (["launch", "wake", "wake", "retry"], NodeState.IN_PROGRESS),
+        (
+            ["launch", "wake", "wake", "retry", "wake", "recovery"],
+            NodeState.IN_PROGRESS,
+        ),
+        (
+            ["launch", "wake", "wake", "retry", "wake", "recovery", "wake"],
+            NodeState.NEEDS_HUMAN,
+        ),
+        (
+            ["launch", "wake", "wake", "launch", "recovery", "wake"],
+            NodeState.IN_PROGRESS,
+        ),
+    ],
+    ids=[
+        "below-cap",
+        "at-cap",
+        "retry-resets-cap",
+        "recovery-does-not-count",
+        "recovery-does-not-reset-cap",
+        "launch-resets-cap",
+    ],
+)
+async def test_resting_node_handler_applies_the_wake_cap_since_the_latest_start(
     mocker: MockerFixture,
     build_agent: BuildAgent,
     build_signals: BuildSignals,
+    triggers: list[str],
+    expected_state: NodeState,
 ) -> None:
     graph_node = GraphNode(id="A", executor_agent=ExecutorAgent.CLAUDE)
     graph = Graph(name="demo", nodes=[graph_node])
@@ -770,14 +804,13 @@ async def test_needs_a_human_when_the_wake_budget_is_spent(
 
     sessions = [
         AgentSession(
-            id=1, agent_id="agent-1", started_at=NOW, triggered_by="launch", pid=1
-        ),
-        AgentSession(
-            id=2, agent_id="agent-1", started_at=NOW, triggered_by="wake", pid=None
-        ),
-        AgentSession(
-            id=3, agent_id="agent-1", started_at=NOW, triggered_by="wake", pid=None
-        ),
+            id=session_id,
+            agent_id="agent-1",
+            started_at=NOW,
+            triggered_by=trigger,
+            pid=None,
+        )
+        for session_id, trigger in enumerate(triggers, start=1)
     ]
 
     node_agent_repo = mocker.MagicMock(spec=NodeAgentRepo)
@@ -824,7 +857,12 @@ async def test_needs_a_human_when_the_wake_budget_is_spent(
     clock.now.return_value = NOW
     await handler.handle(graph, [graph_node], NOW)
 
-    node_repo.update_state.assert_awaited_once_with("A", NodeState.NEEDS_HUMAN, NOW)
+    node_repo.update_state.assert_awaited_once_with("A", expected_state, NOW)
+    if expected_state is NodeState.IN_PROGRESS:
+        agent_launcher.wake.assert_awaited_once()
+
+        return
+
     agent_launcher.wake.assert_not_awaited()
 
     work_tree_repo.advance_marks.assert_not_awaited()

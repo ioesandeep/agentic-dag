@@ -8,7 +8,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
-from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
+from virgo_agentic_dag.domain.infra.agent.agent_launcher import (
+    AgentLauncher,
+    AgentWakeTriggerEnum,
+)
 from virgo_agentic_dag.domain.infra.code.pull_request_details import PullRequestDetails
 from virgo_agentic_dag.domain.infra.workspace.workspace import Workspace
 from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSession
@@ -102,7 +105,7 @@ async def test_import_node_reuses_the_agent_row_when_the_node_is_imported_again(
     agent_launcher.wake.return_value = AgentSession(
         agent_id=recorded_agent.id,
         started_at=current_time,
-        triggered_by="wake",
+        triggered_by="retry",
         pid=4243,
     )
 
@@ -138,4 +141,5 @@ async def test_import_node_reuses_the_agent_row_when_the_node_is_imported_again(
         assert retried_agent.resume_token == recorded_resume_token
 
         agent_launcher.wake.assert_awaited_once()
+        assert agent_launcher.wake.await_args.args[3] is AgentWakeTriggerEnum.RETRY
         agent_launcher.launch.assert_awaited_once()

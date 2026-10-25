@@ -13,7 +13,10 @@ from virgo_agentic_dag.domain.events.node_event import NodeEvent
 from virgo_agentic_dag.domain.events.work_started_event import WorkStartedEvent
 from virgo_agentic_dag.domain.exceptions.host.worktree_error import WorktreeError
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
-from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
+from virgo_agentic_dag.domain.infra.agent.agent_launcher import (
+    AgentLauncher,
+    AgentWakeTriggerEnum,
+)
 from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.notifications.notification_type import NotificationType
 from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSession
@@ -264,7 +267,9 @@ class NodeRecoveryService:
             return False
 
         try:
-            session = await launcher.wake(graph_node, command.wake_message, agent)
+            session = await launcher.wake(
+                graph_node, command.wake_message, agent, AgentWakeTriggerEnum.RECOVERY
+            )
         except (WorktreeError, OSError) as error:
             values = {"node_id": node.id, "error": str(error)}
             emit(format_label(LABELS["wakeFailed"], values))

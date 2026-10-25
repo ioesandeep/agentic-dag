@@ -13,7 +13,10 @@ from pathlib import Path
 from virgo_agentic_dag.domain.agent.session_status import SessionStatus
 from virgo_agentic_dag.domain.exceptions.host.worktree_error import WorktreeError
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
-from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
+from virgo_agentic_dag.domain.infra.agent.agent_launcher import (
+    AgentLauncher,
+    AgentWakeTriggerEnum,
+)
 from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSession
 from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
 from virgo_agentic_dag.domain.persistence.entities.work_tree import WorkTree
@@ -65,13 +68,17 @@ class ClaudeAgentLauncher(AgentLauncher):
         return AgentSession(
             agent_id=agent.id,
             started_at=started,
-            triggered_by="launch",
+            triggered_by=AgentWakeTriggerEnum.LAUNCH.value,
             pid=pid,
             pid_start=pid_start,
         )
 
     async def wake(
-        self, graph_node: GraphNode, news: str, agent: NodeAgent
+        self,
+        graph_node: GraphNode,
+        news: str,
+        agent: NodeAgent,
+        trigger: AgentWakeTriggerEnum,
     ) -> AgentSession:
         worktree = self._require_worktree(agent)
         argv = self._build_wake_argv(news, agent.resume_token)
@@ -84,7 +91,7 @@ class ClaudeAgentLauncher(AgentLauncher):
         return AgentSession(
             agent_id=agent.id,
             started_at=started,
-            triggered_by="wake",
+            triggered_by=trigger.value,
             pid=pid,
             pid_start=pid_start,
             marks_before=worktree.marks,

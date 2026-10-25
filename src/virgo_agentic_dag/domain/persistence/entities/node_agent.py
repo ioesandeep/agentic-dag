@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from virgo_agentic_dag.domain.agent.session_status import SessionStatus
+from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentWakeTriggerEnum
 from virgo_agentic_dag.domain.persistence.entities.entity_base import EntityBase
 
 if TYPE_CHECKING:
@@ -46,6 +48,21 @@ class NodeAgent(EntityBase):
             for session in self.sessions
             if session.end_state == SessionStatus.OVERDUE.value
         )
+
+    def count_wakes_since_start(self) -> int:
+        """Count review wakes since the latest launch or human retry."""
+        wakes = 0
+        for session in reversed(self.sessions):
+            if session.triggered_by in (
+                AgentWakeTriggerEnum.LAUNCH.value,
+                AgentWakeTriggerEnum.RETRY.value,
+            ):
+                break
+
+            if session.triggered_by == AgentWakeTriggerEnum.WAKE.value:
+                wakes += 1
+
+        return wakes
 
     def get_transcript_lines(self, transcript_path: Path | None) -> list[str]:
         """Returns the newest complete lines from a transcript file."""

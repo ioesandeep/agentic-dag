@@ -3,11 +3,24 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from virgo_agentic_dag.domain.agent.session_status import SessionStatus
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
 from virgo_agentic_dag.domain.persistence.entities.agent_session import AgentSession
-from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
+
+if TYPE_CHECKING:
+    from virgo_agentic_dag.domain.persistence.entities.node_agent import NodeAgent
+
+
+class AgentWakeTriggerEnum(StrEnum):
+    """Identifies the reason for starting an agent session."""
+
+    LAUNCH = "launch"
+    WAKE = "wake"
+    RETRY = "retry"
+    RECOVERY = "recovery"
 
 
 class AgentLauncher(ABC):
@@ -21,7 +34,11 @@ class AgentLauncher(ABC):
 
     @abstractmethod
     async def wake(
-        self, graph_node: GraphNode, news: str, agent: NodeAgent
+        self,
+        graph_node: GraphNode,
+        news: str,
+        agent: NodeAgent,
+        trigger: AgentWakeTriggerEnum,
     ) -> AgentSession:
         """Resume this agent in its worktree with only the changes it has not seen."""
 

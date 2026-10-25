@@ -22,7 +22,10 @@ from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
 )
 from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
-from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
+from virgo_agentic_dag.domain.infra.agent.agent_launcher import (
+    AgentLauncher,
+    AgentWakeTriggerEnum,
+)
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
 from virgo_agentic_dag.domain.infra.workspace.workspace import Workspace
 from virgo_agentic_dag.domain.node.node_state import NodeState
@@ -247,11 +250,17 @@ class PendingNodeHandler(NodeStateHandler):
         start_label = "workStarted"
         if recorded_agent is not None and recorded_agent.resume_token:
             agent = recorded_agent
-            has_resume_time = node.resume_at is not None
-            label_name = "resumeMessage" if has_resume_time else "retryMessage"
-            session = await launcher.wake(graph_node, LABELS[label_name], agent)
+            label_name = "retryMessage"
+            trigger = AgentWakeTriggerEnum.RETRY
+            if node.resume_at is not None:
+                label_name = "resumeMessage"
+                trigger = AgentWakeTriggerEnum.RECOVERY
 
-            if session.triggered_by == "launch":
+            session = await launcher.wake(
+                graph_node, LABELS[label_name], agent, trigger
+            )
+
+            if session.triggered_by == AgentWakeTriggerEnum.LAUNCH.value:
                 start_label = "conversationStartedWithoutThread"
         else:
             agent = self._create_agent(

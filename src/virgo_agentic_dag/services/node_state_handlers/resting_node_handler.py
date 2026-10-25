@@ -29,7 +29,10 @@ from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
 )
 from virgo_agentic_dag.domain.graph.graph import Graph
 from virgo_agentic_dag.domain.graph.graph_node import GraphNode
-from virgo_agentic_dag.domain.infra.agent.agent_launcher import AgentLauncher
+from virgo_agentic_dag.domain.infra.agent.agent_launcher import (
+    AgentLauncher,
+    AgentWakeTriggerEnum,
+)
 from virgo_agentic_dag.domain.infra.code.code_repo import CodeRepo
 from virgo_agentic_dag.domain.node.node_state import NodeState
 from virgo_agentic_dag.domain.node.node_state_handler import NodeStateHandler
@@ -343,7 +346,7 @@ class RestingNodeHandler(NodeStateHandler):
         waking_changes: list[SignalChange],
         pr_details: PrDetails,
     ) -> TickResponse:
-        wakes = sum(1 for session in agent.sessions if session.triggered_by == "wake")
+        wakes = agent.count_wakes_since_start()
         if wakes >= self._dag_spec.caps.node_wakes:
             stopped_event = self._get_stopped_event(
                 graph_node,
@@ -370,7 +373,10 @@ class RestingNodeHandler(NodeStateHandler):
 
         # TODO: if the agent product has deleted this session on its own, recovering
         # from that belongs in its launcher. This handler resumes without checking.
-        launched = await launcher.wake(graph_node, news, agent)
+        launched = await launcher.wake(
+            graph_node, news, agent, AgentWakeTriggerEnum.WAKE
+        )
+
         await self._agent_session_repo.add(launched)
         await self._record_head_sha(worktree, pr_details)
 
