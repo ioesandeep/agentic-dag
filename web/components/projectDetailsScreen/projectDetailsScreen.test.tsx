@@ -49,7 +49,7 @@ test('ProjectDetailsScreen displays the empty project state', () => {
 
   expect(screen.getByText(LABELS.projectRepositoriesEmpty)).toBeVisible();
   expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: LABELS.projectRepositoryAdd })).toBeDisabled();
+  expect(screen.getByRole('button', { name: LABELS.repositoryAdd })).toBeEnabled();
 });
 
 test('The project route returns not found when the project ID is unknown', async () => {
@@ -87,6 +87,7 @@ test('ProjectDetailsScreen discards edits when Cancel is selected', async () => 
   const user = userEvent.setup();
   render(<ProjectDetailsScreen project={project} />);
 
+  await user.tab();
   await user.tab();
   await user.tab();
   await user.keyboard('{Enter}');

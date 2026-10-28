@@ -100,6 +100,7 @@ export const ProjectRepositoryRow = ({
           <span>
             <IconButton
               size="small"
+              color="error"
               aria-label={LABELS.repositoryRemoveFromProject}
               disabled={isReadOnly}
               onClick={handleRemove}

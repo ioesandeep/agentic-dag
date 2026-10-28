@@ -1,13 +1,13 @@
 'use client';
 
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useRef, useState } from 'react';
 
 import { AppLayout } from '@/components/appLayout/appLayout';
+import { AddRepositoryMenu } from '@/components/addRepositoryMenu/addRepositoryMenu';
+import { AddRepositoryMethodEnum } from '@/components/addRepositoryMenu/types';
 import { BackButton } from '@/components/backButton/backButton';
 import { getProjectRepositories } from '@/components/projectList/utils';
 import { ProjectActions } from '@/components/projectDetailsScreen/projectActions/projectActions';
@@ -24,8 +24,9 @@ import type { ProjectDetailsInput } from './types';
 
 const PAGE_STYLE = { p: { xs: 2, md: 3 }, maxWidth: '64rem', mx: 'auto' };
 const REPOSITORIES_STYLE = { mt: 3, p: { xs: 2, sm: 2.5 } };
-const HEADER_STYLE = { alignItems: 'center', justifyContent: 'space-between', mb: 1.5 };
+const REPOSITORIES_HEADING_STYLE = { mb: 1.5 };
 const EMPTY_STYLE = { py: 1.5, color: 'text.secondary' };
+const ADD_REPOSITORY_METHODS = [AddRepositoryMethodEnum.GITHUB];
 
 interface ProjectDetailsScreenProps {
   project: Project;
@@ -79,13 +80,20 @@ export const ProjectDetailsScreen = ({ project }: ProjectDetailsScreenProps) => 
           backButton={<BackButton href={PROJECTS_ROUTE} label={LABELS.projectListBack} />}
           title={projectDetailsInput.name}
           actions={
-            <ProjectActions
-              isArchived={projectDetailsInput.isArchived}
-              isEditing={isEditing}
-              editButtonRef={editButtonRef}
-              onEdit={handleEdit}
-              onArchive={handleArchive}
-            />
+            <>
+              <AddRepositoryMenu
+                methods={ADD_REPOSITORY_METHODS}
+                project={project}
+                isDisabled={projectDetailsInput.isArchived}
+              />
+              <ProjectActions
+                isArchived={projectDetailsInput.isArchived}
+                isEditing={isEditing}
+                editButtonRef={editButtonRef}
+                onEdit={handleEdit}
+                onArchive={handleArchive}
+              />
+            </>
           }
         />
       }
@@ -99,14 +107,9 @@ export const ProjectDetailsScreen = ({ project }: ProjectDetailsScreenProps) => 
           onApply={handleApply}
         />
         <Paper variant="outlined" component="section" sx={REPOSITORIES_STYLE}>
-          <Stack direction="row" spacing={2} sx={HEADER_STYLE}>
-            <Typography variant="h6" component="h2">
-              {LABELS.projectRepositories}
-            </Typography>
-            <Button variant="outlined" size="small" disabled>
-              {LABELS.projectRepositoryAdd}
-            </Button>
-          </Stack>
+          <Typography variant="h6" component="h2" sx={REPOSITORIES_HEADING_STYLE}>
+            {LABELS.projectRepositories}
+          </Typography>
           <ProjectRepositoryList
             repositories={repositories}
             projectId={project.id}

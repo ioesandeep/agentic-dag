@@ -275,3 +275,21 @@ export const MOCK_GITHUB_BRANCHES: string[] = [
  * Defines the default branch for cloning a GitHub repository.
  */
 export const MOCK_GITHUB_DEFAULT_BRANCH = 'main';
+
+/**
+ * Provides GitHub repository names for clone suggestions.
+ */
+export const MOCK_GITHUB_REPOSITORY_NAMES: string[] = [
+  SERVICE_REPOSITORY.fullName,
+  WORKER_REPOSITORY.fullName,
+  CONNECTOR_REPOSITORY.fullName,
+  CONSOLE_REPOSITORY.fullName,
+  TOOLS_REPOSITORY.fullName,
+  LEGACY_REPOSITORY.fullName,
+  'virgo/api',
+  'virgo/docs',
+  'virgo/cli',
+  'virgo/sdk',
+  'virgo/agent',
+  'virgo/infra',
+];
