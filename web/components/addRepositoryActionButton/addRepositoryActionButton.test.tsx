@@ -3,14 +3,17 @@ import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';
 
 import { LABELS } from '@/labels/en';
-import { AddRepositoryMenu } from './addRepositoryMenu';
-import { AddRepositoryMethodEnum } from './types';
+import { MOCK_PROJECTS } from '@/mocks/catalogMocks';
+import { AddRepositoryActionButton } from './addRepositoryActionButton';
 
-const GITHUB_METHODS = [AddRepositoryMethodEnum.GITHUB];
+const [PROJECT] = MOCK_PROJECTS;
+if (PROJECT === undefined) {
+  throw new Error('The project fixture is missing.');
+}
 
-test('AddRepositoryMenu opens GitHub and restores focus when operated by keyboard', async () => {
+test('AddRepositoryActionButton opens GitHub and restores focus when operated by keyboard', async () => {
   const user = userEvent.setup();
-  render(<AddRepositoryMenu methods={GITHUB_METHODS} />);
+  render(<AddRepositoryActionButton project={PROJECT} />);
 
   const button = screen.getByRole('button', { name: LABELS.repositoryAdd });
   await user.tab();
@@ -22,7 +25,7 @@ test('AddRepositoryMenu opens GitHub and restores focus when operated by keyboar
 
   await user.keyboard('{Escape}');
   await waitFor(() => expect(button).toHaveFocus());
-  await user.keyboard(' {ArrowDown}{Enter}');
+  await user.keyboard(' {Enter}');
 
   const repositoryInput = screen.getByRole('combobox', { name: LABELS.githubRepository });
   await waitFor(() => expect(repositoryInput).toHaveFocus());
@@ -34,12 +37,9 @@ test('AddRepositoryMenu opens GitHub and restores focus when operated by keyboar
   expect(button).toHaveFocus();
 });
 
-test('AddRepositoryMenu excludes GitHub when the page omits that method', async () => {
-  const user = userEvent.setup();
-  render(<AddRepositoryMenu methods={[]} />);
+test('AddRepositoryActionButton disables repository actions when isDisabled is true', () => {
+  render(<AddRepositoryActionButton project={PROJECT} isDisabled />);
 
-  await user.click(screen.getByRole('button', { name: LABELS.repositoryAdd }));
-
-  expect(screen.getByRole('menu')).toBeVisible();
-  expect(screen.queryByRole('menuitem', { name: LABELS.repositoryAddGithub })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: LABELS.repositoryAdd })).toBeDisabled();
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument();
 });

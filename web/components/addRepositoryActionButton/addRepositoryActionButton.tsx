@@ -3,6 +3,7 @@
 import AddIcon from '@mui/icons-material/Add';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import FolderIcon from '@mui/icons-material/Folder';
 import IconButton from '@mui/material/IconButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
@@ -12,31 +13,31 @@ import type { PopoverOrigin } from '@mui/material/Popover';
 import { useId, useRef, useState } from 'react';
 
 import { GithubCloneDialog } from '@/components/githubCloneDialog/githubCloneDialog';
+import { RepositoryPickerDialog } from '@/components/repositoryPickerDialog/repositoryPickerDialog';
 import type { ProjectSummary } from '@/entities/catalog/project';
 import { LABELS } from '@/labels/en';
-import { AddRepositoryMethodEnum } from './types';
 
 const MENU_ANCHOR_ORIGIN: PopoverOrigin = { vertical: 'bottom', horizontal: 'right' };
 const MENU_TRANSFORM_ORIGIN: PopoverOrigin = { vertical: 'top', horizontal: 'right' };
 
-interface AddRepositoryMenuProps {
-  methods: readonly AddRepositoryMethodEnum[];
-  project?: ProjectSummary;
+interface AddRepositoryActionButtonProps {
+  project: ProjectSummary;
   isDisabled?: boolean;
 }
 
 /**
- * Opens the repository import methods available on a page.
+ * Opens the repository import actions for a project.
  */
-export const AddRepositoryMenu = ({ methods, project, isDisabled = false }: AddRepositoryMenuProps) => {
+export const AddRepositoryActionButton = ({ project, isDisabled = false }: AddRepositoryActionButtonProps) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [anchorElement, setAnchorElement] = useState<HTMLElement | null>(null);
   const [isGithubOpen, setIsGithubOpen] = useState(false);
-  const buttonId = useId();
+  const [isRepositoryPickerOpen, setIsRepositoryPickerOpen] = useState(false);
 
+  const buttonId = useId();
   const menuId = useId();
+
   const isMenuOpen = anchorElement !== null;
-  const hasGithub = methods.includes(AddRepositoryMethodEnum.GITHUB);
 
   const menuSlotProps = {
     list: { 'aria-labelledby': buttonId },
@@ -52,6 +53,16 @@ export const AddRepositoryMenu = ({ methods, project, isDisabled = false }: AddR
 
   const handleCloseGithub = () => {
     setIsGithubOpen(false);
+    buttonRef.current?.focus();
+  };
+
+  const handleOpenRepositoryPicker = () => {
+    handleCloseMenu();
+    setIsRepositoryPickerOpen(true);
+  };
+
+  const handleCloseRepositoryPicker = () => {
+    setIsRepositoryPickerOpen(false);
     buttonRef.current?.focus();
   };
 
@@ -80,15 +91,18 @@ export const AddRepositoryMenu = ({ methods, project, isDisabled = false }: AddR
         onClose={handleCloseMenu}
         slotProps={menuSlotProps}
       >
-        {hasGithub && (
-          <MenuItem onClick={handleOpenGithub}>
-            <ListItemIcon><GitHubIcon fontSize="small" /></ListItemIcon>
-            <ListItemText>{LABELS.repositoryAddGithub}</ListItemText>
-          </MenuItem>
-        )}
+        <MenuItem onClick={handleOpenGithub}>
+          <ListItemIcon><GitHubIcon fontSize="small" /></ListItemIcon>
+          <ListItemText>{LABELS.repositoryAddGithub}</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleOpenRepositoryPicker}>
+          <ListItemIcon><FolderIcon fontSize="small" /></ListItemIcon>
+          <ListItemText>{LABELS.repositoryAddFromList}</ListItemText>
+        </MenuItem>
       </Menu>
-      {hasGithub && (
-        <GithubCloneDialog isOpen={isGithubOpen} onClose={handleCloseGithub} project={project} />
+      <GithubCloneDialog isOpen={isGithubOpen} onClose={handleCloseGithub} project={project} />
+      {isRepositoryPickerOpen && (
+        <RepositoryPickerDialog isOpen onClose={handleCloseRepositoryPicker} project={project} />
       )}
     </>
   );

@@ -6,8 +6,7 @@ import Typography from '@mui/material/Typography';
 import { useRef, useState } from 'react';
 
 import { AppLayout } from '@/components/appLayout/appLayout';
-import { AddRepositoryMenu } from '@/components/addRepositoryMenu/addRepositoryMenu';
-import { AddRepositoryMethodEnum } from '@/components/addRepositoryMenu/types';
+import { AddRepositoryActionButton } from '@/components/addRepositoryActionButton/addRepositoryActionButton';
 import { BackButton } from '@/components/backButton/backButton';
 import { getProjectRepositories } from '@/components/projectList/utils';
 import { ProjectActions } from '@/components/projectDetailsScreen/projectActions/projectActions';
@@ -26,7 +25,6 @@ const PAGE_STYLE = { p: { xs: 2, md: 3 }, maxWidth: '64rem', mx: 'auto' };
 const REPOSITORIES_STYLE = { mt: 3, p: { xs: 2, sm: 2.5 } };
 const REPOSITORIES_HEADING_STYLE = { mb: 1.5 };
 const EMPTY_STYLE = { py: 1.5, color: 'text.secondary' };
-const ADD_REPOSITORY_METHODS = [AddRepositoryMethodEnum.GITHUB];
 
 interface ProjectDetailsScreenProps {
   project: Project;
@@ -81,8 +79,7 @@ export const ProjectDetailsScreen = ({ project }: ProjectDetailsScreenProps) => 
           title={projectDetailsInput.name}
           actions={
             <>
-              <AddRepositoryMenu
-                methods={ADD_REPOSITORY_METHODS}
+              <AddRepositoryActionButton
                 project={project}
                 isDisabled={projectDetailsInput.isArchived}
               />
