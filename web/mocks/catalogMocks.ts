@@ -264,6 +264,24 @@ export const MOCK_REPOSITORY_INSPECTION: RepositoryInspection = {
 };
 
 /**
+ * Provides inspection results for each supported local clone remote.
+ */
+export const MOCK_LOCAL_CHECKOUT_INSPECTIONS: readonly RepositoryInspection[] = [
+  MOCK_REPOSITORY_INSPECTION,
+  {
+    ...MOCK_REPOSITORY_INSPECTION,
+    selectedRemoteName: 'upstream',
+    identity: {
+      providerRepositoryId: '2007',
+      fullName: 'virgo/console-template',
+      webUrl: 'https://github.com/virgo/console-template',
+      defaultBranch: 'main',
+    },
+    existingRepository: null,
+  },
+];
+
+/**
  * Provides branch options for cloning a GitHub repository.
  */
 export const MOCK_GITHUB_BRANCHES: string[] = [
