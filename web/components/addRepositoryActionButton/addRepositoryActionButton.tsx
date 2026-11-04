@@ -6,6 +6,7 @@ import GitHubIcon from '@mui/icons-material/GitHub';
 import FolderIcon from '@mui/icons-material/Folder';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import Dialog from '@mui/material/Dialog';
+import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
@@ -13,6 +14,7 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import type { PopoverOrigin } from '@mui/material/Popover';
 import { useId, useRef, useState } from 'react';
+import type { ElementType } from 'react';
 
 import { GithubCloneDialog } from '@/components/githubCloneDialog/githubCloneDialog';
 import { LocalCheckoutForm } from '@/components/localCheckoutForm/localCheckoutForm';
@@ -24,12 +26,12 @@ const MENU_ANCHOR_ORIGIN: PopoverOrigin = { vertical: 'bottom', horizontal: 'rig
 const MENU_TRANSFORM_ORIGIN: PopoverOrigin = { vertical: 'top', horizontal: 'right' };
 
 interface AddRepositoryActionButtonProps {
-  project: ProjectSummary;
+  project?: ProjectSummary;
   isDisabled?: boolean;
 }
 
 /**
- * Opens the repository import actions for a project.
+ * Opens the repository import actions.
  */
 export const AddRepositoryActionButton = ({ project, isDisabled = false }: AddRepositoryActionButtonProps) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -43,6 +45,7 @@ export const AddRepositoryActionButton = ({ project, isDisabled = false }: AddRe
   const menuId = useId();
 
   const isMenuOpen = anchorElement !== null;
+  const ActionButton: ElementType = project === undefined ? Button : IconButton;
 
   const menuSlotProps = {
     list: { 'aria-labelledby': buttonId },
@@ -83,7 +86,7 @@ export const AddRepositoryActionButton = ({ project, isDisabled = false }: AddRe
 
   return (
     <>
-      <IconButton
+      <ActionButton
         ref={buttonRef}
         id={buttonId}
         size="small"
@@ -95,8 +98,9 @@ export const AddRepositoryActionButton = ({ project, isDisabled = false }: AddRe
         onClick={handleOpenMenu}
       >
         <AddIcon fontSize="small" />
+        {project === undefined && LABELS.repositoryAdd}
         <ArrowDropDownIcon fontSize="small" />
-      </IconButton>
+      </ActionButton>
       <Menu
         id={menuId}
         anchorEl={anchorElement}
@@ -110,17 +114,17 @@ export const AddRepositoryActionButton = ({ project, isDisabled = false }: AddRe
           <ListItemIcon><GitHubIcon fontSize="small" /></ListItemIcon>
           <ListItemText>{LABELS.repositoryAddGithub}</ListItemText>
         </MenuItem>
-        <MenuItem onClick={handleOpenRepositoryPicker}>
+        {project !== undefined && <MenuItem onClick={handleOpenRepositoryPicker}>
           <ListItemIcon><FolderIcon fontSize="small" /></ListItemIcon>
           <ListItemText>{LABELS.repositoryAddFromList}</ListItemText>
-        </MenuItem>
+        </MenuItem>}
         <MenuItem onClick={handleOpenLocal}>
           <ListItemIcon><FolderOutlinedIcon fontSize="small" /></ListItemIcon>
           <ListItemText>{LABELS.repositoryAddLocal}</ListItemText>
         </MenuItem>
       </Menu>
       <GithubCloneDialog isOpen={isGithubOpen} onClose={handleCloseGithub} project={project} />
-      {isRepositoryPickerOpen && (
+      {isRepositoryPickerOpen && project !== undefined && (
         <RepositoryPickerDialog isOpen onClose={handleCloseRepositoryPicker} project={project} />
       )}
       {isLocalOpen && (

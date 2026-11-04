@@ -10,23 +10,28 @@ const APP_BAR_STYLE = {
   backdropFilter: 'blur(8px)',
 };
 
-const TOOLBAR_STYLE = { gap: 2 };
+const TOOLBAR_STYLE = {
+  gap: { xs: 1, sm: 2 },
+  flexWrap: { xs: 'wrap', sm: 'nowrap' },
+  py: { xs: 1, sm: 0 },
+};
 
 const BACK_BUTTON_STYLE = {
-  flex: 1,
+  flex: { xs: '0 0 auto', sm: 1 },
   display: 'flex',
   alignItems: 'center',
   minWidth: 0,
 };
 
-const TITLE_STYLE = { fontWeight: 600, minWidth: 0 };
+const TITLE_STYLE = { fontWeight: 600, minWidth: 0, flexGrow: { xs: 1, sm: 0 }, textAlign: 'center' };
 
 const ACTIONS_STYLE = {
-  flex: 1,
+  flex: { xs: '1 0 100%', sm: 1 },
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'flex-end',
   gap: 1,
+  flexWrap: 'wrap',
 };
 
 interface TopAppBarProps {

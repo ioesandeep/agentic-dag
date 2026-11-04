@@ -6,7 +6,7 @@ import { expect, test, vi } from 'vitest';
 import { LABELS } from '@/labels/en';
 import { ProjectsScreen } from './projectsScreen';
 
-vi.mock('next/navigation', () => ({ useRouter: vi.fn() }));
+vi.mock('next/navigation', () => ({ useRouter: vi.fn(), usePathname: () => '/projects' }));
 
 test('ProjectsScreen includes archived projects when Show archived is enabled', async () => {
   const user = userEvent.setup();
@@ -36,6 +36,11 @@ test('ProjectsScreen includes archived projects when Show archived is enabled', 
 
   expect(archivedProjectBeforeToggle).not.toBeInTheDocument();
   expect(archiveSwitch).not.toBeChecked();
+
+  await user.tab();
+  await user.tab();
+  await user.tab();
+  await user.tab();
 
   await user.tab();
   expect(archiveSwitch).toHaveFocus();
@@ -105,6 +110,11 @@ test('ProjectsScreen closes the dialog without adding a project when creation is
   });
 
   expect(opener).toHaveTextContent(LABELS.projectCreate);
+
+  await user.tab();
+  await user.tab();
+  await user.tab();
+  await user.tab();
 
   await user.tab();
   await user.tab();

@@ -9,6 +9,7 @@ import type { Repository } from '@/entities/catalog/repository';
 import { ImportStatusEnum } from '@/entities/catalog/repositoryImport';
 import { LABELS, LOCALE } from '@/labels/en';
 import { formatLabel } from '@/utils/formatLabel';
+import { getRepositoryRoute } from '@/utils/route';
 import { RepositoryListVariantEnum } from './types';
 import type { RepositoryAction, RepositoryBranchLabel, RepositoryRowProps } from './types';
 
@@ -140,12 +141,16 @@ export const getRepositoryActions = (
   const repositoryValues = { repository: repository.fullName };
   const ariaLabel = formatLabel(LABELS.repositoryDetailsOpen, repositoryValues);
 
+  const isGlobal = repositoryRowProps.variant === RepositoryListVariantEnum.GLOBAL;
+  const href = isGlobal ? getRepositoryRoute(repository.id) : undefined;
+
   return [
     {
       label: LABELS.repositoryDetails,
       ariaLabel,
       icon: InfoOutlinedIcon,
       onClick: () => onOpenDetails(repository),
+      href,
     },
     ...retryCloneActions,
     ...projectActions,

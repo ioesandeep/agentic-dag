@@ -26,7 +26,11 @@ test('ProjectDetailsScreen displays project fields and repository branches', () 
   expect(screen.getByRole('heading', { name: project.name })).toBeVisible();
   expect(screen.getByText(LABELS.projectDetailsName)).toBeVisible();
   expect(screen.getByText(project.description)).toBeVisible();
-  expect(screen.getAllByRole('listitem')).toHaveLength(project.repositoryCounts.total);
+
+  const main = screen.getByRole('main');
+  const mainQueries = within(main);
+  const repositoryItems = mainQueries.getAllByRole('listitem');
+  expect(repositoryItems).toHaveLength(project.repositoryCounts.total);
 
   for (const repository of MOCK_REPOSITORIES) {
     const membership = repository.memberships.find((membership) => membership.project === project);
@@ -48,7 +52,12 @@ test('ProjectDetailsScreen displays the empty project state', () => {
   render(<ProjectDetailsScreen project={project} />);
 
   expect(screen.getByText(LABELS.projectRepositoriesEmpty)).toBeVisible();
-  expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
+
+  const main = screen.getByRole('main');
+  const mainQueries = within(main);
+  const repositoryItem = mainQueries.queryByRole('listitem');
+  expect(repositoryItem).not.toBeInTheDocument();
+
   expect(screen.getByRole('button', { name: LABELS.repositoryAdd })).toBeEnabled();
 });
 
@@ -86,6 +95,11 @@ test('ProjectDetailsScreen discards edits when Cancel is selected', async () => 
   const project = getProject('project-platform');
   const user = userEvent.setup();
   render(<ProjectDetailsScreen project={project} />);
+
+  await user.tab();
+  await user.tab();
+  await user.tab();
+  await user.tab();
 
   await user.tab();
   await user.tab();

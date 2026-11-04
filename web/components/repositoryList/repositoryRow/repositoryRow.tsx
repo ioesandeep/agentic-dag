@@ -8,6 +8,7 @@ import ListItem from '@mui/material/ListItem';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import Link from 'next/link';
 
 import type { RepositoryRowProps } from '@/components/repositoryList/types';
 import {
@@ -82,13 +83,24 @@ export const RepositoryRow = (repositoryRowProps: RepositoryRowProps) => {
               <GitHubIcon fontSize="small" />
             </IconButton>
           </Tooltip>
-          {actions.map(({ label, ariaLabel, icon: Icon, onClick }) => (
-            <Tooltip key={label} title={label}>
-              <IconButton size="small" onClick={onClick} aria-label={ariaLabel ?? label}>
-                <Icon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          ))}
+          {actions.map(({ label, ariaLabel, icon: Icon, onClick, href }) => {
+            const ActionComponent = href === undefined ? 'button' : Link;
+            const handleClick = href === undefined ? onClick : undefined;
+
+            return (
+              <Tooltip key={label} title={label}>
+                <IconButton
+                  component={ActionComponent}
+                  href={href}
+                  size="small"
+                  onClick={handleClick}
+                  aria-label={ariaLabel ?? label}
+                >
+                  <Icon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            );
+          })}
         </Stack>
       }
     />

@@ -48,6 +48,7 @@ export interface RepositoryAction {
   ariaLabel?: string;
   icon: SvgIconComponent;
   onClick: () => void;
+  href?: string;
 }
 
 /**
