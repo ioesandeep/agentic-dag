@@ -20,29 +20,34 @@ test.each([
   ['/repositories', LABELS.repositoriesHeading],
   ['/repositories/repository-service', LABELS.repositoriesHeading],
   ['/projects-other', null],
-])('CatalogNavigation identifies the current section when the route is %s', (pathname, currentLabel) => {
-  const mockedUsePathname = vi.mocked(usePathname);
-  mockedUsePathname.mockReturnValue(pathname);
+])(
+  'CatalogNavigation identifies the current section when the route is %s',
+  (pathname, currentLabel) => {
+    const mockedUsePathname = vi.mocked(usePathname);
+    mockedUsePathname.mockReturnValue(pathname);
 
-  render(<CatalogNavigation />);
+    render(<CatalogNavigation />);
 
-  const links = screen.getAllByRole('link');
-  for (const link of links) {
-    const linkLabel = link.getAttribute('aria-label');
-    if (linkLabel === currentLabel) {
-      expect(link).toHaveAttribute('aria-current', 'page');
-    } else {
-      expect(link).not.toHaveAttribute('aria-current');
+    const links = screen.getAllByRole('link');
+    for (const link of links) {
+      const linkLabel = link.getAttribute('aria-label');
+      if (linkLabel === currentLabel) {
+        expect(link).toHaveAttribute('aria-current', 'page');
+      } else {
+        expect(link).not.toHaveAttribute('aria-current');
+      }
     }
-  }
-});
+  },
+);
 
 test('CatalogNavigation places section links before toolbar actions in keyboard order', async () => {
   const user = userEvent.setup();
   const mockedUsePathname = vi.mocked(usePathname);
   mockedUsePathname.mockReturnValue('/repositories');
   render(
-    <AppLayout topAppBar={<button type="button">{LABELS.repositoryAdd}</button>}>
+    <AppLayout
+      topAppBar={<button type="button">{LABELS.repositoryAdd}</button>}
+    >
       {LABELS.repositoriesHeading}
     </AppLayout>,
   );

@@ -7,9 +7,7 @@ const NO_TOOLTIP = '';
 /**
  * Returns the label for how a session ended, or the running label.
  */
-export const endStateText = (
-  endState: SessionEndStateEnum | '',
-): string => {
+export const endStateText = (endState: SessionEndStateEnum | ''): string => {
   if (endState === '') {
     return LABELS.sessionRunning;
   }

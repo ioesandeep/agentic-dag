@@ -21,8 +21,9 @@ export interface PolledApiResponse<TResponse> {
 /**
  * Represents the latest response of a polled api path with a function that requests the path again.
  */
-export interface RefreshablePolledApiResponse<TResponse>
-  extends PolledApiResponse<TResponse> {
+export interface RefreshablePolledApiResponse<
+  TResponse,
+> extends PolledApiResponse<TResponse> {
   // Requests the path immediately and restarts the poll interval.
   refresh: () => void;
 }

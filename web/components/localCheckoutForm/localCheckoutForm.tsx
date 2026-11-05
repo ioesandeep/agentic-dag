@@ -19,7 +19,10 @@ import { LocalCheckoutPreview } from '@/components/localCheckoutPreview/localChe
 import { isRepositoryMismatch } from '@/components/localCheckoutPreview/utils';
 import type { ProjectSummary } from '@/entities/catalog/project';
 import type { Repository } from '@/entities/catalog/repository';
-import type { RepositoryInspection, RepositoryRemoteChoice } from '@/entities/catalog/repositoryInspection';
+import type {
+  RepositoryInspection,
+  RepositoryRemoteChoice,
+} from '@/entities/catalog/repositoryInspection';
 import { LABELS } from '@/labels/en';
 import { MOCK_LOCAL_CHECKOUT_INSPECTIONS } from '@/mocks/catalogMocks';
 import { formatLabel } from '@/utils/formatLabel';
@@ -40,10 +43,18 @@ interface LocalCheckoutFormProps {
 /**
  * Collects an inspected local folder for registration or repository repair.
  */
-export const LocalCheckoutForm = ({ onClose, project, repairRepository, inspections = MOCK_LOCAL_CHECKOUT_INSPECTIONS }: LocalCheckoutFormProps) => {
+export const LocalCheckoutForm = ({
+  onClose,
+  project,
+  repairRepository,
+  inspections = MOCK_LOCAL_CHECKOUT_INSPECTIONS,
+}: LocalCheckoutFormProps) => {
   const branchInputRef = useRef<HTMLInputElement>(null);
   const [folder, setFolder] = useState('');
-  const [inspection, setInspection] = useState<RepositoryInspection | null>(null);
+  const [inspection, setInspection] = useState<RepositoryInspection | null>(
+    null,
+  );
+
   const [remotes, setRemotes] = useState<RepositoryRemoteChoice[]>([]);
 
   const [remoteName, setRemoteName] = useState('');
@@ -56,15 +67,36 @@ export const LocalCheckoutForm = ({ onClose, project, repairRepository, inspecti
   const showsBranch = project !== undefined && inspection?.identity != null;
   const isBranchValid = !showsBranch || isValidBranchName(branch);
 
-  const selectedRemote = inspection?.remotes.find((remote) => remote.name === inspection.selectedRemoteName);
-  const hasMismatch = isRepositoryMismatch(inspection, repairRepository);
-  const canAdd = inspection?.identity != null && selectedRemote?.supported === true && !hasMismatch;
-  const title = repairRepository === undefined ? LABELS.localCheckoutTitle : LABELS.localCheckoutRepairTitle;
+  const selectedRemote = inspection?.remotes.find(
+    (remote) => remote.name === inspection.selectedRemoteName,
+  );
 
-  const submitLabel = repairRepository === undefined ? LABELS.localCheckoutAdd : LABELS.localCheckoutRepair;
+  const hasMismatch = isRepositoryMismatch(inspection, repairRepository);
+  const canAdd =
+    inspection?.identity != null &&
+    selectedRemote?.supported === true &&
+    !hasMismatch;
+
+  const title =
+    repairRepository === undefined
+      ? LABELS.localCheckoutTitle
+      : LABELS.localCheckoutRepairTitle;
+
+  const submitLabel =
+    repairRepository === undefined
+      ? LABELS.localCheckoutAdd
+      : LABELS.localCheckoutRepair;
+
   const projectValues = { project: project?.name ?? '' };
-  const projectBranchHint = formatLabel(LABELS.githubProjectBranchHint, projectValues);
-  const previewContent = getLocalCheckoutPreviewContent(inspection, repairRepository);
+  const projectBranchHint = formatLabel(
+    LABELS.githubProjectBranchHint,
+    projectValues,
+  );
+
+  const previewContent = getLocalCheckoutPreviewContent(
+    inspection,
+    repairRepository,
+  );
 
   const handleFolderChange = (folder: string) => {
     setFolder(folder);
@@ -76,7 +108,12 @@ export const LocalCheckoutForm = ({ onClose, project, repairRepository, inspecti
   };
 
   const handleInspect = (remoteName = '') => {
-    const nextInspection = inspections.find((inspection) => remoteName === '' || inspection.selectedRemoteName === remoteName) ?? null;
+    const nextInspection =
+      inspections.find(
+        (inspection) =>
+          remoteName === '' || inspection.selectedRemoteName === remoteName,
+      ) ?? null;
+
     setInspection(nextInspection);
     setRemotes(nextInspection?.remotes ?? []);
     setRemoteName(nextInspection?.selectedRemoteName ?? '');
@@ -123,30 +160,76 @@ export const LocalCheckoutForm = ({ onClose, project, repairRepository, inspecti
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         <Stack spacing={3} sx={CONTENT_STYLE}>
-          <Typography variant="body2" color="text.secondary">{LABELS.localCheckoutHint}</Typography>
-          <LocalCheckoutFolderInput value={folder} onChange={handleFolderChange} onBlur={handleFolderBlur} onSelect={handleDirectorySelect} />
+          <Typography variant="body2" color="text.secondary">
+            {LABELS.localCheckoutHint}
+          </Typography>
+          <LocalCheckoutFolderInput
+            value={folder}
+            onChange={handleFolderChange}
+            onBlur={handleFolderBlur}
+            onSelect={handleDirectorySelect}
+          />
           {remotes.length > 1 && (
-            <TextField select fullWidth label={LABELS.localCheckoutRemote} helperText={LABELS.localCheckoutRemoteHint} value={remoteName} onChange={(event) => handleRemoteChange(event.target.value)}>
+            <TextField
+              select
+              fullWidth
+              label={LABELS.localCheckoutRemote}
+              helperText={LABELS.localCheckoutRemoteHint}
+              value={remoteName}
+              onChange={(event) => handleRemoteChange(event.target.value)}
+            >
               {remotes.map((remote) => {
                 const remoteValues = { name: remote.name, url: remote.url };
-                const remoteLabel = formatLabel(LABELS.localCheckoutRemoteOption, remoteValues);
+                const remoteLabel = formatLabel(
+                  LABELS.localCheckoutRemoteOption,
+                  remoteValues,
+                );
 
-                return <MenuItem key={remote.name} value={remote.name} sx={REMOTE_STYLE}>{remoteLabel}</MenuItem>;
+                return (
+                  <MenuItem
+                    key={remote.name}
+                    value={remote.name}
+                    sx={REMOTE_STYLE}
+                  >
+                    {remoteLabel}
+                  </MenuItem>
+                );
               })}
             </TextField>
           )}
           {showsBranch && inspection !== null && (
             <Stack spacing={1}>
-              <BranchSelect key={`${folderSelectionVersion}:${remoteName}`} branches={inspection.branches} defaultBranch={inspection.identity?.defaultBranch ?? null} branch={branch} inputRef={branchInputRef} hasError={hasSubmitted && !isBranchValid} onChange={setBranchOverride} />
-              <Typography variant="body2" color="text.secondary">{projectBranchHint}</Typography>
+              <BranchSelect
+                key={`${folderSelectionVersion}:${remoteName}`}
+                branches={inspection.branches}
+                defaultBranch={inspection.identity?.defaultBranch ?? null}
+                branch={branch}
+                inputRef={branchInputRef}
+                hasError={hasSubmitted && !isBranchValid}
+                onChange={setBranchOverride}
+              />
+              <Typography variant="body2" color="text.secondary">
+                {projectBranchHint}
+              </Typography>
             </Stack>
           )}
-          {(inspection !== null || repairRepository !== undefined) && <LocalCheckoutPreview inspection={inspection} repairRepository={repairRepository} showExistingRegistration={project === undefined || repairRepository !== undefined} content={previewContent} />}
+          {(inspection !== null || repairRepository !== undefined) && (
+            <LocalCheckoutPreview
+              inspection={inspection}
+              repairRepository={repairRepository}
+              showExistingRegistration={
+                project === undefined || repairRepository !== undefined
+              }
+              content={previewContent}
+            />
+          )}
         </Stack>
       </DialogContent>
       <DialogActions sx={ACTIONS_STYLE}>
         <Button onClick={onClose}>{LABELS.repositoryActionCancel}</Button>
-        <Button type="submit" variant="contained" disabled={!canAdd}>{submitLabel}</Button>
+        <Button type="submit" variant="contained" disabled={!canAdd}>
+          {submitLabel}
+        </Button>
       </DialogActions>
     </Box>
   );

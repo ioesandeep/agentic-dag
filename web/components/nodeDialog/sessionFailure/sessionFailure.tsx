@@ -51,7 +51,10 @@ export const SessionFailure = ({
 
   return (
     <Card sx={CARD_STYLE}>
-      <DagCardHeader title={LABELS.sessionFailureHeading} actions={NO_ACTIONS} />
+      <DagCardHeader
+        title={LABELS.sessionFailureHeading}
+        actions={NO_ACTIONS}
+      />
       <Box sx={SUMMARY_STYLE}>
         <ExitCodeChip exitCode={exitCode} />
         <RecoveryState nodeRecovery={nodeRecovery} />

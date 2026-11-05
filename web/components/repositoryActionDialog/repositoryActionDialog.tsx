@@ -8,34 +8,44 @@ import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import { useId } from 'react';
 
+import { LocalCheckoutForm } from '@/components/localCheckoutForm/localCheckoutForm';
+import { RepositoryActionEnum } from '@/entities/catalog/repositoryAction';
 import { LABELS } from '@/labels/en';
-import { formatLabel } from '@/utils/formatLabel';
-
-interface RepositoryActionDialogProps {
-  projectName: string;
-  repositoryName: string;
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-}
+import type { RepositoryActionDialogProps } from './types';
+import { getRepositoryActionContent } from './utils';
 
 /**
- * Confirms removal of a repository from a project.
+ * Confirms repository actions and local folder repair.
  */
-export const RepositoryActionDialog = ({
-  projectName,
-  repositoryName,
-  isOpen,
-  onClose,
-  onConfirm,
-}: RepositoryActionDialogProps) => {
+export const RepositoryActionDialog = (
+  repositoryActionDialogProps: RepositoryActionDialogProps,
+) => {
   const titleId = useId();
   const descriptionId = useId();
-  const titleValues = { project: projectName, repository: repositoryName };
-  const title = formatLabel(
-    LABELS.repositoryRemoveFromProjectTitle,
-    titleValues,
-  );
+
+  const { isOpen, onClose, onConfirm } = repositoryActionDialogProps;
+  const content = getRepositoryActionContent(repositoryActionDialogProps);
+  const repairSlotProps = {
+    paper: { 'aria-label': content.title, 'aria-labelledby': undefined },
+  };
+
+  if (repositoryActionDialogProps.variant === RepositoryActionEnum.REPAIR) {
+    return (
+      <Dialog
+        open={isOpen}
+        onClose={onClose}
+        fullWidth
+        maxWidth="sm"
+        slotProps={repairSlotProps}
+      >
+        <LocalCheckoutForm
+          repairRepository={repositoryActionDialogProps.repository}
+          inspections={repositoryActionDialogProps.inspections}
+          onClose={onClose}
+        />
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog
@@ -46,10 +56,10 @@ export const RepositoryActionDialog = ({
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
     >
-      <DialogTitle id={titleId}>{title}</DialogTitle>
+      <DialogTitle id={titleId}>{content.title}</DialogTitle>
       <DialogContent>
         <DialogContentText id={descriptionId}>
-          {LABELS.repositoryRemoveFromProjectDescription}
+          {content.description}
         </DialogContentText>
       </DialogContent>
       <DialogActions>
@@ -57,7 +67,7 @@ export const RepositoryActionDialog = ({
           {LABELS.repositoryActionCancel}
         </Button>
         <Button variant="contained" color="error" onClick={onConfirm}>
-          {LABELS.repositoryRemoveFromProject}
+          {content.confirm}
         </Button>
       </DialogActions>
     </Dialog>

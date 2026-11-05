@@ -38,19 +38,23 @@ test('RepositoryList displays each project branch when the variant is global', (
   );
 
   for (const repository of repositories) {
-    const repositoryItem = screen.getByRole('listitem', { name: repository.fullName });
+    const repositoryItem = screen.getByRole('listitem', {
+      name: repository.fullName,
+    });
+
     const repositoryContent = within(repositoryItem);
     expect(repositoryContent.getByText(repository.checkoutPath)).toBeVisible();
 
-    expect(repositoryContent.getByRole('link', { name: repository.fullName })).toHaveAttribute(
-      'href',
-      repository.webUrl,
-    );
+    expect(
+      repositoryContent.getByRole('link', { name: repository.fullName }),
+    ).toHaveAttribute('href', repository.webUrl);
 
     for (const { project, branch } of repository.memberships) {
       const branchValues = { project: project.name, branch };
       expect(
-        repositoryContent.getByText(formatLabel(LABELS.repositoryProjectBranch, branchValues)),
+        repositoryContent.getByText(
+          formatLabel(LABELS.repositoryProjectBranch, branchValues),
+        ),
       ).toBeVisible();
     }
   }
@@ -59,12 +63,20 @@ test('RepositoryList displays each project branch when the variant is global', (
   expect(screen.getAllByText(LABELS.repositoryExternal)).toHaveLength(2);
 
   expect(
-    screen.getAllByText(formatLabel(LABELS.repositoryDefaultBranch, branchValues)),
+    screen.getAllByText(
+      formatLabel(LABELS.repositoryDefaultBranch, branchValues),
+    ),
   ).toHaveLength(6);
 
-  expect(screen.getAllByText(formatLabel(LABELS.repositoryClonedDate, dateValues))).toHaveLength(2);
+  expect(
+    screen.getAllByText(formatLabel(LABELS.repositoryClonedDate, dateValues)),
+  ).toHaveLength(2);
+
   expect(screen.queryByText(/Clone date unavailable/)).not.toBeInTheDocument();
-  expect(screen.queryByText(/Used in projects|Cloned folder/)).not.toBeInTheDocument();
+  expect(
+    screen.queryByText(/Used in projects|Cloned folder/),
+  ).not.toBeInTheDocument();
+
   expect(
     screen.queryByRole('button', { name: LABELS.repositoryChangeBranch }),
   ).not.toBeInTheDocument();
@@ -105,7 +117,9 @@ test.each([null, '2026-10-15T12:00:00Z'])(
     );
 
     expect(
-      screen.getByText(formatLabel(LABELS.repositoryProjectBranch, branchValues)),
+      screen.getByText(
+        formatLabel(LABELS.repositoryProjectBranch, branchValues),
+      ),
     ).toBeVisible();
 
     if (archivedAt !== null) {
@@ -114,7 +128,9 @@ test.each([null, '2026-10-15T12:00:00Z'])(
       ).not.toBeInTheDocument();
 
       expect(
-        screen.queryByRole('button', { name: LABELS.repositoryRemoveFromProject }),
+        screen.queryByRole('button', {
+          name: LABELS.repositoryRemoveFromProject,
+        }),
       ).not.toBeInTheDocument();
 
       return;
@@ -162,7 +178,8 @@ test('RepositoryList preserves project colors when membership positions differ',
 
   const serviceColor = getComputedStyle(serviceSegment).backgroundColor;
   const consoleColor = getComputedStyle(consoleSegment).backgroundColor;
-  const defaultColor = defaultSegment && getComputedStyle(defaultSegment).backgroundColor;
+  const defaultColor =
+    defaultSegment && getComputedStyle(defaultSegment).backgroundColor;
 
   expect(serviceColor).toBe(consoleColor);
   expect(serviceColor).not.toBe(defaultColor);
@@ -181,7 +198,10 @@ test('RepositoryList displays an empty project bar when a repository has no proj
     />,
   );
 
-  const projectBar = screen.getByRole('group', { name: LABELS.repositoryProjects });
+  const projectBar = screen.getByRole('group', {
+    name: LABELS.repositoryProjects,
+  });
+
   const projectSegments = within(projectBar).queryAllByRole('img');
 
   expect(projectBar).toHaveStyle({ backgroundColor: theme.palette.grey[500] });
@@ -191,18 +211,48 @@ test('RepositoryList displays an empty project bar when a repository has no proj
 });
 
 test.each([
-  { checkoutKind: CheckoutKindEnum.MANAGED, status: ImportStatusEnum.FAILED, canRetry: true },
-  { checkoutKind: CheckoutKindEnum.MANAGED, status: ImportStatusEnum.CANCELLED, canRetry: true },
-  { checkoutKind: CheckoutKindEnum.MANAGED, status: ImportStatusEnum.INTERRUPTED, canRetry: true },
-  { checkoutKind: CheckoutKindEnum.MANAGED, status: ImportStatusEnum.RUNNING, canRetry: false },
-  { checkoutKind: CheckoutKindEnum.MANAGED, status: ImportStatusEnum.QUEUED, canRetry: false },
-  { checkoutKind: CheckoutKindEnum.MANAGED, status: ImportStatusEnum.SUCCEEDED, canRetry: false },
+  {
+    checkoutKind: CheckoutKindEnum.MANAGED,
+    status: ImportStatusEnum.FAILED,
+    canRetry: true,
+  },
+  {
+    checkoutKind: CheckoutKindEnum.MANAGED,
+    status: ImportStatusEnum.CANCELLED,
+    canRetry: true,
+  },
+  {
+    checkoutKind: CheckoutKindEnum.MANAGED,
+    status: ImportStatusEnum.INTERRUPTED,
+    canRetry: true,
+  },
+  {
+    checkoutKind: CheckoutKindEnum.MANAGED,
+    status: ImportStatusEnum.RUNNING,
+    canRetry: false,
+  },
+  {
+    checkoutKind: CheckoutKindEnum.MANAGED,
+    status: ImportStatusEnum.QUEUED,
+    canRetry: false,
+  },
+  {
+    checkoutKind: CheckoutKindEnum.MANAGED,
+    status: ImportStatusEnum.SUCCEEDED,
+    canRetry: false,
+  },
   { checkoutKind: CheckoutKindEnum.MANAGED, status: null, canRetry: false },
-  { checkoutKind: CheckoutKindEnum.EXTERNAL, status: ImportStatusEnum.FAILED, canRetry: false },
+  {
+    checkoutKind: CheckoutKindEnum.EXTERNAL,
+    status: ImportStatusEnum.FAILED,
+    canRetry: false,
+  },
 ])(
   'RepositoryList offers retry for $checkoutKind clones when the latest attempt is $status',
   async ({ checkoutKind, status, canRetry }) => {
-    const latestImport = status === null ? null : { ...RUNNING_WORKER_IMPORT, status };
+    const latestImport =
+      status === null ? null : { ...RUNNING_WORKER_IMPORT, status };
+
     const repository = createRepository({ checkoutKind, latestImport });
     const repositories = [repository];
     const onRetryClone = vi.fn();

@@ -57,9 +57,13 @@ export const ProjectRepositoryRow = ({
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [isRefreshNoticeOpen, setIsRefreshNoticeOpen] = useState(false);
 
-  const membership = repository.memberships.find(({ project }) => project.id === projectId);
+  const membership = repository.memberships.find(
+    ({ project }) => project.id === projectId,
+  );
 
-  const branch = branchChange ?? membership?.branch ?? repository.defaultBranch ?? '';
+  const branch =
+    branchChange ?? membership?.branch ?? repository.defaultBranch ?? '';
+
   const noticeValues = { repository: repository.fullName };
   const notice = formatLabel(LABELS.repositoryRefreshed, noticeValues);
   const handleBranchChange = (branch: string) => setBranchChange(branch);
@@ -71,9 +75,14 @@ export const ProjectRepositoryRow = ({
     setIsRefreshNoticeOpen(true);
   };
 
-  const handleCloseNotice = (event: Event | SyntheticEvent | null, reason: SnackbarCloseReason) => {
+  const handleCloseNotice = (
+    event: Event | SyntheticEvent | null,
+    reason: SnackbarCloseReason,
+  ) => {
     const target = event?.target;
-    const isRefreshClick = target instanceof Node && refreshButtonRef.current?.contains(target);
+    const isRefreshClick =
+      target instanceof Node && refreshButtonRef.current?.contains(target);
+
     if (reason === CLICK_AWAY_REASON && isRefreshClick) {
       return;
     }

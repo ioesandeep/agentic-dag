@@ -1,3 +1,4 @@
+import { RepositoryActionEnum } from '@/entities/catalog/repositoryAction';
 import type { SignalKind } from '@/entities/nodeDetail';
 import { RecoveryCauseEnum, SessionEndStateEnum } from '@/entities/nodeDetail';
 import { NodeStateEnum } from '@/entities/nodeState';
@@ -103,7 +104,8 @@ export const LABELS = {
   projectsHeading: 'Projects',
   repositoriesHeading: 'Repositories',
   repositoriesShowArchived: 'Show archived',
-  repositoryCloneRetryUnavailable: 'Clone retry is unavailable for {repository}.',
+  repositoryCloneRetryUnavailable:
+    'Clone retry is unavailable for {repository}.',
   catalogNavigation: 'Console sections',
   catalogSettings: 'Settings',
   catalogExpand: 'Expand sidebar',
@@ -135,48 +137,61 @@ export const LABELS = {
   repositoryAddLocal: 'Local clone',
   localCheckoutTitle: 'Add local clone',
   localCheckoutRepairTitle: 'Repair local clone',
-  localCheckoutHint: 'Choose an existing Git folder. Virgo uses this folder without cloning it.',
+  localCheckoutHint:
+    'Choose an existing Git folder. Virgo uses this folder without cloning it.',
   localCheckoutFolder: 'Virgo folder path',
-  localCheckoutFolderHint: 'Use the path on the computer where you started Virgo.',
+  localCheckoutFolderHint:
+    'Use the path on the computer where you started Virgo.',
   localCheckoutBrowse: 'Browse',
-  localCheckoutFolderSelected: 'Selected in this browser: {folder}. The browser does not provide its full path.',
+  localCheckoutFolderSelected:
+    'Selected in this browser: {folder}. The browser does not provide its full path.',
   localCheckoutRemote: 'Git remote',
-  localCheckoutRemoteHint: 'Choose which remote identifies the GitHub repository for this folder.',
+  localCheckoutRemoteHint:
+    'Choose which remote identifies the GitHub repository for this folder.',
   localCheckoutRemoteOption: '{name}: {url}',
   localCheckoutGitRoot: 'Git root',
   localCheckoutGithubRepository: 'GitHub repository',
-  localCheckoutIdentityRequired: 'Select a supported remote to identify the GitHub repository.',
+  localCheckoutIdentityRequired:
+    'Select a supported remote to identify the GitHub repository.',
   localCheckoutBranches: 'Branches: {branches}',
   localCheckoutUncommitted: 'This folder has uncommitted changes.',
   localCheckoutExisting: 'Existing registration',
   localCheckoutExpected: 'Expected repository: {repository}',
-  localCheckoutMismatch: 'The inspected repository differs from the expected repository. Select the expected repository before repairing the folder.',
+  localCheckoutMismatch:
+    'The inspected repository differs from the expected repository. Select the expected repository before repairing the folder.',
   localCheckoutAdd: 'Add',
   localCheckoutRepair: 'Repair',
   repositoryAddFromList: 'From repository list',
   repositoryPickerTitle: 'Add from repository list',
-  repositoryPickerEmpty: 'No active repositories. Add a GitHub repository or register a local clone.',
+  repositoryPickerEmpty:
+    'No active repositories. Add a GitHub repository or register a local clone.',
   repositoryAlreadyInProject: 'Already in this project',
   githubCloneTitle: 'Clone from GitHub',
   githubAccountSignedIn: 'Signed in as {login} on {host}.',
   githubAccountSignedOut: 'GitHub is not signed in.',
   githubLoginInstruction: 'Run this command on the computer that runs Virgo.',
   githubLoginCommand: 'gh auth login --hostname github.com',
-  githubSwitchInstruction: 'To use a different account, run this command on the computer that runs Virgo. Replace <login> with the GitHub login.',
+  githubSwitchInstruction:
+    'To use a different account, run this command on the computer that runs Virgo. Replace <login> with the GitHub login.',
   githubSwitchCommand: 'gh auth switch --hostname github.com --user <login>',
   githubRepository: 'Repository',
   githubRepositoryClear: 'Clear repository',
   githubRepositorySuggestionsOpen: 'Show repository suggestions',
   githubRepositorySuggestionsClose: 'Hide repository suggestions',
-  githubRepositoryHint: 'Enter owner/name, an HTTPS URL, or an SSH URL on github.com.',
-  githubRepositoryInvalid: 'Enter a GitHub repository as owner/name, an HTTPS URL, or an SSH URL.',
+  githubRepositoryHint:
+    'Enter owner/name, an HTTPS URL, or an SSH URL on github.com.',
+  githubRepositoryInvalid:
+    'Enter a GitHub repository as owner/name, an HTTPS URL, or an SSH URL.',
   githubCloneFolder: 'Clone folder',
   githubCloneFolderHint: 'The folder is on the computer that runs Virgo.',
   githubCloneFolderRequired: 'Enter a clone folder.',
   githubFolderBrowse: 'Browse',
-  githubFolderSelected: 'The browser selection is {folder}. Enter its full path on the computer that runs Virgo.',
-  githubFolderPickerUnavailable: 'This browser does not support native folder selection. Enter the folder path.',
-  githubFolderPickerFailed: 'Folder selection failed. Try Browse again or enter the folder path.',
+  githubFolderSelected:
+    'The browser selection is {folder}. Enter its full path on the computer that runs Virgo.',
+  githubFolderPickerUnavailable:
+    'This browser does not support native folder selection. Enter the folder path.',
+  githubFolderPickerFailed:
+    'Folder selection failed. Try Browse again or enter the folder path.',
   githubCloneRequired: 'Enter a repository and a clone folder.',
   githubClone: 'Clone',
   githubCloning: 'Cloning',
@@ -257,6 +272,7 @@ export const LABELS = {
   repositoryExternal: 'Local clone',
   repositoryDetails: 'Details',
   repositoryDetailsOpen: 'Open details for {repository}',
+  repositoriesListBack: 'Back to repositories',
   repositoryChangeBranch: 'Change branch',
   repositoryBranchesTitle: 'Branches for {repository}',
   repositoryBranchAction: 'Branches for {repository}, current branch {branch}',
@@ -280,6 +296,19 @@ export const LABELS = {
   repositoryRemoveFromProjectDescription:
     'The repository will be removed from this project. The folder and its files will stay on disk.',
   repositoryRetryClone: 'Retry clone',
+  repositoryCheck: 'Check',
+  repositoryCancelClone: 'Cancel clone',
+  repositoryCancelTitle: 'Cancel clone of {repository}?',
+  repositoryCancelDescription:
+    'The clone stops when the worker confirms cancellation.',
+  repositoryRepairTitle: 'Repair folder for {repository}',
+  repositoryName: 'Repository name',
+  repositoryRemote: 'Remote',
+  repositoryFolder: 'Cloned folder',
+  repositoryGithubDefaultBranch: 'Default branch',
+  repositoryCloneDate: 'Cloned date (UTC)',
+  repositoryEmpty: 'This repository is empty. GitHub has no default branch.',
+  repositoryTimeUnavailable: 'Not recorded',
   repositoryProjects: 'Projects',
   repositoryDefaultBranch: 'Default branch: {branch}',
   repositoryDefaultBranchUnknown: 'Default branch unavailable',
@@ -388,3 +417,17 @@ export const LABELS = {
   instructionsViewMore: 'View more',
   instructionsViewLess: 'View less',
 } as const;
+
+/**
+ * Defines labels for repository details actions.
+ */
+export const REPOSITORY_DETAILS_ACTION_LABELS: Record<
+  RepositoryActionEnum,
+  string
+> = {
+  [RepositoryActionEnum.CHECK]: LABELS.repositoryCheck,
+  [RepositoryActionEnum.REPAIR]: LABELS.localCheckoutRepair,
+  [RepositoryActionEnum.RETRY]: LABELS.repositoryRetryClone,
+  [RepositoryActionEnum.CANCEL]: LABELS.repositoryCancelClone,
+  [RepositoryActionEnum.REMOVE]: LABELS.repositoryRemoveFromProject,
+};

@@ -19,8 +19,16 @@ interface GithubRepositoryInputProps {
 /**
  * Suggests GitHub repositories for a clone.
  */
-export const GithubRepositoryInput = ({ value, inputRef, isDisabled, hasError, onChange }: GithubRepositoryInputProps) => {
-  const helperText = hasError ? LABELS.githubRepositoryInvalid : LABELS.githubRepositoryHint;
+export const GithubRepositoryInput = ({
+  value,
+  inputRef,
+  isDisabled,
+  hasError,
+  onChange,
+}: GithubRepositoryInputProps) => {
+  const helperText = hasError
+    ? LABELS.githubRepositoryInvalid
+    : LABELS.githubRepositoryHint;
 
   return (
     <Autocomplete
@@ -35,12 +43,18 @@ export const GithubRepositoryInput = ({ value, inputRef, isDisabled, hasError, o
       closeText={LABELS.githubRepositorySuggestionsClose}
       onChange={(_, repositoryInput) => onChange(repositoryInput ?? '')}
       onInputChange={(_, repositoryInput) => onChange(repositoryInput)}
-      filterOptions={(repositoryNames, filterState) => getGithubRepositorySuggestions(repositoryNames, filterState.inputValue)}
+      filterOptions={(repositoryNames, filterState) =>
+        getGithubRepositorySuggestions(repositoryNames, filterState.inputValue)
+      }
       renderInput={(autocompleteInput) => (
         <TextField
           {...autocompleteInput}
-          autoFocus required label={LABELS.githubRepository}
-          inputRef={inputRef} error={hasError} helperText={helperText}
+          autoFocus
+          required
+          label={LABELS.githubRepository}
+          inputRef={inputRef}
+          error={hasError}
+          helperText={helperText}
         />
       )}
     />

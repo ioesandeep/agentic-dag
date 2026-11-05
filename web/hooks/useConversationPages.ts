@@ -12,7 +12,10 @@ import {
   stopPolling,
 } from '@/hooks/usePolledApiResponse';
 import { getConversationPath } from '@/utils/apiPath';
-import type { ConversationCache, PolledPageList } from '@/utils/conversationCache';
+import type {
+  ConversationCache,
+  PolledPageList,
+} from '@/utils/conversationCache';
 import {
   getNextPollCursor,
   getLoadedSince,

@@ -24,7 +24,15 @@ interface BranchSelectProps {
 /**
  * Selects a cloned repository branch.
  */
-export const BranchSelect = ({ branches, defaultBranch, branch, autoFocus = false, inputRef, hasError = false, onChange }: BranchSelectProps) => {
+export const BranchSelect = ({
+  branches,
+  defaultBranch,
+  branch,
+  autoFocus = false,
+  inputRef,
+  hasError = false,
+  onChange,
+}: BranchSelectProps) => {
   const newBranchInputRef = useRef<HTMLInputElement>(null);
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const selectedValue = isCreatingBranch ? NEW_BRANCH_VALUE : branch;
@@ -43,29 +51,52 @@ export const BranchSelect = ({ branches, defaultBranch, branch, autoFocus = fals
     }
   };
 
-  const selectSlotProps = { select: { MenuProps: { slotProps: { transition: { onExited: handleMenuExited } } } } };
+  const selectSlotProps = {
+    select: {
+      MenuProps: { slotProps: { transition: { onExited: handleMenuExited } } },
+    },
+  };
 
   return (
     <Stack spacing={2}>
       <TextField
-        select fullWidth autoFocus={autoFocus} label={LABELS.repositoryBranch}
-        value={selectedValue} onChange={(event) => handleChange(event.target.value)}
+        select
+        fullWidth
+        autoFocus={autoFocus}
+        label={LABELS.repositoryBranch}
+        value={selectedValue}
+        onChange={(event) => handleChange(event.target.value)}
         slotProps={selectSlotProps}
       >
         {branches.map((branch) => {
           const branchValues = { branch };
-          const defaultLabel = formatLabel(LABELS.repositoryBranchDefault, branchValues);
+          const defaultLabel = formatLabel(
+            LABELS.repositoryBranchDefault,
+            branchValues,
+          );
+
           const label = branch === defaultBranch ? defaultLabel : branch;
 
-          return <MenuItem key={branch} value={branch}>{label}</MenuItem>;
+          return (
+            <MenuItem key={branch} value={branch}>
+              {label}
+            </MenuItem>
+          );
         })}
-        <MenuItem value={NEW_BRANCH_VALUE}>{LABELS.repositoryAddBranch}</MenuItem>
+        <MenuItem value={NEW_BRANCH_VALUE}>
+          {LABELS.repositoryAddBranch}
+        </MenuItem>
       </TextField>
       {isCreatingBranch && (
         <TextField
-          required fullWidth label={LABELS.repositoryNewBranch}
-          value={branch} onChange={(event) => onChange(event.target.value)}
-          inputRef={branchInputRef} error={hasError} helperText={helperText}
+          required
+          fullWidth
+          label={LABELS.repositoryNewBranch}
+          value={branch}
+          onChange={(event) => onChange(event.target.value)}
+          inputRef={branchInputRef}
+          error={hasError}
+          helperText={helperText}
         />
       )}
     </Stack>

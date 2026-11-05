@@ -51,15 +51,10 @@ export const NodeSidebar = ({
         <SignalMarkList worktree={detail.worktree} />
       </NodeSidebarCard>
       <NodeSidebarCard title={LABELS.slackNotificationsHeading}>
-        <SlackNotificationList
-          slackNotifications={detail.slackNotifications}
-        />
+        <SlackNotificationList slackNotifications={detail.slackNotifications} />
       </NodeSidebarCard>
       <NodeSidebarCard title={LABELS.sessionsHeading}>
-        <SessionTable
-          sessions={detail.sessions}
-          loadedSince={loadedSince}
-        />
+        <SessionTable sessions={detail.sessions} loadedSince={loadedSince} />
       </NodeSidebarCard>
       <NodeSidebarCard title={LABELS.instructionsHeading}>
         <InstructionsText instructions={detail.instructions} />

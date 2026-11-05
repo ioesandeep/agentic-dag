@@ -7,7 +7,10 @@ import { formatLabel } from '@/utils/formatLabel';
 /**
  * Provides the display text for a local checkout inspection.
  */
-export const getLocalCheckoutPreviewContent = (inspection: RepositoryInspection | null, repairRepository?: Repository): LocalCheckoutPreviewContent => {
+export const getLocalCheckoutPreviewContent = (
+  inspection: RepositoryInspection | null,
+  repairRepository?: Repository,
+): LocalCheckoutPreviewContent => {
   const branchValues = { branches: inspection?.branches.join(', ') ?? '' };
   const branches = formatLabel(LABELS.localCheckoutBranches, branchValues);
   const expectedValues = { repository: repairRepository?.fullName ?? '' };

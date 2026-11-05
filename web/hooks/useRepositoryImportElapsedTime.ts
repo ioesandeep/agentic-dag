@@ -15,7 +15,11 @@ const DURATION_UNITS = [
   { unit: 'second', seconds: 1 },
 ];
 
-const DURATION_LIST_CONFIG: Intl.ListFormatOptions = { style: 'short', type: 'unit' };
+const DURATION_LIST_CONFIG: Intl.ListFormatOptions = {
+  style: 'short',
+  type: 'unit',
+};
+
 const DURATION_LIST_FORMAT = new Intl.ListFormat(LOCALE, DURATION_LIST_CONFIG);
 
 const getCurrentTimeSeconds = () => {
@@ -34,7 +38,9 @@ const subscribeToCurrentTime = (onChange: () => void) => {
 
 const formatElapsedTime = (elapsedSeconds: number): string => {
   const durationParts = DURATION_UNITS.flatMap(({ unit, seconds }, index) => {
-    const remainingSeconds = elapsedSeconds % (DURATION_UNITS[index - 1]?.seconds ?? Infinity);
+    const remainingSeconds =
+      elapsedSeconds % (DURATION_UNITS[index - 1]?.seconds ?? Infinity);
+
     const count = Math.floor(remainingSeconds / seconds);
     if (count === 0 && unit !== 'second') {
       return [];
@@ -63,7 +69,9 @@ const formatElapsedTime = (elapsedSeconds: number): string => {
 export const useRepositoryImportElapsedTime = (
   repositoryImport: RepositoryImport | null,
 ): string | null => {
-  const subscribe = repositoryImport === null ? subscribeWithoutTimer : subscribeToCurrentTime;
+  const subscribe =
+    repositoryImport === null ? subscribeWithoutTimer : subscribeToCurrentTime;
+
   const currentTimeSeconds = useSyncExternalStore(
     subscribe,
     getCurrentTimeSeconds,

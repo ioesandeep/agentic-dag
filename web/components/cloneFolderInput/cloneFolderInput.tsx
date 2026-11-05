@@ -21,14 +21,28 @@ interface CloneFolderInputProps {
 /**
  * Collects the typed host clone folder path independently of browser directory selection.
  */
-export const CloneFolderInput = ({ value, inputRef, isDisabled, hasError, onChange }: CloneFolderInputProps) => {
-  const [selectedFolderName, setSelectedFolderName] = useState<string | null>(null);
+export const CloneFolderInput = ({
+  value,
+  inputRef,
+  isDisabled,
+  hasError,
+  onChange,
+}: CloneFolderInputProps) => {
+  const [selectedFolderName, setSelectedFolderName] = useState<string | null>(
+    null,
+  );
+
   const [pickerError, setPickerError] = useState<string | null>(null);
   const folderValues = { folder: selectedFolderName ?? '' };
   const selectionHint = formatLabel(LABELS.githubFolderSelected, folderValues);
 
-  const folderHint = selectedFolderName === null ? LABELS.githubCloneFolderHint : selectionHint;
-  const validationHint = hasError ? LABELS.githubCloneFolderRequired : folderHint;
+  const folderHint =
+    selectedFolderName === null ? LABELS.githubCloneFolderHint : selectionHint;
+
+  const validationHint = hasError
+    ? LABELS.githubCloneFolderRequired
+    : folderHint;
+
   const helperText = pickerError ?? validationHint;
 
   const hasInputError = hasError || pickerError !== null;
@@ -62,19 +76,29 @@ export const CloneFolderInput = ({ value, inputRef, isDisabled, hasError, onChan
   };
 
   const inputSlotProps = {
-    input: { endAdornment: (
-      <InputAdornment position="end">
-        <Button onClick={handleBrowse} disabled={isDisabled}>{LABELS.githubFolderBrowse}</Button>
-      </InputAdornment>
-    ) },
+    input: {
+      endAdornment: (
+        <InputAdornment position="end">
+          <Button onClick={handleBrowse} disabled={isDisabled}>
+            {LABELS.githubFolderBrowse}
+          </Button>
+        </InputAdornment>
+      ),
+    },
     formHelperText: { role: helperRole },
   };
 
   return (
     <TextField
-      required fullWidth label={LABELS.githubCloneFolder} value={value}
-      inputRef={inputRef} error={hasInputError} helperText={helperText}
-      disabled={isDisabled} onChange={(event) => handleChange(event.target.value)}
+      required
+      fullWidth
+      label={LABELS.githubCloneFolder}
+      value={value}
+      inputRef={inputRef}
+      error={hasInputError}
+      helperText={helperText}
+      disabled={isDisabled}
+      onChange={(event) => handleChange(event.target.value)}
       slotProps={inputSlotProps}
     />
   );

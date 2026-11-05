@@ -1,4 +1,11 @@
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 
@@ -21,7 +28,10 @@ const LOCAL_ADD_QUERY = { name: LABELS.localCheckoutAdd };
 const TIMER_CONFIG = { shouldAdvanceTime: true };
 const USER_CONFIG = { advanceTimers: vi.advanceTimersByTime };
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => '/repositories' }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/repositories',
+}));
 
 afterEach(() => {
   cleanup();
@@ -31,7 +41,10 @@ afterEach(() => {
 test('RepositoriesScreen displays active repositories with status and project branches', () => {
   render(<RepositoriesScreen />);
 
-  const activeRepositories = MOCK_REPOSITORIES.filter((repository) => repository.archivedAt === null);
+  const activeRepositories = MOCK_REPOSITORIES.filter(
+    (repository) => repository.archivedAt === null,
+  );
+
   const articles = screen.getAllByRole('article');
   expect(articles).toHaveLength(activeRepositories.length);
   for (const repository of activeRepositories) {
@@ -40,7 +53,10 @@ test('RepositoriesScreen displays active repositories with status and project br
     const repositoryQueries = within(article);
 
     const repositoryValues = { repository: repository.fullName };
-    const detailsLabel = formatLabel(LABELS.repositoryDetailsOpen, repositoryValues);
+    const detailsLabel = formatLabel(
+      LABELS.repositoryDetailsOpen,
+      repositoryValues,
+    );
 
     const statusLabel = REPOSITORY_STATUS_LABELS[repository.presentationStatus];
     const status = repositoryQueries.getByText(statusLabel);
@@ -48,10 +64,18 @@ test('RepositoriesScreen displays active repositories with status and project br
     const detailsLink = repositoryQueries.getByRole('link', detailsQuery);
 
     expect(status).toBeVisible();
-    expect(detailsLink).toHaveAttribute('href', `/repositories/${repository.id}`);
+    expect(detailsLink).toHaveAttribute(
+      'href',
+      `/repositories/${repository.id}`,
+    );
+
     for (const { project, branch } of repository.memberships) {
       const membershipValues = { project: project.name, branch };
-      const membershipLabel = formatLabel(LABELS.repositoryProjectBranch, membershipValues);
+      const membershipLabel = formatLabel(
+        LABELS.repositoryProjectBranch,
+        membershipValues,
+      );
+
       const membershipText = repositoryQueries.getByText(membershipLabel);
       expect(membershipText).toBeVisible();
     }
@@ -81,7 +105,10 @@ test('RepositoriesScreen includes archived registrations when the switch is enab
 
   const archivedArticleAfterToggle = screen.getByRole('article', LEGACY_QUERY);
   const articles = screen.getAllByRole('article');
-  expect(archivedArticleAfterToggle).toHaveTextContent(REPOSITORY_STATUS_LABELS.archived);
+  expect(archivedArticleAfterToggle).toHaveTextContent(
+    REPOSITORY_STATUS_LABELS.archived,
+  );
+
   expect(articles).toHaveLength(MOCK_REPOSITORIES.length);
 
   await user.keyboard(' ');
@@ -91,7 +118,8 @@ test('RepositoriesScreen includes archived registrations when the switch is enab
 });
 
 test.each([LABELS.repositoryAddGithub, LABELS.repositoryAddLocal])(
-  'RepositoriesScreen confirms %s without a project branch or catalog changes', async (source) => {
+  'RepositoriesScreen confirms %s without a project branch or catalog changes',
+  async (source) => {
     vi.useFakeTimers(TIMER_CONFIG);
 
     const user = userEvent.setup(USER_CONFIG);
@@ -111,7 +139,11 @@ test.each([LABELS.repositoryAddGithub, LABELS.repositoryAddLocal])(
     await user.keyboard('{Enter}');
 
     const menuItems = screen.getAllByRole('menuitem');
-    const repositoryPickerItem = screen.queryByRole('menuitem', FROM_LIST_QUERY);
+    const repositoryPickerItem = screen.queryByRole(
+      'menuitem',
+      FROM_LIST_QUERY,
+    );
+
     expect(menuItems).toHaveLength(2);
     expect(repositoryPickerItem).not.toBeInTheDocument();
     if (source === LABELS.repositoryAddLocal) {
@@ -153,7 +185,10 @@ test.each([LABELS.repositoryAddGithub, LABELS.repositoryAddLocal])(
     expect(MOCK_REPOSITORIES).toEqual(catalogSnapshot);
 
     const articles = screen.getAllByRole('article');
-    const activeRepositories = catalogSnapshot.filter((repository) => repository.archivedAt === null);
+    const activeRepositories = catalogSnapshot.filter(
+      (repository) => repository.archivedAt === null,
+    );
+
     expect(articles).toHaveLength(activeRepositories.length);
   },
 );
@@ -167,7 +202,11 @@ test('RepositoriesScreen displays retry feedback when Retry clone is selected', 
   await user.click(retryButton);
 
   const repositoryValues = { repository: 'virgo/connector' };
-  const notice = formatLabel(LABELS.repositoryCloneRetryUnavailable, repositoryValues);
+  const notice = formatLabel(
+    LABELS.repositoryCloneRetryUnavailable,
+    repositoryValues,
+  );
+
   const noticeText = screen.getByText(notice);
   expect(noticeText).toBeVisible();
 });

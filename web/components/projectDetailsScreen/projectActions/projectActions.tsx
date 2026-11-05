@@ -26,7 +26,10 @@ export const ProjectActions = ({
   onEdit,
   onArchive,
 }: ProjectActionsProps) => {
-  const archiveLabel = isArchived ? LABELS.projectUnarchive : LABELS.projectArchive;
+  const archiveLabel = isArchived
+    ? LABELS.projectUnarchive
+    : LABELS.projectArchive;
+
   const ArchiveIcon = isArchived ? UnarchiveOutlinedIcon : ArchiveOutlinedIcon;
 
   return (

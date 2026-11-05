@@ -1,6 +1,7 @@
 import stylistic from '@stylistic/eslint-plugin';
 import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
 import nextTypescript from 'eslint-config-next/typescript';
+import prettierRecommended from 'eslint-plugin-prettier/recommended';
 
 const eslintConfig = [
   {
@@ -8,6 +9,7 @@ const eslintConfig = [
   },
   ...nextCoreWebVitals,
   ...nextTypescript,
+  prettierRecommended,
   {
     files: ['**/*.{ts,tsx}'],
     plugins: { '@stylistic': stylistic },

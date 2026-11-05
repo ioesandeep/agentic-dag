@@ -4,11 +4,7 @@ import MuiLink from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
 import { useId, useState } from 'react';
 
-import {
-  getTextToDisplay,
-  getToggleLabel,
-  hasMoreThanSnippet,
-} from './utils';
+import { getTextToDisplay, getToggleLabel, hasMoreThanSnippet } from './utils';
 
 const TEXT_STYLE = { whiteSpace: 'pre-wrap' as const };
 const TOGGLE_STYLE = { alignSelf: 'flex-start' };

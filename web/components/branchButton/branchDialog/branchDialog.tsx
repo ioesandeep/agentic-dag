@@ -42,11 +42,16 @@ export const BranchDialog = ({
   const titleValues = { repository: repository.fullName };
   const title = formatLabel(LABELS.repositoryBranchesTitle, titleValues);
   const isExistingBranch = repository.branches.includes(branch);
-  const submitLabel = isExistingBranch ? LABELS.repositoryUseBranch : LABELS.repositoryCreateBranch;
+  const submitLabel = isExistingBranch
+    ? LABELS.repositoryUseBranch
+    : LABELS.repositoryCreateBranch;
 
   const isValid = isValidBranchName(branch);
   const hasError = hasSubmitted && !isValid;
-  const helperText = hasError ? LABELS.repositoryBranchInvalid : LABELS.repositoryBranchHint;
+  const helperText = hasError
+    ? LABELS.repositoryBranchInvalid
+    : LABELS.repositoryBranchHint;
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setHasSubmitted(true);
@@ -60,7 +65,13 @@ export const BranchDialog = ({
   };
 
   return (
-    <Dialog open fullWidth maxWidth="sm" onClose={onClose} aria-labelledby={titleId}>
+    <Dialog
+      open
+      fullWidth
+      maxWidth="sm"
+      onClose={onClose}
+      aria-labelledby={titleId}
+    >
       <Box component="form" noValidate onSubmit={handleSubmit}>
         <DialogTitle id={titleId}>{title}</DialogTitle>
         <DialogContent>
@@ -81,7 +92,11 @@ export const BranchDialog = ({
             renderOption={(optionProps, option) => {
               const { key, ...listItemProps } = optionProps;
               const branchValues = { branch: option };
-              const defaultLabel = formatLabel(LABELS.repositoryBranchDefault, branchValues);
+              const defaultLabel = formatLabel(
+                LABELS.repositoryBranchDefault,
+                branchValues,
+              );
+
               const isDefault = option === repository.defaultBranch;
               const label = isDefault ? defaultLabel : option;
 

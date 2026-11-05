@@ -33,12 +33,19 @@ interface ProjectDetailsScreenProps {
 /**
  * Displays a project's details and mock repositories.
  */
-export const ProjectDetailsScreen = ({ project }: ProjectDetailsScreenProps) => {
+export const ProjectDetailsScreen = ({
+  project,
+}: ProjectDetailsScreenProps) => {
   const editButtonRef = useRef<HTMLButtonElement>(null);
-  const [projectChanges, setProjectChanges] = useState<ProjectDetailsInput | null>(null);
+  const [projectChanges, setProjectChanges] =
+    useState<ProjectDetailsInput | null>(null);
+
   const [isEditing, setIsEditing] = useState(false);
 
-  const [removalRepository, setRemovalRepository] = useState<Repository | null>(null);
+  const [removalRepository, setRemovalRepository] = useState<Repository | null>(
+    null,
+  );
+
   const projectDetailsInput = projectChanges ?? {
     name: project.name,
     description: project.description,
@@ -68,14 +75,18 @@ export const ProjectDetailsScreen = ({ project }: ProjectDetailsScreenProps) => 
     setProjectChanges(archivedProjectDetailsInput);
   };
 
-  const handleRemove = (repository: Repository) => setRemovalRepository(repository);
+  const handleRemove = (repository: Repository) =>
+    setRemovalRepository(repository);
+
   const handleCloseRemoval = () => setRemovalRepository(null);
 
   return (
     <AppLayout
       topAppBar={
         <TopAppBar
-          backButton={<BackButton href={PROJECTS_ROUTE} label={LABELS.projectListBack} />}
+          backButton={
+            <BackButton href={PROJECTS_ROUTE} label={LABELS.projectListBack} />
+          }
           title={projectDetailsInput.name}
           actions={
             <>
@@ -104,7 +115,11 @@ export const ProjectDetailsScreen = ({ project }: ProjectDetailsScreenProps) => 
           onApply={handleApply}
         />
         <Paper variant="outlined" component="section" sx={REPOSITORIES_STYLE}>
-          <Typography variant="h6" component="h2" sx={REPOSITORIES_HEADING_STYLE}>
+          <Typography
+            variant="h6"
+            component="h2"
+            sx={REPOSITORIES_HEADING_STYLE}
+          >
             {LABELS.projectRepositories}
           </Typography>
           <ProjectRepositoryList
@@ -114,7 +129,9 @@ export const ProjectDetailsScreen = ({ project }: ProjectDetailsScreenProps) => 
             onRemove={handleRemove}
           />
           {repositories.length === 0 && (
-            <Typography sx={EMPTY_STYLE}>{LABELS.projectRepositoriesEmpty}</Typography>
+            <Typography sx={EMPTY_STYLE}>
+              {LABELS.projectRepositoriesEmpty}
+            </Typography>
           )}
         </Paper>
       </Box>

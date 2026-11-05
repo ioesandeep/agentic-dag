@@ -3,6 +3,7 @@
 import LinearProgress from '@mui/material/LinearProgress';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import type { ReactNode } from 'react';
 
 import { SoftChip } from '@/components/softChip/softChip';
 import type { Repository } from '@/entities/catalog/repository';
@@ -12,9 +13,13 @@ import { useRepositoryImportElapsedTime } from '@/hooks/useRepositoryImportElaps
 import { LABELS, REPOSITORY_STATUS_LABELS } from '@/labels/en';
 import { RepositoryStatusVariantEnum } from './types';
 
+const PROGRESS_STYLE = { flexGrow: 1 };
+const PROGRESS_ROW_STYLE = { alignItems: 'center' };
+
 interface RepositoryStatusProps {
   repository: Repository;
   variant?: RepositoryStatusVariantEnum;
+  progressAction?: ReactNode;
 }
 
 /**
@@ -23,12 +28,15 @@ interface RepositoryStatusProps {
 export const RepositoryStatus = ({
   repository,
   variant = RepositoryStatusVariantEnum.FULL,
+  progressAction,
 }: RepositoryStatusProps) => {
   const isActive =
     repository.presentationStatus === RepositoryPresentationStatusEnum.QUEUED ||
     repository.presentationStatus === RepositoryPresentationStatusEnum.CLONING;
 
-  const showsProgress = isActive && variant !== RepositoryStatusVariantEnum.STATUS;
+  const showsProgress =
+    isActive && variant !== RepositoryStatusVariantEnum.STATUS;
+
   const elapsedTime = useRepositoryImportElapsedTime(
     showsProgress ? repository.latestImport : null,
   );
@@ -46,14 +54,27 @@ export const RepositoryStatus = ({
   return (
     <Stack spacing={1} sx={{ minWidth: 0 }}>
       {variant !== RepositoryStatusVariantEnum.PROGRESS && (
-        <Stack spacing={1} direction="row" useFlexGap sx={{ flexWrap: 'wrap' }} role="status">
+        <Stack
+          spacing={1}
+          direction="row"
+          useFlexGap
+          sx={{ flexWrap: 'wrap' }}
+          role="status"
+        >
           <SoftChip label={label} color="var(--mui-palette-text-primary)" />
           {isCancellationRequested && (
-            <Typography variant="body2">{LABELS.repositoryCancellationRequested}</Typography>
+            <Typography variant="body2">
+              {LABELS.repositoryCancellationRequested}
+            </Typography>
           )}
         </Stack>
       )}
-      {showsProgress && <LinearProgress aria-label={label} />}
+      {showsProgress && (
+        <Stack direction="row" spacing={1} sx={PROGRESS_ROW_STYLE}>
+          <LinearProgress aria-label={label} sx={PROGRESS_STYLE} />
+          {progressAction}
+        </Stack>
+      )}
       {elapsedTime && (
         <Typography variant="caption" color="text.secondary" aria-live="off">
           {elapsedTime}

@@ -65,7 +65,12 @@ export const BranchButton = ({
   return (
     <>
       <Tooltip title={title}>
-        <ButtonBase aria-label={title} onClick={handleOpen} disabled={disabled} sx={BUTTON_STYLE}>
+        <ButtonBase
+          aria-label={title}
+          onClick={handleOpen}
+          disabled={disabled}
+          sx={BUTTON_STYLE}
+        >
           <SoftChip label={label} color="var(--mui-palette-primary-main)" />
         </ButtonBase>
       </Tooltip>

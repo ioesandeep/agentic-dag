@@ -21,10 +21,7 @@ interface SessionTableProps {
 /**
  * Renders one row per session of a node.
  */
-export const SessionTable = ({
-  sessions,
-  loadedSince,
-}: SessionTableProps) => {
+export const SessionTable = ({ sessions, loadedSince }: SessionTableProps) => {
   if (sessions.length === 0) {
     return (
       <Typography variant="body2" color="text.secondary">
@@ -38,9 +35,7 @@ export const SessionTable = ({
       <TableHead>
         <TableRow>
           <TableCell sx={{ px: 0 }}>{LABELS.sessionsWakeColumn}</TableCell>
-          <TableCell sx={{ px: 0.5 }}>
-            {LABELS.sessionsStartedColumn}
-          </TableCell>
+          <TableCell sx={{ px: 0.5 }}>{LABELS.sessionsStartedColumn}</TableCell>
           <TableCell sx={{ px: 0.5 }}>{LABELS.sessionsEndColumn}</TableCell>
         </TableRow>
       </TableHead>

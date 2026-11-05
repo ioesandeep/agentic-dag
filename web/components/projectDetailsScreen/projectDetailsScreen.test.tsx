@@ -33,8 +33,14 @@ test('ProjectDetailsScreen displays project fields and repository branches', () 
   expect(repositoryItems).toHaveLength(project.repositoryCounts.total);
 
   for (const repository of MOCK_REPOSITORIES) {
-    const membership = repository.memberships.find((membership) => membership.project === project);
-    const repositoryItem = screen.queryByRole('listitem', { name: repository.fullName });
+    const membership = repository.memberships.find(
+      (membership) => membership.project === project,
+    );
+
+    const repositoryItem = screen.queryByRole('listitem', {
+      name: repository.fullName,
+    });
+
     if (membership === undefined) {
       expect(repositoryItem).not.toBeInTheDocument();
 
@@ -58,7 +64,9 @@ test('ProjectDetailsScreen displays the empty project state', () => {
   const repositoryItem = mainQueries.queryByRole('listitem');
   expect(repositoryItem).not.toBeInTheDocument();
 
-  expect(screen.getByRole('button', { name: LABELS.repositoryAdd })).toBeEnabled();
+  expect(
+    screen.getByRole('button', { name: LABELS.repositoryAdd }),
+  ).toBeEnabled();
 });
 
 test('The project route returns not found when the project ID is unknown', async () => {
@@ -67,8 +75,13 @@ test('The project route returns not found when the project ID is unknown', async
   const pageProps = { params };
   const layoutProps = { params, children: null };
 
-  await expect(ProjectLayout(layoutProps)).rejects.toThrow('NEXT_HTTP_ERROR_FALLBACK;404');
-  await expect(ProjectPage(pageProps)).rejects.toThrow('NEXT_HTTP_ERROR_FALLBACK;404');
+  await expect(ProjectLayout(layoutProps)).rejects.toThrow(
+    'NEXT_HTTP_ERROR_FALLBACK;404',
+  );
+
+  await expect(ProjectPage(pageProps)).rejects.toThrow(
+    'NEXT_HTTP_ERROR_FALLBACK;404',
+  );
 });
 
 test('ProjectDetailsScreen toggles repository access with archive and unarchive actions', async () => {
@@ -76,11 +89,18 @@ test('ProjectDetailsScreen toggles repository access with archive and unarchive 
   const user = userEvent.setup();
   render(<ProjectDetailsScreen project={project} />);
 
-  const removeButton = screen.getByRole('button', { name: LABELS.repositoryRemoveFromProject });
-  expect(removeButton).toBeDisabled();
-  expect(screen.getByRole('button', { name: LABELS.repositoryRefresh })).toBeDisabled();
+  const removeButton = screen.getByRole('button', {
+    name: LABELS.repositoryRemoveFromProject,
+  });
 
-  await user.click(screen.getByRole('button', { name: LABELS.projectUnarchive }));
+  expect(removeButton).toBeDisabled();
+  expect(
+    screen.getByRole('button', { name: LABELS.repositoryRefresh }),
+  ).toBeDisabled();
+
+  await user.click(
+    screen.getByRole('button', { name: LABELS.projectUnarchive }),
+  );
 
   expect(screen.getByText(LABELS.projectStateActive)).toBeVisible();
   expect(removeButton).toBeEnabled();
@@ -106,15 +126,22 @@ test('ProjectDetailsScreen discards edits when Cancel is selected', async () => 
   await user.tab();
   await user.keyboard('{Enter}');
 
-  const nameInput = screen.getByRole('textbox', { name: LABELS.projectDetailsName });
+  const nameInput = screen.getByRole('textbox', {
+    name: LABELS.projectDetailsName,
+  });
+
   expect(nameInput).toHaveFocus();
   await user.clear(nameInput);
   await user.type(nameInput, 'Changed project');
-  await user.click(screen.getByRole('button', { name: LABELS.projectEditCancel }));
+  await user.click(
+    screen.getByRole('button', { name: LABELS.projectEditCancel }),
+  );
 
   expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   expect(screen.getByRole('heading', { name: project.name })).toBeVisible();
-  expect(screen.getByRole('button', { name: LABELS.projectEdit })).toHaveFocus();
+  expect(
+    screen.getByRole('button', { name: LABELS.projectEdit }),
+  ).toHaveFocus();
 });
 
 test('ProjectDetailsScreen applies editable values without changing catalog records', async () => {
@@ -124,14 +151,28 @@ test('ProjectDetailsScreen applies editable values without changing catalog reco
 
   await user.click(screen.getByRole('button', { name: LABELS.projectEdit }));
 
-  const nameInput = screen.getByRole('textbox', { name: LABELS.projectDetailsName });
+  const nameInput = screen.getByRole('textbox', {
+    name: LABELS.projectDetailsName,
+  });
+
   await user.clear(nameInput);
   await user.paste('Platform operations');
-  await user.click(screen.getByRole('combobox', { name: LABELS.projectDetailsState }));
-  await user.click(screen.getByRole('option', { name: LABELS.projectStateArchived }));
-  await user.click(screen.getByRole('button', { name: LABELS.projectEditApply }));
+  await user.click(
+    screen.getByRole('combobox', { name: LABELS.projectDetailsState }),
+  );
 
-  expect(screen.getByRole('heading', { name: 'Platform operations' })).toBeVisible();
+  await user.click(
+    screen.getByRole('option', { name: LABELS.projectStateArchived }),
+  );
+
+  await user.click(
+    screen.getByRole('button', { name: LABELS.projectEditApply }),
+  );
+
+  expect(
+    screen.getByRole('heading', { name: 'Platform operations' }),
+  ).toBeVisible();
+
   expect(screen.getByText(LABELS.projectStateArchived)).toBeVisible();
   expect(project.name).toBe('Platform');
   expect(project.archivedAt).toBeNull();
@@ -144,9 +185,14 @@ test('ProjectDetailsScreen retains invalid project edits', async () => {
 
   await user.click(screen.getByRole('button', { name: LABELS.projectEdit }));
 
-  const nameInput = screen.getByRole('textbox', { name: LABELS.projectDetailsName });
+  const nameInput = screen.getByRole('textbox', {
+    name: LABELS.projectDetailsName,
+  });
+
   await user.clear(nameInput);
-  await user.click(screen.getByRole('button', { name: LABELS.projectEditApply }));
+  await user.click(
+    screen.getByRole('button', { name: LABELS.projectEditApply }),
+  );
 
   expect(nameInput).toBeInvalid();
   expect(nameInput).toHaveFocus();
@@ -160,30 +206,49 @@ test('ProjectDetailsScreen selects a project branch and reloads the fixed reposi
   const title = formatLabel(LABELS.repositoryBranchAction, titleValues);
   render(<ProjectDetailsScreen project={project} />);
 
-  const repositoryItem = screen.getByRole('listitem', { name: 'virgo/service' });
-  const branchButton = within(repositoryItem).getByRole('button', { name: title });
+  const repositoryItem = screen.getByRole('listitem', {
+    name: 'virgo/service',
+  });
+
+  const branchButton = within(repositoryItem).getByRole('button', {
+    name: title,
+  });
+
   expect(branchButton).toHaveTextContent('release/1.0');
   await user.click(branchButton);
 
-  const branchInput = screen.getByRole('combobox', { name: LABELS.repositoryBranch });
+  const branchInput = screen.getByRole('combobox', {
+    name: LABELS.repositoryBranch,
+  });
+
   await user.clear(branchInput);
   await user.keyboard('{ArrowDown}');
 
   const branchValues = { branch: 'main' };
   const branchLabel = formatLabel(LABELS.repositoryBranchDefault, branchValues);
   await user.click(screen.getByRole('option', { name: branchLabel }));
-  await user.click(screen.getByRole('button', { name: LABELS.repositoryUseBranch }));
+  await user.click(
+    screen.getByRole('button', { name: LABELS.repositoryUseBranch }),
+  );
 
   expect(branchButton).toHaveTextContent('main');
 
-  await user.click(within(repositoryItem).getByRole('button', { name: LABELS.repositoryRefresh }));
-
-  expect(within(repositoryItem).getByRole('button', { name: title })).toHaveTextContent(
-    'release/1.0',
+  await user.click(
+    within(repositoryItem).getByRole('button', {
+      name: LABELS.repositoryRefresh,
+    }),
   );
 
+  expect(
+    within(repositoryItem).getByRole('button', { name: title }),
+  ).toHaveTextContent('release/1.0');
+
   expect(screen.getByRole('status')).toBeVisible();
-  await user.click(within(repositoryItem).getByRole('button', { name: LABELS.repositoryRefresh }));
+  await user.click(
+    within(repositoryItem).getByRole('button', {
+      name: LABELS.repositoryRefresh,
+    }),
+  );
 
   expect(screen.getByRole('status')).toBeVisible();
 });
@@ -193,7 +258,10 @@ test('ProjectDetailsScreen preserves the repository when removal is confirmed', 
   const user = userEvent.setup();
   render(<ProjectDetailsScreen project={project} />);
 
-  const repositoryItem = screen.getByRole('listitem', { name: 'virgo/service' });
+  const repositoryItem = screen.getByRole('listitem', {
+    name: 'virgo/service',
+  });
+
   const removeButton = within(repositoryItem).getByRole('button', {
     name: LABELS.repositoryRemoveFromProject,
   });
@@ -202,10 +270,15 @@ test('ProjectDetailsScreen preserves the repository when removal is confirmed', 
 
   const dialog = screen.getByRole('dialog');
   await user.click(
-    within(dialog).getByRole('button', { name: LABELS.repositoryRemoveFromProject }),
+    within(dialog).getByRole('button', {
+      name: LABELS.repositoryRemoveFromProject,
+    }),
   );
 
-  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  await waitFor(() =>
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+  );
+
   expect(repositoryItem).toBeVisible();
   expect(removeButton).toHaveFocus();
 });

@@ -5,8 +5,7 @@ import type { WakeRequest } from '@/entities/wakeRequest';
 const NO_HELPER_TEXT = '';
 
 const getRecoveryCause = (causeValue: string): RecoveryCauseEnum | null =>
-  RECOVERY_CAUSES.find((recoveryCause) => recoveryCause === causeValue) ??
-  null;
+  RECOVERY_CAUSES.find((recoveryCause) => recoveryCause === causeValue) ?? null;
 
 /**
  * Returns true when a text value is empty or contains only white space.

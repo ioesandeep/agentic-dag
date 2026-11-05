@@ -6,7 +6,10 @@ import { expect, test, vi } from 'vitest';
 import { LABELS } from '@/labels/en';
 import { ProjectsScreen } from './projectsScreen';
 
-vi.mock('next/navigation', () => ({ useRouter: vi.fn(), usePathname: () => '/projects' }));
+vi.mock('next/navigation', () => ({
+  useRouter: vi.fn(),
+  usePathname: () => '/projects',
+}));
 
 test('ProjectsScreen includes archived projects when Show archived is enabled', async () => {
   const user = userEvent.setup();

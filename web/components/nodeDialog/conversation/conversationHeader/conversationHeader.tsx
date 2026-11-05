@@ -58,7 +58,11 @@ export const ConversationHeader = ({
         onClick={onToggleWidth}
         aria-label={widthToggleLabel(isWide)}
       >
-        {isWide ? <CloseFullscreenIcon fontSize="small" /> : <OpenInFullIcon fontSize="small" />}
+        {isWide ? (
+          <CloseFullscreenIcon fontSize="small" />
+        ) : (
+          <OpenInFullIcon fontSize="small" />
+        )}
       </IconButton>
     </Tooltip>
   </Box>

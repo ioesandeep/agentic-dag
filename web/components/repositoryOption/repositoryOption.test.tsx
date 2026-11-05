@@ -16,19 +16,41 @@ afterEach(cleanup);
 test('RepositoryOption changes selection when Space is pressed', async () => {
   const user = userEvent.setup();
   const onSelectionChange = vi.fn();
-  render(<RepositoryOption repository={REPOSITORY} branch="main" isSelected={false} onSelectionChange={onSelectionChange} onBranchChange={vi.fn()} autoFocus />);
+  render(
+    <RepositoryOption
+      repository={REPOSITORY}
+      branch="main"
+      isSelected={false}
+      onSelectionChange={onSelectionChange}
+      onBranchChange={vi.fn()}
+      autoFocus
+    />,
+  );
 
   await user.keyboard(' ');
 
   expect(onSelectionChange).toHaveBeenCalledExactlyOnceWith(true);
   expect(screen.getByText(REPOSITORY.checkoutPath)).toBeVisible();
-  expect(screen.getByRole('checkbox', { name: REPOSITORY.fullName })).toHaveFocus();
+  expect(
+    screen.getByRole('checkbox', { name: REPOSITORY.fullName }),
+  ).toHaveFocus();
 });
 
 test('RepositoryOption disables selection when disabledReason is defined', () => {
-  render(<RepositoryOption repository={REPOSITORY} branch="main" isSelected={false} onSelectionChange={vi.fn()} onBranchChange={vi.fn()} disabledReason={LABELS.repositoryAlreadyInProject} />);
+  render(
+    <RepositoryOption
+      repository={REPOSITORY}
+      branch="main"
+      isSelected={false}
+      onSelectionChange={vi.fn()}
+      onBranchChange={vi.fn()}
+      disabledReason={LABELS.repositoryAlreadyInProject}
+    />,
+  );
 
   const checkbox = screen.getByRole('checkbox', { name: REPOSITORY.fullName });
   expect(checkbox).toBeDisabled();
-  expect(checkbox).toHaveAccessibleDescription(expect.stringContaining(LABELS.repositoryAlreadyInProject));
+  expect(checkbox).toHaveAccessibleDescription(
+    expect.stringContaining(LABELS.repositoryAlreadyInProject),
+  );
 });

@@ -3,11 +3,19 @@ import { expect, test } from 'vitest';
 
 import { getLocalCheckoutPreviewContent } from '@/components/localCheckoutForm/utils';
 import { LABELS } from '@/labels/en';
-import { MOCK_REPOSITORIES, MOCK_REPOSITORY_INSPECTION } from '@/mocks/catalogMocks';
+import {
+  MOCK_REPOSITORIES,
+  MOCK_REPOSITORY_INSPECTION,
+} from '@/mocks/catalogMocks';
 import { LocalCheckoutPreview } from './localCheckoutPreview';
 
 test('LocalCheckoutPreview displays identity guidance when the inspection has no identity', () => {
-  const inspection = { ...MOCK_REPOSITORY_INSPECTION, identity: null, existingRepository: null };
+  const inspection = {
+    ...MOCK_REPOSITORY_INSPECTION,
+    identity: null,
+    existingRepository: null,
+  };
+
   const content = getLocalCheckoutPreviewContent(inspection);
 
   render(<LocalCheckoutPreview inspection={inspection} content={content} />);
@@ -30,12 +38,18 @@ test('LocalCheckoutPreview displays observations when the folder has changes and
   const repositoryLink = screen.getByRole('link', { name: 'virgo/console' });
   const observation = screen.getByText(content.uncommitted);
   const alert = screen.queryByRole('alert');
-  expect(repositoryLink).toHaveAttribute('href', 'https://github.com/virgo/console');
+  expect(repositoryLink).toHaveAttribute(
+    'href',
+    'https://github.com/virgo/console',
+  );
 
   expect(observation).toBeVisible();
   expect(alert).not.toBeInTheDocument();
 
-  const existingRegistration = screen.getByRole('group', { name: content.existing });
+  const existingRegistration = screen.getByRole('group', {
+    name: content.existing,
+  });
+
   const registrationQueries = within(existingRegistration);
   const name = registrationQueries.getByText('virgo/console');
   const folder = registrationQueries.getByText('/Users/sandeep/work/console');
@@ -46,9 +60,18 @@ test('LocalCheckoutPreview displays observations when the folder has changes and
 
 test('LocalCheckoutPreview warns about a mismatch when repair expects a different repository', () => {
   const repairRepository = MOCK_REPOSITORIES[0];
-  const content = getLocalCheckoutPreviewContent(MOCK_REPOSITORY_INSPECTION, repairRepository);
+  const content = getLocalCheckoutPreviewContent(
+    MOCK_REPOSITORY_INSPECTION,
+    repairRepository,
+  );
 
-  render(<LocalCheckoutPreview inspection={MOCK_REPOSITORY_INSPECTION} repairRepository={repairRepository} content={content} />);
+  render(
+    <LocalCheckoutPreview
+      inspection={MOCK_REPOSITORY_INSPECTION}
+      repairRepository={repairRepository}
+      content={content}
+    />,
+  );
 
   const expectedRepository = screen.getByText(content.expected);
   const defaultProject = screen.getByText('Default');
@@ -58,7 +81,10 @@ test('LocalCheckoutPreview warns about a mismatch when repair expects a differen
   expect(defaultProject).toBeVisible();
   expect(platformProject).toBeVisible();
 
-  const projectList = screen.getByRole('list', { name: LABELS.repositoryProjects });
+  const projectList = screen.getByRole('list', {
+    name: LABELS.repositoryProjects,
+  });
+
   const projectQueries = within(projectList);
   const projects = projectQueries.getAllByRole('listitem');
   expect(projects).toHaveLength(2);

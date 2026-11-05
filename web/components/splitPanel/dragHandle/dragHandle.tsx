@@ -5,10 +5,7 @@ import Box from '@mui/material/Box';
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
-import {
-  EMPTY_PERCENT,
-  FULL_PERCENT,
-} from '@/components/splitPanel/constants';
+import { EMPTY_PERCENT, FULL_PERCENT } from '@/components/splitPanel/constants';
 import { NO_DRAG_PIXELS } from '@/components/splitPanel/dragHandle/constants';
 import {
   getDragHandleStyle,

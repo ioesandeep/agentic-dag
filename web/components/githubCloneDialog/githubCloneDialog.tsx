@@ -33,7 +33,14 @@ import { getGithubRepositoryFullName } from './utils';
 
 const CONTENT_STYLE = { pt: 1 };
 const FORM_STYLE = { display: 'flex', flexDirection: 'column', minHeight: 0 };
-const FOOTER_STYLE = { flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' }, gap: 2, px: 3, pb: 2 };
+const FOOTER_STYLE = {
+  flexDirection: { xs: 'column', sm: 'row' },
+  alignItems: { xs: 'stretch', sm: 'center' },
+  gap: 2,
+  px: 3,
+  pb: 2,
+};
+
 const BUTTONS_STYLE = { justifyContent: 'flex-end' };
 const MOCK_CLONE_DURATION_MS = 1800;
 const CLONE_FOLDER_PREFIX = '~/.virgo-dag/repositories/';
@@ -49,7 +56,10 @@ interface GithubCloneDialogProps {
  * Collects a GitHub clone and the branch a project uses.
  */
 export const GithubCloneDialog = ({
-  isOpen, onClose, project, accountStatus = MOCK_GITHUB_ACCOUNT_STATUS,
+  isOpen,
+  onClose,
+  project,
+  accountStatus = MOCK_GITHUB_ACCOUNT_STATUS,
 }: GithubCloneDialogProps) => {
   const repositoryInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -64,18 +74,25 @@ export const GithubCloneDialog = ({
   const titleId = useId();
 
   const fullName = getGithubRepositoryFullName(repositoryInput);
-  const registeredRepository = MOCK_REPOSITORIES.find((repository) =>
-    repository.fullName.toLowerCase() === fullName?.toLowerCase());
+  const registeredRepository = MOCK_REPOSITORIES.find(
+    (repository) =>
+      repository.fullName.toLowerCase() === fullName?.toLowerCase(),
+  );
 
-  const defaultFolder = fullName === null ? '' : `${CLONE_FOLDER_PREFIX}${fullName}`;
-  const cloneFolder = registeredRepository?.checkoutPath ?? folderOverride ?? defaultFolder;
+  const defaultFolder =
+    fullName === null ? '' : `${CLONE_FOLDER_PREFIX}${fullName}`;
+
+  const cloneFolder =
+    registeredRepository?.checkoutPath ?? folderOverride ?? defaultFolder;
+
   const isCloning = stage === GithubCloneStageEnum.CLONING;
   const isComplete = stage === GithubCloneStageEnum.COMPLETE;
 
   const isExisting = registeredRepository !== undefined;
   const showsBranch = project !== undefined && (isExisting || isComplete);
   const branches = registeredRepository?.branches ?? MOCK_GITHUB_BRANCHES;
-  const defaultBranch = registeredRepository?.defaultBranch ?? MOCK_GITHUB_DEFAULT_BRANCH;
+  const defaultBranch =
+    registeredRepository?.defaultBranch ?? MOCK_GITHUB_DEFAULT_BRANCH;
 
   const branch = branchOverride ?? defaultBranch;
   const isBranchValid = isValidBranchName(branch);
@@ -86,11 +103,18 @@ export const GithubCloneDialog = ({
   const hasBranchError = hasSubmitted && showsBranch && !isBranchValid;
 
   const cloneLabel = isCloning ? LABELS.githubCloning : LABELS.githubClone;
-  const completeLabel = isExisting ? LABELS.githubAddExisting : LABELS.githubDone;
+  const completeLabel = isExisting
+    ? LABELS.githubAddExisting
+    : LABELS.githubDone;
+
   const submitLabel = isExisting || isComplete ? completeLabel : cloneLabel;
 
   const projectValues = { project: project?.name ?? '' };
-  const projectBranchHint = formatLabel(LABELS.githubProjectBranchHint, projectValues);
+  const projectBranchHint = formatLabel(
+    LABELS.githubProjectBranchHint,
+    projectValues,
+  );
+
   const handleRepositoryChange = (repositoryInput: string) => {
     setRepositoryInput(repositoryInput);
     setBranchOverride(null);
@@ -120,7 +144,9 @@ export const GithubCloneDialog = ({
 
     setHasSubmitted(true);
     if (fullName === null || !isFolderValid) {
-      const invalidInputRef = fullName === null ? repositoryInputRef : folderInputRef;
+      const invalidInputRef =
+        fullName === null ? repositoryInputRef : folderInputRef;
+
       invalidInputRef.current?.focus();
 
       return;
@@ -149,35 +175,74 @@ export const GithubCloneDialog = ({
   }, [stage]);
 
   return (
-    <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="sm" aria-labelledby={titleId}>
+    <Dialog
+      open={isOpen}
+      onClose={onClose}
+      fullWidth
+      maxWidth="sm"
+      aria-labelledby={titleId}
+    >
       <Box component="form" noValidate onSubmit={handleSubmit} sx={FORM_STYLE}>
         <DialogTitle id={titleId}>{LABELS.githubCloneTitle}</DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={CONTENT_STYLE}>
             <GithubImportFeedback accountStatus={accountStatus} />
-            {hasRepositoryError && hasFolderError && <Alert severity="error">{LABELS.githubCloneRequired}</Alert>}
+            {hasRepositoryError && hasFolderError && (
+              <Alert severity="error">{LABELS.githubCloneRequired}</Alert>
+            )}
             <GithubRepositoryInput
-              value={repositoryInput} inputRef={repositoryInputRef}
-              hasError={hasRepositoryError} isDisabled={isCloning || isComplete}
+              value={repositoryInput}
+              inputRef={repositoryInputRef}
+              hasError={hasRepositoryError}
+              isDisabled={isCloning || isComplete}
               onChange={handleRepositoryChange}
             />
             <CloneFolderInput
-              value={cloneFolder} inputRef={folderInputRef} hasError={hasFolderError}
-              isDisabled={isExisting || isCloning || isComplete} onChange={setFolderOverride}
+              value={cloneFolder}
+              inputRef={folderInputRef}
+              hasError={hasFolderError}
+              isDisabled={isExisting || isCloning || isComplete}
+              onChange={setFolderOverride}
             />
             {showsBranch && (
               <Stack spacing={1}>
-                <BranchSelect key={fullName} branches={branches} defaultBranch={defaultBranch} branch={branch} autoFocus={isComplete} inputRef={branchInputRef} hasError={hasBranchError} onChange={setBranchOverride} />
-                <Typography variant="body2" color="text.secondary">{projectBranchHint}</Typography>
+                <BranchSelect
+                  key={fullName}
+                  branches={branches}
+                  defaultBranch={defaultBranch}
+                  branch={branch}
+                  autoFocus={isComplete}
+                  inputRef={branchInputRef}
+                  hasError={hasBranchError}
+                  onChange={setBranchOverride}
+                />
+                <Typography variant="body2" color="text.secondary">
+                  {projectBranchHint}
+                </Typography>
               </Stack>
             )}
           </Stack>
         </DialogContent>
-        <DialogActions disableSpacing sx={FOOTER_STYLE} role="group" aria-label={LABELS.githubCloneFooter}>
-          <GithubCloneFeedback stage={stage} registeredRepository={registeredRepository} />
+        <DialogActions
+          disableSpacing
+          sx={FOOTER_STYLE}
+          role="group"
+          aria-label={LABELS.githubCloneFooter}
+        >
+          <GithubCloneFeedback
+            stage={stage}
+            registeredRepository={registeredRepository}
+          />
           <Stack direction="row" spacing={1} sx={BUTTONS_STYLE}>
             <Button onClick={onClose}>{LABELS.githubCloneClose}</Button>
-            <Button key={stage} autoFocus={isComplete && !showsBranch} type="submit" variant="contained" disabled={isCloning || !accountStatus.authenticated} aria-busy={isCloning}>
+            <Button
+              key={stage}
+              autoFocus={isComplete && !showsBranch}
+              type="submit"
+              variant="contained"
+              disabled={isCloning || !accountStatus.authenticated}
+              aria-busy={isCloning}
+            >
               {submitLabel}
             </Button>
           </Stack>

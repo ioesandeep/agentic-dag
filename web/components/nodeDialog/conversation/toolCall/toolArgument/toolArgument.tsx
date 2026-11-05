@@ -14,11 +14,7 @@ interface ToolArgumentProps {
 /**
  * Renders one named argument of a tool call as a labelled code block.
  */
-export const ToolArgument = ({
-  label,
-  text,
-  language,
-}: ToolArgumentProps) => (
+export const ToolArgument = ({ label, text, language }: ToolArgumentProps) => (
   <Box>
     <Typography
       variant="caption"

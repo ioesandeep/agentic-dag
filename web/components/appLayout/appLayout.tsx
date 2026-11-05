@@ -10,7 +10,13 @@ const LAYOUT_STYLE = {
   bgcolor: 'background.default',
 };
 
-const CONTENT_STYLE = { flex: 1, minWidth: 0, display: 'grid', gridTemplateRows: 'auto minmax(0, 1fr)' };
+const CONTENT_STYLE = {
+  flex: 1,
+  minWidth: 0,
+  display: 'grid',
+  gridTemplateRows: 'auto minmax(0, 1fr)',
+};
+
 const MAIN_STYLE = { minWidth: 0, minHeight: 0, overflow: 'auto' };
 
 interface AppLayoutProps {
@@ -27,7 +33,9 @@ export const AppLayout = ({ topAppBar, children }: AppLayoutProps) => (
     <CatalogNavigation />
     <Box sx={CONTENT_STYLE}>
       {topAppBar}
-      <Box component="main" sx={MAIN_STYLE}>{children}</Box>
+      <Box component="main" sx={MAIN_STYLE}>
+        {children}
+      </Box>
     </Box>
   </Box>
 );

@@ -32,12 +32,19 @@ export const RepositoriesScreen = () => {
   const [retryNoticeVersion, setRetryNoticeVersion] = useState(0);
   const router = useRouter();
 
-  const repositories = MOCK_REPOSITORIES.filter((repository) => showArchived || repository.archivedAt === null);
+  const repositories = MOCK_REPOSITORIES.filter(
+    (repository) => showArchived || repository.archivedAt === null,
+  );
+
   const handleToggleArchived = () => setShowArchived(!showArchived);
   const handleCloseRetryNotice = () => setRetryNotice(null);
   const handleRetryClone = (repository: Repository) => {
     const repositoryValues = { repository: repository.fullName };
-    const notice = formatLabel(LABELS.repositoryCloneRetryUnavailable, repositoryValues);
+    const notice = formatLabel(
+      LABELS.repositoryCloneRetryUnavailable,
+      repositoryValues,
+    );
+
     setRetryNotice(notice);
     setRetryNoticeVersion(retryNoticeVersion + 1);
   };
@@ -57,7 +64,13 @@ export const RepositoriesScreen = () => {
               <FormControlLabel
                 label={LABELS.repositoriesShowArchived}
                 sx={ARCHIVE_LABEL_STYLE}
-                control={<Switch size="small" checked={showArchived} onChange={handleToggleArchived} />}
+                control={
+                  <Switch
+                    size="small"
+                    checked={showArchived}
+                    onChange={handleToggleArchived}
+                  />
+                }
               />
               <AddRepositoryActionButton />
               <ColorSchemeToggle />

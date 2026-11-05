@@ -21,13 +21,25 @@ interface LocalCheckoutFolderInputProps {
 /**
  * Collects folder selections for local checkout registration.
  */
-export const LocalCheckoutFolderInput = ({ value, onChange, onBlur, onSelect }: LocalCheckoutFolderInputProps) => {
+export const LocalCheckoutFolderInput = ({
+  value,
+  onChange,
+  onBlur,
+  onSelect,
+}: LocalCheckoutFolderInputProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [selectedFolderName, setSelectedFolderName] = useState<string | null>(null);
+  const [selectedFolderName, setSelectedFolderName] = useState<string | null>(
+    null,
+  );
+
   const [pickerError, setPickerError] = useState<string | null>(null);
   const folderValues = { folder: selectedFolderName ?? '' };
 
-  const selectionHint = formatLabel(LABELS.localCheckoutFolderSelected, folderValues);
+  const selectionHint = formatLabel(
+    LABELS.localCheckoutFolderSelected,
+    folderValues,
+  );
+
   const helperText = pickerError ?? LABELS.localCheckoutFolderHint;
   const helperRole = pickerError === null ? undefined : 'alert';
 
@@ -61,14 +73,36 @@ export const LocalCheckoutFolderInput = ({ value, onChange, onBlur, onSelect }: 
   };
 
   const inputSlotProps = {
-    input: { endAdornment: <InputAdornment position="end"><Button autoFocus onClick={handleBrowse}>{LABELS.localCheckoutBrowse}</Button></InputAdornment> },
+    input: {
+      endAdornment: (
+        <InputAdornment position="end">
+          <Button autoFocus onClick={handleBrowse}>
+            {LABELS.localCheckoutBrowse}
+          </Button>
+        </InputAdornment>
+      ),
+    },
     formHelperText: { role: helperRole },
   };
 
   return (
     <Stack spacing={1}>
-      <TextField fullWidth label={LABELS.localCheckoutFolder} value={value} inputRef={inputRef} helperText={helperText} error={pickerError !== null} onChange={(event) => handleChange(event.target.value)} onBlur={onBlur} slotProps={inputSlotProps} />
-      {selectedFolderName !== null && <Typography variant="body2" color="text.secondary" role="status">{selectionHint}</Typography>}
+      <TextField
+        fullWidth
+        label={LABELS.localCheckoutFolder}
+        value={value}
+        inputRef={inputRef}
+        helperText={helperText}
+        error={pickerError !== null}
+        onChange={(event) => handleChange(event.target.value)}
+        onBlur={onBlur}
+        slotProps={inputSlotProps}
+      />
+      {selectedFolderName !== null && (
+        <Typography variant="body2" color="text.secondary" role="status">
+          {selectionHint}
+        </Typography>
+      )}
     </Stack>
   );
 };

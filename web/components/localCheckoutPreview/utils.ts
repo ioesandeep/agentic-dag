@@ -4,6 +4,10 @@ import type { RepositoryInspection } from '@/entities/catalog/repositoryInspecti
 /**
  * Checks whether an inspection identifies a different repository for repair.
  */
-export const isRepositoryMismatch = (inspection: RepositoryInspection | null, repository?: Repository): boolean =>
-  repository !== undefined && inspection?.identity != null &&
+export const isRepositoryMismatch = (
+  inspection: RepositoryInspection | null,
+  repository?: Repository,
+): boolean =>
+  repository !== undefined &&
+  inspection?.identity != null &&
   inspection.identity.providerRepositoryId !== repository.providerRepositoryId;

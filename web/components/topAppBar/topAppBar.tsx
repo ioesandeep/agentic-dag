@@ -23,7 +23,12 @@ const BACK_BUTTON_STYLE = {
   minWidth: 0,
 };
 
-const TITLE_STYLE = { fontWeight: 600, minWidth: 0, flexGrow: { xs: 1, sm: 0 }, textAlign: 'center' };
+const TITLE_STYLE = {
+  fontWeight: 600,
+  minWidth: 0,
+  flexGrow: { xs: 1, sm: 0 },
+  textAlign: 'center',
+};
 
 const ACTIONS_STYLE = {
   flex: { xs: '1 0 100%', sm: 1 },

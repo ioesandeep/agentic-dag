@@ -31,13 +31,15 @@ interface GlobalRepositoryListProps extends RepositoryListBaseProps {
 /**
  * Specifies the repositories and available list actions.
  */
-export type RepositoryListProps = ProjectRepositoryListProps | GlobalRepositoryListProps;
+export type RepositoryListProps =
+  ProjectRepositoryListProps | GlobalRepositoryListProps;
 
 /**
  * Specifies a repository and its list context.
  */
 export type RepositoryRowProps = (
-  Omit<ProjectRepositoryListProps, 'repositories'> | Omit<GlobalRepositoryListProps, 'repositories'>
+  | Omit<ProjectRepositoryListProps, 'repositories'>
+  | Omit<GlobalRepositoryListProps, 'repositories'>
 ) & { repository: Repository };
 
 /**

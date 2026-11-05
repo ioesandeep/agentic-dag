@@ -22,8 +22,15 @@ import { RepositoryPickerDialog } from '@/components/repositoryPickerDialog/repo
 import type { ProjectSummary } from '@/entities/catalog/project';
 import { LABELS } from '@/labels/en';
 
-const MENU_ANCHOR_ORIGIN: PopoverOrigin = { vertical: 'bottom', horizontal: 'right' };
-const MENU_TRANSFORM_ORIGIN: PopoverOrigin = { vertical: 'top', horizontal: 'right' };
+const MENU_ANCHOR_ORIGIN: PopoverOrigin = {
+  vertical: 'bottom',
+  horizontal: 'right',
+};
+
+const MENU_TRANSFORM_ORIGIN: PopoverOrigin = {
+  vertical: 'top',
+  horizontal: 'right',
+};
 
 interface AddRepositoryActionButtonProps {
   project?: ProjectSummary;
@@ -33,7 +40,10 @@ interface AddRepositoryActionButtonProps {
 /**
  * Opens the repository import actions.
  */
-export const AddRepositoryActionButton = ({ project, isDisabled = false }: AddRepositoryActionButtonProps) => {
+export const AddRepositoryActionButton = ({
+  project,
+  isDisabled = false,
+}: AddRepositoryActionButtonProps) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [anchorElement, setAnchorElement] = useState<HTMLElement | null>(null);
 
@@ -111,21 +121,37 @@ export const AddRepositoryActionButton = ({ project, isDisabled = false }: AddRe
         slotProps={menuSlotProps}
       >
         <MenuItem onClick={handleOpenGithub}>
-          <ListItemIcon><GitHubIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon>
+            <GitHubIcon fontSize="small" />
+          </ListItemIcon>
           <ListItemText>{LABELS.repositoryAddGithub}</ListItemText>
         </MenuItem>
-        {project !== undefined && <MenuItem onClick={handleOpenRepositoryPicker}>
-          <ListItemIcon><FolderIcon fontSize="small" /></ListItemIcon>
-          <ListItemText>{LABELS.repositoryAddFromList}</ListItemText>
-        </MenuItem>}
+        {project !== undefined && (
+          <MenuItem onClick={handleOpenRepositoryPicker}>
+            <ListItemIcon>
+              <FolderIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>{LABELS.repositoryAddFromList}</ListItemText>
+          </MenuItem>
+        )}
         <MenuItem onClick={handleOpenLocal}>
-          <ListItemIcon><FolderOutlinedIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon>
+            <FolderOutlinedIcon fontSize="small" />
+          </ListItemIcon>
           <ListItemText>{LABELS.repositoryAddLocal}</ListItemText>
         </MenuItem>
       </Menu>
-      <GithubCloneDialog isOpen={isGithubOpen} onClose={handleCloseGithub} project={project} />
+      <GithubCloneDialog
+        isOpen={isGithubOpen}
+        onClose={handleCloseGithub}
+        project={project}
+      />
       {isRepositoryPickerOpen && project !== undefined && (
-        <RepositoryPickerDialog isOpen onClose={handleCloseRepositoryPicker} project={project} />
+        <RepositoryPickerDialog
+          isOpen
+          onClose={handleCloseRepositoryPicker}
+          project={project}
+        />
       )}
       {isLocalOpen && (
         <Dialog open onClose={handleCloseLocal} fullWidth maxWidth="sm">

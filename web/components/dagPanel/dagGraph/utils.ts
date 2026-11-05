@@ -1,6 +1,12 @@
 import type { EdgeLabel, NodeLabel } from '@dagrejs/dagre';
 import { Graph, layout } from '@dagrejs/dagre';
-import type { Dimensions, Edge, Rect, Viewport, XYPosition } from '@xyflow/react';
+import type {
+  Dimensions,
+  Edge,
+  Rect,
+  Viewport,
+  XYPosition,
+} from '@xyflow/react';
 import { Position } from '@xyflow/react';
 
 import {

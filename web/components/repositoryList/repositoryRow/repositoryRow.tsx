@@ -110,7 +110,11 @@ export const RepositoryRow = (repositoryRowProps: RepositoryRowProps) => {
     <VirgoCardBody
       content={
         <>
-          <Box role="group" aria-label={LABELS.repositoryProjects} sx={PROJECT_BAR_STYLE}>
+          <Box
+            role="group"
+            aria-label={LABELS.repositoryProjects}
+            sx={PROJECT_BAR_STYLE}
+          >
             {branchLabels.map(({ projectId, label, color }) => (
               <Box
                 key={projectId}
@@ -130,7 +134,10 @@ export const RepositoryRow = (repositoryRowProps: RepositoryRowProps) => {
           <List aria-label={LABELS.repositoryProjects} sx={PROJECT_LIST_STYLE}>
             {branchLabels.map(({ projectId, label, color }) => (
               <ListItem key={projectId} disablePadding sx={PROJECT_ROW_STYLE}>
-                <Box aria-hidden sx={{ ...PROJECT_DOT_STYLE, bgcolor: color }} />
+                <Box
+                  aria-hidden
+                  sx={{ ...PROJECT_DOT_STYLE, bgcolor: color }}
+                />
                 <Typography variant="body1" sx={WRAP_STYLE}>
                   {label}
                 </Typography>
@@ -151,13 +158,25 @@ export const RepositoryRow = (repositoryRowProps: RepositoryRowProps) => {
     <VirgoCardFooter
       chips={
         <>
-          <RepositoryStatus repository={repository} variant={RepositoryStatusVariantEnum.STATUS} />
+          <RepositoryStatus
+            repository={repository}
+            variant={RepositoryStatusVariantEnum.STATUS}
+          />
           {kindLabel !== null && (
-            <SoftChip color="var(--mui-palette-text-primary)" label={kindLabel} />
+            <SoftChip
+              color="var(--mui-palette-text-primary)"
+              label={kindLabel}
+            />
           )}
-          <SoftChip color="var(--mui-palette-primary-main)" label={defaultBranchLabel} />
+          <SoftChip
+            color="var(--mui-palette-primary-main)"
+            label={defaultBranchLabel}
+          />
           {clonedDateLabel !== null && (
-            <SoftChip color="var(--mui-palette-text-secondary)" label={clonedDateLabel} />
+            <SoftChip
+              color="var(--mui-palette-text-secondary)"
+              label={clonedDateLabel}
+            />
           )}
         </>
       }
@@ -166,7 +185,12 @@ export const RepositoryRow = (repositoryRowProps: RepositoryRowProps) => {
 
   return (
     <ListItem sx={ITEM_STYLE} aria-label={repository.fullName}>
-      <VirgoCard ariaLabel={repository.fullName} header={header} body={body} footer={footer} />
+      <VirgoCard
+        ariaLabel={repository.fullName}
+        header={header}
+        body={body}
+        footer={footer}
+      />
     </ListItem>
   );
 };

@@ -8,7 +8,10 @@ import { GithubImportFeedback } from './githubImportFeedback';
 
 test('GithubImportFeedback displays the login and host when GitHub is signed in', () => {
   const accountValues = { login: 'sandeep', host: 'github.com' };
-  const signedInLabel = formatLabel(LABELS.githubAccountSignedIn, accountValues);
+  const signedInLabel = formatLabel(
+    LABELS.githubAccountSignedIn,
+    accountValues,
+  );
 
   render(<GithubImportFeedback accountStatus={MOCK_GITHUB_ACCOUNT_STATUS} />);
 
@@ -18,11 +21,18 @@ test('GithubImportFeedback displays the login and host when GitHub is signed in'
 });
 
 test('GithubImportFeedback displays host login commands when GitHub is signed out', () => {
-  const accountStatus = { ...MOCK_GITHUB_ACCOUNT_STATUS, authenticated: false, login: null };
+  const accountStatus = {
+    ...MOCK_GITHUB_ACCOUNT_STATUS,
+    authenticated: false,
+    login: null,
+  };
 
   render(<GithubImportFeedback accountStatus={accountStatus} />);
 
-  expect(screen.getByRole('alert')).toHaveTextContent(LABELS.githubAccountSignedOut);
+  expect(screen.getByRole('alert')).toHaveTextContent(
+    LABELS.githubAccountSignedOut,
+  );
+
   expect(screen.getByText(LABELS.githubLoginInstruction)).toBeVisible();
   expect(screen.getByText(LABELS.githubLoginCommand)).toBeVisible();
 

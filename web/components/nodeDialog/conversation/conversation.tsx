@@ -60,10 +60,7 @@ export const Conversation = ({
   const handleToggleSubagents = () =>
     setIsShowingSubagents((isShowing) => !isShowing);
 
-  const shownMessages = selectMessages(
-    transcript.messages,
-    isShowingSubagents,
-  );
+  const shownMessages = selectMessages(transcript.messages, isShowingSubagents);
 
   const sessionStarts = readSessionStarts(
     shownMessages,

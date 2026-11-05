@@ -1,10 +1,7 @@
 import type { SxProps, Theme } from '@mui/material/styles';
 import type { ReactNode } from 'react';
 
-import {
-  EMPTY_PERCENT,
-  FULL_PERCENT,
-} from '@/components/splitPanel/constants';
+import { EMPTY_PERCENT, FULL_PERCENT } from '@/components/splitPanel/constants';
 import type { SplitPanelRow } from '@/components/splitPanel/types';
 
 const COLLAPSED_PANEL_DISPLAY = 'none';

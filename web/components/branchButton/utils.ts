@@ -4,4 +4,5 @@ const BRANCH_NAME_PATTERN =
 /**
  * Validates a new Git branch name.
  */
-export const isValidBranchName = (branch: string): boolean => BRANCH_NAME_PATTERN.test(branch);
+export const isValidBranchName = (branch: string): boolean =>
+  BRANCH_NAME_PATTERN.test(branch);

@@ -81,7 +81,9 @@ export const WakeDialog = ({
   const hasFailureAlert = failureDetail !== null && missingFieldCount === 0;
 
   const titleValues = { node: nodeId };
-  const submitLabel = isPending ? LABELS.nodeWakePending : LABELS.nodeWakeSubmit;
+  const submitLabel = isPending
+    ? LABELS.nodeWakePending
+    : LABELS.nodeWakeSubmit;
 
   const handleCauseChange = (event: ChangeEvent<HTMLInputElement>) =>
     setCause(event.target.value);
@@ -135,7 +137,9 @@ export const WakeDialog = ({
         {formatLabel(LABELS.nodeWakeDialogTitle, titleValues)}
       </DialogTitle>
       <DialogContent>
-        <DialogContentText>{LABELS.nodeWakeDialogDescription}</DialogContentText>
+        <DialogContentText>
+          {LABELS.nodeWakeDialogDescription}
+        </DialogContentText>
         <Box
           component="form"
           id={formId}

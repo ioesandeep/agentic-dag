@@ -36,7 +36,9 @@ export const StopDialog = ({
         {formatLabel(LABELS.nodeStopDialogTitle, titleValues)}
       </DialogTitle>
       <DialogContent>
-        <DialogContentText>{LABELS.nodeStopDialogDescription}</DialogContentText>
+        <DialogContentText>
+          {LABELS.nodeStopDialogDescription}
+        </DialogContentText>
       </DialogContent>
       <DialogActions>
         <Button autoFocus onClick={onClose}>

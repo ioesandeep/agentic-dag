@@ -36,7 +36,9 @@ export const countNodeStates = (nodes: NodePreview[]): NodeStateCount[] => {
 /**
  * Returns the state of a dag's most recently updated node.
  */
-export const getLatestNodeState = (nodes: NodePreview[]): NodeStateEnum | null => {
+export const getLatestNodeState = (
+  nodes: NodePreview[],
+): NodeStateEnum | null => {
   const moved = nodes.filter((node) => node.updatedAt !== null);
 
   if (moved.length === 0) {

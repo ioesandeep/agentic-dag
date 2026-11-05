@@ -17,10 +17,23 @@ interface GithubImportFeedbackProps {
 /**
  * Displays the GitHub account and host authentication instructions.
  */
-export const GithubImportFeedback = ({ accountStatus }: GithubImportFeedbackProps) => {
-  const accountValues = { login: accountStatus.login ?? '', host: accountStatus.host };
-  const signedInLabel = formatLabel(LABELS.githubAccountSignedIn, accountValues);
-  const accountLabel = accountStatus.authenticated ? signedInLabel : LABELS.githubAccountSignedOut;
+export const GithubImportFeedback = ({
+  accountStatus,
+}: GithubImportFeedbackProps) => {
+  const accountValues = {
+    login: accountStatus.login ?? '',
+    host: accountStatus.host,
+  };
+
+  const signedInLabel = formatLabel(
+    LABELS.githubAccountSignedIn,
+    accountValues,
+  );
+
+  const accountLabel = accountStatus.authenticated
+    ? signedInLabel
+    : LABELS.githubAccountSignedOut;
+
   const severity = accountStatus.authenticated ? 'info' : 'warning';
 
   return (
@@ -29,13 +42,17 @@ export const GithubImportFeedback = ({ accountStatus }: GithubImportFeedbackProp
         <Typography variant="body2">{accountLabel}</Typography>
         {!accountStatus.authenticated && (
           <>
-            <Typography variant="body2">{LABELS.githubLoginInstruction}</Typography>
+            <Typography variant="body2">
+              {LABELS.githubLoginInstruction}
+            </Typography>
             <Typography component="code" variant="body2" sx={COMMAND_STYLE}>
               {LABELS.githubLoginCommand}
             </Typography>
           </>
         )}
-        <Typography variant="body2">{LABELS.githubSwitchInstruction}</Typography>
+        <Typography variant="body2">
+          {LABELS.githubSwitchInstruction}
+        </Typography>
         <Typography component="code" variant="body2" sx={COMMAND_STYLE}>
           {LABELS.githubSwitchCommand}
         </Typography>

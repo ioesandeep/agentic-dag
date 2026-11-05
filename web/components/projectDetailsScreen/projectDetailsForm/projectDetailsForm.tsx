@@ -17,10 +17,18 @@ import { LABELS } from '@/labels/en';
 const PANEL_STYLE = { p: { xs: 2, sm: 2.5 } };
 const NAME_SIZE = { xs: 12, sm: 8 };
 const STATE_SIZE = { xs: 12, sm: 4 };
-const NAME_SLOT_PROPS = { htmlInput: { 'aria-label': LABELS.projectDetailsName } };
-const DESCRIPTION_SLOT_PROPS = { htmlInput: { 'aria-label': LABELS.projectDetailsDescription } };
+const NAME_SLOT_PROPS = {
+  htmlInput: { 'aria-label': LABELS.projectDetailsName },
+};
+
+const DESCRIPTION_SLOT_PROPS = {
+  htmlInput: { 'aria-label': LABELS.projectDetailsDescription },
+};
+
 const ACTION_STYLE = { mt: 2 };
-const STATE_SLOT_PROPS = { select: { 'aria-label': LABELS.projectDetailsState } };
+const STATE_SLOT_PROPS = {
+  select: { 'aria-label': LABELS.projectDetailsState },
+};
 
 interface ProjectDetailsFormProps {
   projectDetailsInput: ProjectDetailsInput;
@@ -40,17 +48,28 @@ export const ProjectDetailsForm = ({
 }: ProjectDetailsFormProps) => {
   const nameInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(projectDetailsInput.name);
-  const [description, setDescription] = useState(projectDetailsInput.description);
+  const [description, setDescription] = useState(
+    projectDetailsInput.description,
+  );
+
   const [isArchived, setIsArchived] = useState(projectDetailsInput.isArchived);
 
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const state = isArchived ? ProjectStateEnum.ARCHIVED : ProjectStateEnum.ACTIVE;
+  const state = isArchived
+    ? ProjectStateEnum.ARCHIVED
+    : ProjectStateEnum.ACTIVE;
+
   const hasNameError = hasSubmitted && name.trim() === '';
   const nameHelperText = hasNameError ? LABELS.projectNameRequired : undefined;
 
   const archived = projectDetailsInput.isArchived;
-  const currentState = archived ? LABELS.projectStateArchived : LABELS.projectStateActive;
-  const currentDescription = projectDetailsInput.description || LABELS.projectDescriptionEmpty;
+  const currentState = archived
+    ? LABELS.projectStateArchived
+    : LABELS.projectStateActive;
+
+  const currentDescription =
+    projectDetailsInput.description || LABELS.projectDescriptionEmpty;
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setHasSubmitted(true);
@@ -62,12 +81,23 @@ export const ProjectDetailsForm = ({
       return;
     }
 
-    const projectDetailsInput = { name: trimmedName, description: description.trim(), isArchived };
+    const projectDetailsInput = {
+      name: trimmedName,
+      description: description.trim(),
+      isArchived,
+    };
+
     onApply(projectDetailsInput);
   };
 
   return (
-    <Paper variant="outlined" component="form" noValidate onSubmit={handleSubmit} sx={PANEL_STYLE}>
+    <Paper
+      variant="outlined"
+      component="form"
+      noValidate
+      onSubmit={handleSubmit}
+      sx={PANEL_STYLE}
+    >
       <Grid container spacing={2}>
         <Grid size={NAME_SIZE}>
           <ProjectDetailField
@@ -101,10 +131,16 @@ export const ProjectDetailsForm = ({
               fullWidth
               value={state}
               slotProps={STATE_SLOT_PROPS}
-              onChange={(event) => setIsArchived(event.target.value === ProjectStateEnum.ARCHIVED)}
+              onChange={(event) =>
+                setIsArchived(event.target.value === ProjectStateEnum.ARCHIVED)
+              }
             >
-              <MenuItem value={ProjectStateEnum.ACTIVE}>{LABELS.projectStateActive}</MenuItem>
-              <MenuItem value={ProjectStateEnum.ARCHIVED}>{LABELS.projectStateArchived}</MenuItem>
+              <MenuItem value={ProjectStateEnum.ACTIVE}>
+                {LABELS.projectStateActive}
+              </MenuItem>
+              <MenuItem value={ProjectStateEnum.ARCHIVED}>
+                {LABELS.projectStateArchived}
+              </MenuItem>
             </TextField>
           </ProjectDetailField>
         </Grid>

@@ -64,20 +64,29 @@ test.each([
     render(<RepositoryStatus repository={repository} />);
 
     expect(
-      screen.getByText(formatLabel(LABELS.repositoryCloneElapsed, elapsedValues)),
+      screen.getByText(
+        formatLabel(LABELS.repositoryCloneElapsed, elapsedValues),
+      ),
     ).toBeVisible();
 
-    expect(screen.getByRole('progressbar')).not.toHaveAttribute('aria-valuenow');
+    expect(screen.getByRole('progressbar')).not.toHaveAttribute(
+      'aria-valuenow',
+    );
 
     act(() => vi.advanceTimersByTime(1000));
 
     expect(
-      screen.getByText(formatLabel(LABELS.repositoryCloneElapsed, nextElapsedValues)),
+      screen.getByText(
+        formatLabel(LABELS.repositoryCloneElapsed, nextElapsedValues),
+      ),
     ).toBeVisible();
   },
 );
 
-test.each([RepositoryStatusVariantEnum.STATUS, RepositoryStatusVariantEnum.PROGRESS])(
+test.each([
+  RepositoryStatusVariantEnum.STATUS,
+  RepositoryStatusVariantEnum.PROGRESS,
+])(
   'RepositoryStatus separates progress from the status label when the variant is %s',
   (variant) => {
     vi.useFakeTimers();
@@ -90,12 +99,18 @@ test.each([RepositoryStatusVariantEnum.STATUS, RepositoryStatusVariantEnum.PROGR
 
     const repository = createRepository(repositoryOverrides);
     const elapsedValues = { duration: '2 min, 30 sec' };
-    const elapsedLabel = formatLabel(LABELS.repositoryCloneElapsed, elapsedValues);
+    const elapsedLabel = formatLabel(
+      LABELS.repositoryCloneElapsed,
+      elapsedValues,
+    );
 
     render(<RepositoryStatus repository={repository} variant={variant} />);
 
     if (variant === RepositoryStatusVariantEnum.STATUS) {
-      expect(screen.getByRole('status')).toHaveTextContent(REPOSITORY_STATUS_LABELS.cloning);
+      expect(screen.getByRole('status')).toHaveTextContent(
+        REPOSITORY_STATUS_LABELS.cloning,
+      );
+
       expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
       expect(screen.queryByText(elapsedLabel)).not.toBeInTheDocument();
 
@@ -103,13 +118,20 @@ test.each([RepositoryStatusVariantEnum.STATUS, RepositoryStatusVariantEnum.PROGR
     }
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    expect(screen.getByRole('progressbar')).not.toHaveAttribute('aria-valuenow');
+    expect(screen.getByRole('progressbar')).not.toHaveAttribute(
+      'aria-valuenow',
+    );
+
     expect(screen.getByText(elapsedLabel)).toBeVisible();
   },
 );
 
 test('RepositoryStatus displays a cancellation request until the clone confirms cancellation', () => {
-  const latestImport = { ...RUNNING_WORKER_IMPORT, cancelRequestedAt: '2026-10-15T12:00:30Z' };
+  const latestImport = {
+    ...RUNNING_WORKER_IMPORT,
+    cancelRequestedAt: '2026-10-15T12:00:30Z',
+  };
+
   const repository = createRepository({
     presentationStatus: RepositoryPresentationStatusEnum.CLONING,
     latestImport,
@@ -129,12 +151,23 @@ test('RepositoryStatus displays a cancellation request until the clone confirms 
 
   const { rerender } = render(<RepositoryStatus repository={repository} />);
 
-  expect(screen.getByRole('status')).toHaveTextContent(LABELS.repositoryCancellationRequested);
-  expect(screen.queryByText(REPOSITORY_STATUS_LABELS.cancelled)).not.toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent(
+    LABELS.repositoryCancellationRequested,
+  );
+
+  expect(
+    screen.queryByText(REPOSITORY_STATUS_LABELS.cancelled),
+  ).not.toBeInTheDocument();
 
   rerender(<RepositoryStatus repository={cancelledRepository} />);
 
-  expect(screen.getByRole('status')).toHaveTextContent(REPOSITORY_STATUS_LABELS.cancelled);
-  expect(screen.queryByText(LABELS.repositoryCancellationRequested)).not.toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent(
+    REPOSITORY_STATUS_LABELS.cancelled,
+  );
+
+  expect(
+    screen.queryByText(LABELS.repositoryCancellationRequested),
+  ).not.toBeInTheDocument();
+
   expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
 });

@@ -1,10 +1,6 @@
 import type { SxProps, Theme } from '@mui/material/styles';
 
-import type {
-  AgentSession,
-  NodeDetail,
-  NodeLink,
-} from '@/entities/nodeDetail';
+import type { AgentSession, NodeDetail, NodeLink } from '@/entities/nodeDetail';
 import {
   COLLAPSED_GRAPH_LEFT_EDGE,
   GRAPH_LEFT_EDGE,
@@ -128,5 +124,4 @@ export const scrollToSession = (wake: number): void => {
 export const isSessionStartLoaded = (
   session: AgentSession,
   loadedSince: string | null,
-): boolean =>
-  loadedSince === null || session.startedAt >= loadedSince;
+): boolean => loadedSince === null || session.startedAt >= loadedSince;

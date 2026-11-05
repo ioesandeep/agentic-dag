@@ -11,7 +11,11 @@ import { LABELS, LOCALE } from '@/labels/en';
 import { formatLabel } from '@/utils/formatLabel';
 import { getRepositoryRoute } from '@/utils/route';
 import { RepositoryListVariantEnum } from './types';
-import type { RepositoryAction, RepositoryBranchLabel, RepositoryRowProps } from './types';
+import type {
+  RepositoryAction,
+  RepositoryBranchLabel,
+  RepositoryRowProps,
+} from './types';
 
 const RETRYABLE_IMPORT_STATUSES = [
   ImportStatusEnum.FAILED,
@@ -29,7 +33,11 @@ const PROJECT_COLORS = [
   'secondary.main',
 ];
 
-const CLONED_DATE_CONFIG: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeZone: 'UTC' };
+const CLONED_DATE_CONFIG: Intl.DateTimeFormatOptions = {
+  dateStyle: 'medium',
+  timeZone: 'UTC',
+};
+
 const CLONED_DATE_FORMAT = new Intl.DateTimeFormat(LOCALE, CLONED_DATE_CONFIG);
 
 const getProjectColor = (project: ProjectSummary): string => {
@@ -46,9 +54,14 @@ const getProjectColor = (project: ProjectSummary): string => {
 /**
  * Returns the recorded clone date for a repository.
  */
-export const getRepositoryClonedDateLabel = (repository: Repository): string | null => {
+export const getRepositoryClonedDateLabel = (
+  repository: Repository,
+): string | null => {
   const latestImport = repository.latestImport;
-  if (latestImport?.status !== ImportStatusEnum.SUCCEEDED || latestImport.finishedAt === null) {
+  if (
+    latestImport?.status !== ImportStatusEnum.SUCCEEDED ||
+    latestImport.finishedAt === null
+  ) {
     return null;
   }
 
@@ -62,7 +75,9 @@ export const getRepositoryClonedDateLabel = (repository: Repository): string | n
 /**
  * Returns the default branch label for a repository.
  */
-export const getRepositoryDefaultBranchLabel = (repository: Repository): string => {
+export const getRepositoryDefaultBranchLabel = (
+  repository: Repository,
+): string => {
   if (repository.defaultBranch === null) {
     return LABELS.repositoryDefaultBranchUnknown;
   }
@@ -75,7 +90,9 @@ export const getRepositoryDefaultBranchLabel = (repository: Repository): string 
 /**
  * Returns the checkout kind label for a repository.
  */
-export const getRepositoryKindLabel = (repository: Repository): string | null => {
+export const getRepositoryKindLabel = (
+  repository: Repository,
+): string | null => {
   if (repository.checkoutKind === CheckoutKindEnum.MANAGED) {
     return null;
   }
@@ -83,7 +100,9 @@ export const getRepositoryKindLabel = (repository: Repository): string | null =>
   return LABELS.repositoryExternal;
 };
 
-const getRetryCloneActions = (repositoryRowProps: RepositoryRowProps): RepositoryAction[] => {
+const getRetryCloneActions = (
+  repositoryRowProps: RepositoryRowProps,
+): RepositoryAction[] => {
   const { repository, onRetryClone } = repositoryRowProps;
   const latestImportStatus = repository.latestImport?.status;
   const canRetry =
@@ -104,7 +123,9 @@ const getRetryCloneActions = (repositoryRowProps: RepositoryRowProps): Repositor
   ];
 };
 
-const getProjectActions = (repositoryRowProps: RepositoryRowProps): RepositoryAction[] => {
+const getProjectActions = (
+  repositoryRowProps: RepositoryRowProps,
+): RepositoryAction[] => {
   if (
     repositoryRowProps.variant !== RepositoryListVariantEnum.PROJECT ||
     repositoryRowProps.project.archivedAt !== null
@@ -112,7 +133,8 @@ const getProjectActions = (repositoryRowProps: RepositoryRowProps): RepositoryAc
     return [];
   }
 
-  const { repository, onChangeBranch, onRemoveFromProject } = repositoryRowProps;
+  const { repository, onChangeBranch, onRemoveFromProject } =
+    repositoryRowProps;
 
   return [
     {
@@ -141,7 +163,9 @@ export const getRepositoryActions = (
   const repositoryValues = { repository: repository.fullName };
   const ariaLabel = formatLabel(LABELS.repositoryDetailsOpen, repositoryValues);
 
-  const isGlobal = repositoryRowProps.variant === RepositoryListVariantEnum.GLOBAL;
+  const isGlobal =
+    repositoryRowProps.variant === RepositoryListVariantEnum.GLOBAL;
+
   const href = isGlobal ? getRepositoryRoute(repository.id) : undefined;
 
   return [
