@@ -413,6 +413,8 @@ instead of waiting for the next scheduled one. In practice this is the differenc
 answering a review comment while you are still looking at the pull request and answering it minutes
 later.
 
+While the run is live, `watch` also keeps the host awake.
+
 ### The SSE bridge
 
 GitHub cannot deliver a webhook to a laptop, and a long-lived watcher should not be a web server.

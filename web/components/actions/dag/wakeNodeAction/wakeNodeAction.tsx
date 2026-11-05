@@ -3,10 +3,10 @@
 import Button from '@mui/material/Button';
 import { Fragment, useState } from 'react';
 
-import { WakeDialog } from '@/components/nodeDialog/nodeStatus/nodeActionByState/wakeAction/wakeDialog/wakeDialog';
+import { WakeDialog } from '@/components/actions/dag/wakeNodeAction/wakeDialog/wakeDialog';
 import { LABELS } from '@/labels/en';
 
-interface WakeActionProps {
+interface WakeNodeActionProps {
   dagName: string;
   nodeId: string;
   onNodeActionSuccess: () => void;
@@ -15,11 +15,11 @@ interface WakeActionProps {
 /**
  * Renders the wake button of a resting node with the dialog it opens.
  */
-export const WakeAction = ({
+export const WakeNodeAction = ({
   dagName,
   nodeId,
   onNodeActionSuccess,
-}: WakeActionProps) => {
+}: WakeNodeActionProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogOpenCount, setDialogOpenCount] = useState(0);
 

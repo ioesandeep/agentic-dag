@@ -11,7 +11,7 @@ import Switch from '@mui/material/Switch';
 import type { ChangeEvent } from 'react';
 import { useState } from 'react';
 
-import { DISABLED_BUTTON_STYLE } from '@/components/nodeDialog/nodeStatus/nodeActionByState/constants';
+import { DISABLED_BUTTON_STYLE } from '@/components/actions/dag/constants';
 import type { RetryRequest } from '@/entities/retryRequest';
 import { LABELS } from '@/labels/en';
 import { formatLabel } from '@/utils/formatLabel';

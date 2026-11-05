@@ -7,41 +7,47 @@ import { Fragment, useState } from 'react';
 import {
   DISABLED_BUTTON_STYLE,
   FAILURE_STYLE,
-} from '@/components/nodeDialog/nodeStatus/nodeActionByState/constants';
-import { StopDialog } from '@/components/nodeDialog/nodeStatus/nodeActionByState/stopAction/stopDialog/stopDialog';
-import { useNodeAction } from '@/hooks/useNodeAction';
+} from '@/components/actions/dag/constants';
+import { RetryDialog } from '@/components/actions/dag/retryNodeAction/retryDialog/retryDialog';
+import type { RetryRequest } from '@/entities/retryRequest';
+import { useNodeAction } from '@/components/actions/dag/hooks/useNodeAction/useNodeAction';
 import { LABELS } from '@/labels/en';
 import { getNodeActionPath, NodeActionEnum } from '@/utils/apiPath';
 
-interface StopActionProps {
+interface RetryNodeActionProps {
   dagName: string;
   nodeId: string;
   onNodeActionSuccess: () => void;
 }
 
 /**
- * Renders the stop button of a node with its confirmation dialog and the failure of its last request.
+ * Renders the retry button of a node with its confirmation dialog and the failure of its last request.
  */
-export const StopAction = ({
+export const RetryNodeAction = ({
   dagName,
   nodeId,
   onNodeActionSuccess,
-}: StopActionProps) => {
+}: RetryNodeActionProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const stopPath = getNodeActionPath(dagName, nodeId, NodeActionEnum.STOP);
+  const [dialogOpenCount, setDialogOpenCount] = useState(0);
+  const retryPath = getNodeActionPath(dagName, nodeId, NodeActionEnum.RETRY);
   const { isPending, failureDetail, postNodeAction } = useNodeAction(
-    stopPath,
+    retryPath,
     onNodeActionSuccess,
   );
 
-  const stopLabel = isPending ? LABELS.nodeStopPending : LABELS.nodeStop;
+  const retryLabel = isPending ? LABELS.nodeRetryPending : LABELS.nodeRetry;
 
-  const handleOpenDialog = () => setIsDialogOpen(true);
+  const handleOpenDialog = () => {
+    setDialogOpenCount((count) => count + 1);
+    setIsDialogOpen(true);
+  };
+
   const handleCloseDialog = () => setIsDialogOpen(false);
 
-  const handleConfirmStop = () => {
+  const handleConfirmRetry = (retryRequest: RetryRequest) => {
     setIsDialogOpen(false);
-    postNodeAction(null);
+    postNodeAction(retryRequest);
   };
 
   return (
@@ -54,19 +60,20 @@ export const StopAction = ({
         sx={DISABLED_BUTTON_STYLE}
         onClick={handleOpenDialog}
       >
-        {stopLabel}
+        {retryLabel}
       </Button>
       {failureDetail !== null && (
         <Alert severity="error" sx={FAILURE_STYLE}>
           {failureDetail}
         </Alert>
       )}
-      <StopDialog
+      <RetryDialog
+        key={dialogOpenCount}
         nodeId={nodeId}
         isOpen={isDialogOpen}
         isPending={isPending}
         onClose={handleCloseDialog}
-        onConfirm={handleConfirmStop}
+        onConfirm={handleConfirmRetry}
       />
     </Fragment>
   );

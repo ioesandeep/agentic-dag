@@ -13,9 +13,9 @@ import TextField from '@mui/material/TextField';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useId, useRef, useState } from 'react';
 
-import { DISABLED_BUTTON_STYLE } from '@/components/nodeDialog/nodeStatus/nodeActionByState/constants';
+import { DISABLED_BUTTON_STYLE } from '@/components/actions/dag/constants';
 import { RECOVERY_CAUSES } from '@/entities/nodeDetail';
-import { useNodeAction } from '@/hooks/useNodeAction';
+import { useNodeAction } from '@/components/actions/dag/hooks/useNodeAction/useNodeAction';
 import { LABELS, RECOVERY_CAUSE_LABELS } from '@/labels/en';
 import { getNodeActionPath, NodeActionEnum } from '@/utils/apiPath';
 import { formatLabel } from '@/utils/formatLabel';

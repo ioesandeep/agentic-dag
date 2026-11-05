@@ -9,6 +9,7 @@ from virgo_agentic_dag.bootstrap.application_context import emit
 from virgo_agentic_dag.domain.command.exit_code import ExitCode
 from virgo_agentic_dag.domain.command.watch_command import WatchCommand
 from virgo_agentic_dag.domain.infra.host.command_runner import CommandRunner
+from virgo_agentic_dag.domain.infra.host.sleep_inhibitor import SleepInhibitor
 from virgo_agentic_dag.domain.infra.host.sleeper import Sleeper
 from virgo_agentic_dag.domain.listening.webhook_event import WebhookEvent
 from virgo_agentic_dag.labels.en import LABELS
@@ -32,19 +33,23 @@ class RunWatcher:
         subscription_factory: SubscriptionFactory,
         command_runner: CommandRunner,
         sleeper: Sleeper,
+        sleep_inhibitor: SleepInhibitor,
         debounce_seconds: float = DEBOUNCE_SECONDS,
         no_topics_seconds: float = NO_TOPICS_SECONDS,
     ) -> None:
         self._plan_reader = plan_reader
         self._subscription_factory = subscription_factory
+
         self._command_runner = command_runner
         self._sleeper = sleeper
+        self._sleep_inhibitor = sleep_inhibitor
 
         self._debounce_seconds = debounce_seconds
         self._no_topics_seconds = no_topics_seconds
 
     async def watch(self, command: WatchCommand) -> ExitCode:
         """Watch the run's pull requests until the run completes."""
+        self._sleep_inhibitor.keep_awake()
         plan = await self._plan_reader.get_plan(command)
 
         while True:

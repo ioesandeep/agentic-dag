@@ -3,7 +3,7 @@ import Card from '@mui/material/Card';
 import Typography from '@mui/material/Typography';
 
 import { INFO_MAIN_COLOR } from '@/components/nodeDialog/constants';
-import { NodeActionByState } from '@/components/nodeDialog/nodeStatus/nodeActionByState/nodeActionByState';
+import { NodeActionByState } from '@/components/actions/dag/nodeActionByState/nodeActionByState';
 import { NodeStartTime } from '@/components/nodeDialog/nodeStatus/nodeStartTime/nodeStartTime';
 import { NodeUpdatedTime } from '@/components/nodeDialog/nodeStatus/nodeUpdatedTime/nodeUpdatedTime';
 import { PullRequestLink } from '@/components/nodeDialog/nodeStatus/pullRequestLink/pullRequestLink';

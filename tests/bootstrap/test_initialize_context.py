@@ -20,6 +20,7 @@ from virgo_agentic_dag.domain.exceptions.platform.observation_error import (
     ObservationError,
 )
 from virgo_agentic_dag.domain.exceptions.run.run_busy import RunBusy
+from virgo_agentic_dag.domain.infra.host.sleep_inhibitor import SleepInhibitor
 from virgo_agentic_dag.domain.infra.messaging.notification_subscriber import (
     NotificationSubscriber,
 )
@@ -28,6 +29,7 @@ from virgo_agentic_dag.domain.service.notification_publisher import (
     NotificationPublisher,
 )
 from virgo_agentic_dag.infra.code.github_code_repo import GitHubCodeRepo
+from virgo_agentic_dag.infra.host.sleep_inhibitor_factory import SleepInhibitorFactory
 from virgo_agentic_dag.services.watching.event_reader import EventReader
 from virgo_agentic_dag.services.watching.subscription_factory import SubscriptionFactory
 from virgo_agentic_dag.services.watching.watch_plan import WatchPlan
@@ -307,6 +309,12 @@ async def test_watcher_completes_a_pass_that_exceeds_thirty_seconds(
     event_reader = mocker.MagicMock(spec=EventReader)
     event_reader.get_event.side_effect = ["pull_request", None]
     mocker.patch.object(SubscriptionFactory, "build", return_value=event_reader)
+
+    mocker.patch.object(
+        SleepInhibitorFactory,
+        "get_sleep_inhibitor",
+        return_value=mocker.MagicMock(spec=SleepInhibitor),
+    )
 
     watch_command = WatchCommand(dag_name="demo")
     output_writer = io.StringIO()

@@ -272,4 +272,6 @@ LABELS: dict[str, str] = {
     "watcherStopped": "stopped watching {dag}",
     "watchFired": "events went quiet; ran a pass, it exited {code}",
     "watchEnded": "the run completed; nothing left to watch",
+    "sleepInhibitorReason": "dagctl watches a live dag run for pull request events",
+    "sleepInhibitorUnknown": "no sleep inhibitor is known for {platform}",
 }

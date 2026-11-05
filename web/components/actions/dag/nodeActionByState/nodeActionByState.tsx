@@ -1,6 +1,6 @@
-import { RetryAction } from '@/components/nodeDialog/nodeStatus/nodeActionByState/retryAction/retryAction';
-import { StopAction } from '@/components/nodeDialog/nodeStatus/nodeActionByState/stopAction/stopAction';
-import { WakeAction } from '@/components/nodeDialog/nodeStatus/nodeActionByState/wakeAction/wakeAction';
+import { RetryNodeAction } from '@/components/actions/dag/retryNodeAction/retryNodeAction';
+import { StopNodeAction } from '@/components/actions/dag/stopNodeAction/stopNodeAction';
+import { WakeNodeAction } from '@/components/actions/dag/wakeNodeAction/wakeNodeAction';
 import { NodeStateEnum } from '@/entities/nodeState';
 
 interface NodeActionByStateProps {
@@ -23,7 +23,7 @@ export const NodeActionByState = ({
     case NodeStateEnum.ERRORED:
     case NodeStateEnum.NEEDS_HUMAN:
       return (
-        <RetryAction
+        <RetryNodeAction
           dagName={dagName}
           nodeId={nodeId}
           onNodeActionSuccess={onNodeActionSuccess}
@@ -31,7 +31,7 @@ export const NodeActionByState = ({
       );
     case NodeStateEnum.RESTING:
       return (
-        <WakeAction
+        <WakeNodeAction
           dagName={dagName}
           nodeId={nodeId}
           onNodeActionSuccess={onNodeActionSuccess}
@@ -39,7 +39,7 @@ export const NodeActionByState = ({
       );
     case NodeStateEnum.IN_PROGRESS:
       return (
-        <StopAction
+        <StopNodeAction
           dagName={dagName}
           nodeId={nodeId}
           onNodeActionSuccess={onNodeActionSuccess}

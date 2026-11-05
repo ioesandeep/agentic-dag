@@ -5,7 +5,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 
-import { DISABLED_BUTTON_STYLE } from '@/components/nodeDialog/nodeStatus/nodeActionByState/constants';
+import { DISABLED_BUTTON_STYLE } from '@/components/actions/dag/constants';
 import { LABELS } from '@/labels/en';
 import { formatLabel } from '@/utils/formatLabel';
 

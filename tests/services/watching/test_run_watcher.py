@@ -14,6 +14,7 @@ from virgo_agentic_dag.domain.command.exit_code import ExitCode
 from virgo_agentic_dag.domain.command.watch_command import WatchCommand
 from virgo_agentic_dag.domain.execution.run_result import RunResult
 from virgo_agentic_dag.domain.infra.host.command_runner import CommandRunner
+from virgo_agentic_dag.domain.infra.host.sleep_inhibitor import SleepInhibitor
 from virgo_agentic_dag.domain.infra.host.sleeper import Sleeper
 from virgo_agentic_dag.services.watching.event_reader import EventReader
 from virgo_agentic_dag.services.watching.run_watcher import RunWatcher
@@ -37,12 +38,14 @@ def build_watcher(
     subscription_factory: MagicMock,
     command_runner: MagicMock,
     sleeper: MagicMock,
+    sleep_inhibitor: MagicMock,
 ) -> RunWatcher:
     return RunWatcher(
         plan_reader,
         subscription_factory,
         command_runner,
         sleeper,
+        sleep_inhibitor,
         debounce_seconds=0.01,
     )
 
@@ -73,8 +76,10 @@ async def test_fires_one_pass_when_a_burst_of_events_settles(
     command_runner.run.return_value = RunResult(returncode=int(ExitCode.RUN_COMPLETE))
 
     sleeper = mocker.MagicMock(spec=Sleeper)
-
-    watcher = build_watcher(plan_reader, subscription_factory, command_runner, sleeper)
+    sleep_inhibitor = mocker.MagicMock(spec=SleepInhibitor)
+    watcher = build_watcher(
+        plan_reader, subscription_factory, command_runner, sleeper, sleep_inhibitor
+    )
 
     exit_code = await run_watch(watcher)
 
@@ -104,8 +109,10 @@ async def test_never_fires_for_unsupported_events(mocker: MockerFixture) -> None
     command_runner.run.return_value = RunResult(returncode=int(ExitCode.RUN_COMPLETE))
 
     sleeper = mocker.MagicMock(spec=Sleeper)
-
-    watcher = build_watcher(plan_reader, subscription_factory, command_runner, sleeper)
+    sleep_inhibitor = mocker.MagicMock(spec=SleepInhibitor)
+    watcher = build_watcher(
+        plan_reader, subscription_factory, command_runner, sleeper, sleep_inhibitor
+    )
 
     await run_watch(watcher)
 
@@ -131,8 +138,10 @@ async def test_waits_for_a_pull_request_when_the_run_has_none_yet(
     command_runner.run.return_value = RunResult(returncode=int(ExitCode.RUN_COMPLETE))
 
     sleeper = mocker.MagicMock(spec=Sleeper)
-
-    watcher = build_watcher(plan_reader, subscription_factory, command_runner, sleeper)
+    sleep_inhibitor = mocker.MagicMock(spec=SleepInhibitor)
+    watcher = build_watcher(
+        plan_reader, subscription_factory, command_runner, sleeper, sleep_inhibitor
+    )
 
     await run_watch(watcher)
 
@@ -166,8 +175,10 @@ async def test_resubscribes_when_a_pass_leaves_the_run_running(
     ]
 
     sleeper = mocker.MagicMock(spec=Sleeper)
-
-    watcher = build_watcher(plan_reader, subscription_factory, command_runner, sleeper)
+    sleep_inhibitor = mocker.MagicMock(spec=SleepInhibitor)
+    watcher = build_watcher(
+        plan_reader, subscription_factory, command_runner, sleeper, sleep_inhibitor
+    )
 
     exit_code = await run_watch(watcher)
 
@@ -199,8 +210,10 @@ async def test_refreshes_its_topics_when_the_stream_stays_quiet(
     command_runner.run.return_value = RunResult(returncode=int(ExitCode.RUN_COMPLETE))
 
     sleeper = mocker.MagicMock(spec=Sleeper)
-
-    watcher = build_watcher(plan_reader, subscription_factory, command_runner, sleeper)
+    sleep_inhibitor = mocker.MagicMock(spec=SleepInhibitor)
+    watcher = build_watcher(
+        plan_reader, subscription_factory, command_runner, sleeper, sleep_inhibitor
+    )
 
     await run_watch(watcher)
 
@@ -221,8 +234,10 @@ async def test_ends_the_watch_when_the_run_is_no_longer_scheduled(
     command_runner = mocker.MagicMock(spec=CommandRunner)
 
     sleeper = mocker.MagicMock(spec=Sleeper)
-
-    watcher = build_watcher(plan_reader, subscription_factory, command_runner, sleeper)
+    sleep_inhibitor = mocker.MagicMock(spec=SleepInhibitor)
+    watcher = build_watcher(
+        plan_reader, subscription_factory, command_runner, sleeper, sleep_inhibitor
+    )
 
     exit_code = await run_watch(watcher)
 
@@ -255,6 +270,7 @@ async def test_watch_writes_each_pass_output_after_its_exit_code(
         subscription_factory=subscription_factory,
         command_runner=command_runner,
         sleeper=mocker.MagicMock(spec=Sleeper),
+        sleep_inhibitor=mocker.MagicMock(spec=SleepInhibitor),
         debounce_seconds=0.01,
     )
 
@@ -273,3 +289,24 @@ async def test_watch_writes_each_pass_output_after_its_exit_code(
 
     assert "it exited 1\nfirst pass\nfirst traceback\n" in log_text
     assert "it exited 3\nsecond pass\nsecond stderr\n" in log_text
+
+
+async def test_keeps_the_host_awake_once_when_the_run_waits_for_a_pull_request(
+    mocker: MockerFixture,
+) -> None:
+    plan_reader = mocker.AsyncMock(spec=WatchPlanReader)
+    plan_reader.get_topics.return_value = []
+    plan_reader.is_scheduled.side_effect = [True, False]
+
+    sleep_inhibitor = mocker.MagicMock(spec=SleepInhibitor)
+    watcher = RunWatcher(
+        plan_reader=plan_reader,
+        subscription_factory=mocker.MagicMock(spec=SubscriptionFactory),
+        command_runner=mocker.MagicMock(spec=CommandRunner),
+        sleeper=mocker.MagicMock(spec=Sleeper),
+        sleep_inhibitor=sleep_inhibitor,
+    )
+
+    await run_watch(watcher)
+
+    sleep_inhibitor.keep_awake.assert_called_once_with()

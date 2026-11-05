@@ -137,6 +137,7 @@ from virgo_agentic_dag.infra.agent.codex_usage_limit_reader import CodexUsageLim
 from virgo_agentic_dag.infra.agent.process_group_killer import ProcessGroupKiller
 from virgo_agentic_dag.infra.agent.transcript_page_reader import TranscriptPageReader
 from virgo_agentic_dag.infra.code.github_code_repo import GitHubCodeRepo
+from virgo_agentic_dag.infra.host.sleep_inhibitor_factory import SleepInhibitorFactory
 from virgo_agentic_dag.infra.host.subprocess_command_runner import (
     SubprocessCommandRunner,
 )
@@ -330,6 +331,8 @@ def register_beans(context: ApplicationContext) -> None:
     context.register(
         SchedulerFactory, lambda _context: SchedulerFactory(SubprocessCommandRunner())
     )
+
+    context.register(SleepInhibitorFactory, lambda _context: SleepInhibitorFactory())
 
     context.register(
         ScheduledJobRepo,
@@ -603,11 +606,15 @@ def _build_watch_command_handler(context: ApplicationContext) -> WatchCommandHan
     subscription_factory = SubscriptionFactory()
     command_runner = SubprocessCommandRunner(timeout_seconds=None)
     sleeper = SystemSleeper()
+
+    sleep_inhibitor_factory = context.get(SleepInhibitorFactory)
+    sleep_inhibitor = sleep_inhibitor_factory.get_sleep_inhibitor()
     run_watcher = RunWatcher(
         plan_reader,
         subscription_factory,
         command_runner,
         sleeper,
+        sleep_inhibitor,
     )
 
     return WatchCommandHandler(run_watcher)
