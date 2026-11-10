@@ -1,6 +1,7 @@
 import { RepositoryActionEnum } from '@/entities/catalog/repositoryAction';
 import type { SignalKind } from '@/entities/nodeDetail';
 import { RecoveryCauseEnum, SessionEndStateEnum } from '@/entities/nodeDetail';
+import { ExecutorAgentEnum } from '@/entities/plan/executorAgent';
 import { NodeStateEnum } from '@/entities/nodeState';
 import { RepositoryPresentationStatusEnum } from '@/entities/catalog/repository';
 import { DagState } from '@/utils/dagState';
@@ -35,6 +36,11 @@ export const NODE_STATE_LABELS: Record<NodeStateEnum, string> = {
   [NodeStateEnum.NEEDS_HUMAN]: 'Needs human',
   [NodeStateEnum.ERRORED]: 'Errored',
   [NodeStateEnum.SKIPPED]: 'Skipped',
+};
+
+export const EXECUTOR_AGENT_LABELS: Record<ExecutorAgentEnum, string> = {
+  [ExecutorAgentEnum.CLAUDE]: 'Claude',
+  [ExecutorAgentEnum.CODEX]: 'Codex',
 };
 
 export const DAG_STATE_LABELS: Record<DagState, string> = {
@@ -91,6 +97,10 @@ export const NODE_STATE_LABELS_LOWERCASE: Record<NodeStateEnum, string> = {
 };
 
 export const LABELS = {
+  planNodeChanged: 'Changed',
+  planNodeNew: 'New',
+  planNodesEmpty: 'No nodes in this plan',
+  planNodesEmptyHint: 'Create the dag from the plan conversation to add nodes.',
   appTitle: 'virgo-dag',
   appDescription: 'The dags this host records.',
   apiRequestFailed:

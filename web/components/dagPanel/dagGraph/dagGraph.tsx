@@ -13,17 +13,17 @@ import {
   DAG_NODE_TYPE,
   DIVIDER_COLOR,
   EDGE_WIDTH,
+  NODE_HEIGHT,
+  NODE_WIDTH,
   SECONDARY_TEXT_COLOR,
 } from '@/components/dagPanel/dagGraph/constants';
 import { DagGraphNode } from '@/components/dagPanel/dagGraph/dagGraphNode/dagGraphNode';
 import type { DagFlowNode } from '@/components/dagPanel/dagGraph/types';
-import {
-  getGraphLayout,
-  getInitialViewport,
-} from '@/components/dagPanel/dagGraph/utils';
+import { getGraphLayout } from '@/components/dagPanel/dagGraph/utils';
 import { EmptyState } from '@/components/emptyState/emptyState';
 import type { DagDetail } from '@/entities/dagDetail';
 import { LABELS } from '@/labels/en';
+import { getInitialViewport } from '@/utils/graphLayout';
 
 const NODE_TYPES = { [DAG_NODE_TYPE]: DagGraphNode };
 
@@ -58,7 +58,12 @@ export const DagGraph = ({ dag }: DagGraphProps) => {
       height: container.clientHeight,
     };
 
-    const viewport = getInitialViewport(flow.getNodes(), containerDimensions);
+    const viewport = getInitialViewport(
+      flow.getNodes(),
+      containerDimensions,
+      NODE_WIDTH,
+      NODE_HEIGHT,
+    );
 
     void flow.setViewport(viewport);
   }, []);
