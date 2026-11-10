@@ -6,16 +6,21 @@ import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
 import { EMPTY_PERCENT, FULL_PERCENT } from '@/components/splitPanel/constants';
-import { NO_DRAG_PIXELS } from '@/components/splitPanel/dragHandle/constants';
+import { NO_DRAG_PIXELS } from './constants';
 import {
+  getDragHandleIconStyle,
+  getDragHandleOrientation,
   getDragHandleStyle,
   getKeyDragPixels,
-} from '@/components/splitPanel/dragHandle/utils';
+  getPointerPosition,
+} from './utils';
+import type { SplitPanelDirectionEnum } from '@/components/splitPanel/types';
 import { LABELS } from '@/labels/en';
 
 interface DragHandleProps {
-  // The percent of the height the panel above this handle holds.
+  // The percentage of the panel before this handle along the layout axis.
   percent: number;
+  direction: SplitPanelDirectionEnum;
   // Receives the pixels the handle has moved since the last event.
   onDrag: (movedPixels: number) => void;
 }
@@ -23,20 +28,22 @@ interface DragHandleProps {
 /**
  * Renders the boundary a person drags to resize the panels around it.
  */
-export const DragHandle = ({ percent, onDrag }: DragHandleProps) => {
-  const lastPointerY = useRef<number | null>(null);
+export const DragHandle = ({ percent, direction, onDrag }: DragHandleProps) => {
+  const lastPointerPosition = useRef<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const roundedPercent = Math.round(percent);
+  const orientation = getDragHandleOrientation(direction);
+  const iconStyle = getDragHandleIconStyle(direction);
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
-    lastPointerY.current = event.clientY;
+    lastPointerPosition.current = getPointerPosition(event, direction);
     setIsDragging(true);
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const dragPixels = getKeyDragPixels(event.key);
+    const dragPixels = getKeyDragPixels(event.key, direction);
 
     if (dragPixels === NO_DRAG_PIXELS) {
       return;
@@ -52,18 +59,19 @@ export const DragHandle = ({ percent, onDrag }: DragHandleProps) => {
     }
 
     const trackPointer = (event: PointerEvent) => {
-      const pointerY = lastPointerY.current;
+      const previousPosition = lastPointerPosition.current;
 
-      if (pointerY === null) {
+      if (previousPosition === null) {
         return;
       }
 
-      lastPointerY.current = event.clientY;
-      onDrag(event.clientY - pointerY);
+      const pointerPosition = getPointerPosition(event, direction);
+      lastPointerPosition.current = pointerPosition;
+      onDrag(pointerPosition - previousPosition);
     };
 
     const stopDrag = () => {
-      lastPointerY.current = null;
+      lastPointerPosition.current = null;
       setIsDragging(false);
     };
 
@@ -76,22 +84,22 @@ export const DragHandle = ({ percent, onDrag }: DragHandleProps) => {
       window.removeEventListener('pointerup', stopDrag);
       window.removeEventListener('pointercancel', stopDrag);
     };
-  }, [isDragging, onDrag]);
+  }, [isDragging, onDrag, direction]);
 
   return (
     <Box
       role="separator"
       tabIndex={0}
       aria-label={LABELS.splitResize}
-      aria-orientation="horizontal"
+      aria-orientation={orientation}
       aria-valuenow={roundedPercent}
       aria-valuemin={EMPTY_PERCENT}
       aria-valuemax={FULL_PERCENT}
       onPointerDown={handlePointerDown}
       onKeyDown={handleKeyDown}
-      sx={getDragHandleStyle(isDragging)}
+      sx={getDragHandleStyle(isDragging, direction)}
     >
-      <DragHandleOutlinedIcon fontSize="small" aria-hidden />
+      <DragHandleOutlinedIcon fontSize="small" aria-hidden sx={iconStyle} />
     </Box>
   );
 };

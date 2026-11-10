@@ -1,8 +1,9 @@
 import type { SxProps, Theme } from '@mui/material/styles';
 import type { ReactNode } from 'react';
 
-import { EMPTY_PERCENT, FULL_PERCENT } from '@/components/splitPanel/constants';
-import type { SplitPanelRow } from '@/components/splitPanel/types';
+import { EMPTY_PERCENT, FULL_PERCENT } from './constants';
+import { SplitPanelDirectionEnum } from './types';
+import type { SplitPanelRow } from './types';
 
 const COLLAPSED_PANEL_DISPLAY = 'none';
 const OPEN_PANEL_DISPLAY = 'flex';
@@ -27,6 +28,32 @@ const getClampedPercent = (percent: number, total: number): number => {
   return percent;
 };
 
+const getVisiblePercent = (
+  split: number[],
+  index: number,
+  expandedPanel: number | null,
+): number => {
+  if (expandedPanel === null) {
+    return split[index] ?? EMPTY_PERCENT;
+  }
+
+  return index === expandedPanel ? FULL_PERCENT : EMPTY_PERCENT;
+};
+
+/**
+ * Returns the container dimension along the layout axis.
+ */
+export const getContainerSize = (
+  container: HTMLElement,
+  direction: SplitPanelDirectionEnum,
+): number => {
+  if (direction === SplitPanelDirectionEnum.ROW) {
+    return container.clientWidth;
+  }
+
+  return container.clientHeight;
+};
+
 /**
  * Returns the style of one panel.
  */
@@ -35,6 +62,7 @@ export const getPanelStyle = (percent: number): SxProps<Theme> => ({
   flexDirection: 'column',
   flexBasis: `${percent}%`,
   minHeight: 0,
+  minWidth: 0,
 });
 
 /**
@@ -83,14 +111,15 @@ export const getResizedSplit = (
 };
 
 /**
- * Returns each panel with the share of the height it holds.
+ * Returns the visible panel sizes and resize handles.
  */
 export const getSplitPanelRows = (
   panels: ReactNode[],
   split: number[],
+  expandedPanel: number | null = null,
 ): SplitPanelRow[] =>
   panels.map((panel, index) => ({
     panel,
-    percent: split[index] ?? EMPTY_PERCENT,
-    hasHandle: index < panels.length - 1,
+    percent: getVisiblePercent(split, index, expandedPanel),
+    hasHandle: expandedPanel === null && index < panels.length - 1,
   }));
