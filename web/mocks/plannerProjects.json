@@ -1,0 +1,55 @@
+[
+  {
+    "id": "project-default",
+    "name": "Default",
+    "repositories": [
+      {
+        "id": "repository-service",
+        "fullName": "virgo/service",
+        "branch": "main",
+        "branches": ["main", "release/1.0"]
+      },
+      {
+        "id": "repository-worker",
+        "fullName": "virgo/worker",
+        "branch": "main",
+        "branches": ["main", "develop"]
+      },
+      {
+        "id": "repository-connector",
+        "fullName": "virgo/connector",
+        "branch": "main",
+        "branches": ["main", "develop"]
+      }
+    ]
+  },
+  {
+    "id": "project-platform",
+    "name": "Platform",
+    "repositories": [
+      {
+        "id": "repository-service",
+        "fullName": "virgo/service",
+        "branch": "release/1.0",
+        "branches": ["main", "release/1.0"]
+      },
+      {
+        "id": "repository-console",
+        "fullName": "virgo/console",
+        "branch": "develop",
+        "branches": ["develop", "main"]
+      },
+      {
+        "id": "repository-tools",
+        "fullName": "virgo/tools",
+        "branch": "main",
+        "branches": ["main", "develop"]
+      }
+    ]
+  },
+  {
+    "id": "project-research",
+    "name": "Research",
+    "repositories": []
+  }
+]

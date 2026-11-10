@@ -1,0 +1,179 @@
+{
+  "worker": [
+    {
+      "id": "WB-1",
+      "name": "retry-settings",
+      "title": "Add the retry settings",
+      "dependsOn": [],
+      "context": "virgo/worker executes queued jobs. Failed jobs currently stop after the first attempt.",
+      "task": "Add retry configuration for failed jobs. Set the maximum attempt count to five.",
+      "acceptanceCriteria": "The default attempt count is five. Invalid retry configuration fails validation."
+    },
+    {
+      "id": "WB-2",
+      "name": "retry-backoff",
+      "title": "Add exponential retry backoff",
+      "dependsOn": ["WB-1"],
+      "context": "WB-1 defines retry configuration. Failed jobs need a delay before the next attempt.",
+      "task": "Calculate an exponential delay from the attempt count. Apply the configured maximum delay.",
+      "acceptanceCriteria": "Each retry increases the delay. The delay never exceeds the configured maximum."
+    },
+    {
+      "id": "WB-3",
+      "name": "retry-scheduling",
+      "title": "Schedule failed jobs for retry",
+      "dependsOn": ["WB-2"],
+      "context": "WB-2 calculates the retry delay. The worker needs to schedule another attempt.",
+      "task": "Schedule failed jobs after their calculated delay. Persist the attempt count with the job.",
+      "acceptanceCriteria": "A failed job runs after its delay. A worker restart preserves the attempt count."
+    },
+    {
+      "id": "WB-4",
+      "name": "dead-letter-queue",
+      "title": "Add the dead-letter queue",
+      "dependsOn": ["WB-3"],
+      "context": "WB-3 schedules retries. Jobs that fail five attempts need a separate queue.",
+      "task": "Move jobs to the dead-letter queue after five failed attempts. Include the failure details.",
+      "acceptanceCriteria": "A job stops retrying after five failed attempts. Its dead-letter record includes the final error."
+    },
+    {
+      "id": "WB-5",
+      "name": "retry-tests",
+      "title": "Test retry backoff and exhausted jobs",
+      "dependsOn": ["WB-4"],
+      "context": "The worker now retries failed jobs. Exhausted jobs enter the dead-letter queue.",
+      "task": "Test retry delays and successful retries. Test the transition after five failed attempts.",
+      "acceptanceCriteria": "A successful retry completes the job. Five failures produce a dead-letter record."
+    }
+  ],
+  "connector": [
+    {
+      "id": "CP-1",
+      "name": "pagination-contract",
+      "title": "Define the pagination contract",
+      "dependsOn": [],
+      "context": "virgo/connector loads complete result sets. Large collections exceed the available memory.",
+      "task": "Define page records and continuation tokens. Specify how the final page is represented.",
+      "acceptanceCriteria": "A page includes records and a continuation token. The final page has no continuation token."
+    },
+    {
+      "id": "CP-2",
+      "name": "pagination-client",
+      "title": "Request paginated results",
+      "dependsOn": ["CP-1"],
+      "context": "CP-1 defines pages and continuation tokens. The connector client still requests all records.",
+      "task": "Request a bounded page of records. Send the continuation token with the next request.",
+      "acceptanceCriteria": "Requests include the configured page size. The next request uses the previous continuation token."
+    },
+    {
+      "id": "CP-3",
+      "name": "pagination-iterator",
+      "title": "Iterate through result pages",
+      "dependsOn": ["CP-2"],
+      "context": "CP-2 requests individual pages. Ingestion needs to traverse the complete collection.",
+      "task": "Iterate through pages until the token is absent. Release each page after its records are consumed.",
+      "acceptanceCriteria": "Every record is returned once. Memory usage stays bounded by the page size."
+    },
+    {
+      "id": "CP-4",
+      "name": "pagination-checkpoint",
+      "title": "Save pagination checkpoints",
+      "dependsOn": ["CP-3"],
+      "context": "CP-3 iterates through pages. An interrupted import must resume from its last completed page.",
+      "task": "Save the continuation token after a page completes. Resume imports from their saved token.",
+      "acceptanceCriteria": "Completed pages are not requested again after restart. Failed pages do not advance the checkpoint."
+    },
+    {
+      "id": "CP-5",
+      "name": "pagination-retries",
+      "title": "Retry failed page requests",
+      "dependsOn": ["CP-4"],
+      "context": "CP-4 persists page checkpoints. A temporary request failure must preserve import progress.",
+      "task": "Retry temporary page request failures. Preserve the current continuation token during retries.",
+      "acceptanceCriteria": "A retry requests the same page. Exhausted retries report an import failure."
+    },
+    {
+      "id": "CP-6",
+      "name": "pagination-tests",
+      "title": "Test large paginated imports",
+      "dependsOn": ["CP-5"],
+      "context": "The connector now imports records in pages. Checkpoints support interrupted imports.",
+      "task": "Test an import spanning several pages. Test recovery after a failed page request.",
+      "acceptanceCriteria": "The import includes all records without duplicates. Recovery resumes from the saved token."
+    }
+  ],
+  "rateLimit": [
+    {
+      "id": "RL-1",
+      "name": "rate-limit-settings",
+      "title": "Add the rate limit settings",
+      "dependsOn": [],
+      "context": "virgo/service needs per-organization rate limits.",
+      "task": "Add settings to enable rate limiting and configure the Redis counter expiry.",
+      "acceptanceCriteria": "Rate limiting can be disabled. Invalid expiry values fail validation."
+    },
+    {
+      "id": "RL-2",
+      "name": "redis-request-counter",
+      "title": "Add the Redis request counter",
+      "dependsOn": [],
+      "context": "service/cache.py already connects to Redis.",
+      "task": "Add RequestCounter to count requests per organization for the current minute. Expire each counter after its minute ends.",
+      "acceptanceCriteria": "Concurrent requests increment the counter atomically. Two organizations are counted separately."
+    },
+    {
+      "id": "RL-3",
+      "name": "organization-limit-lookup",
+      "title": "Add the organization limit lookup",
+      "dependsOn": ["RL-1"],
+      "context": "RL-1 defines the rate limit settings.",
+      "task": "Add OrganizationLimitLookup to return an organization's limit in requests per minute. Return 1,000 requests per minute for an organization without its own limit.",
+      "acceptanceCriteria": "An organization-specific limit takes precedence. An organization without its own limit gets 1,000 requests per minute."
+    },
+    {
+      "id": "RL-4",
+      "name": "rate-limit-response",
+      "title": "Add the 429 response",
+      "dependsOn": ["RL-2"],
+      "context": "RL-2 counts each organization's requests for the current minute.",
+      "task": "Add rate_limit_response to create the 429 response with a Retry-After header.",
+      "acceptanceCriteria": "The response status is 429. Retry-After specifies the seconds until the next minute."
+    },
+    {
+      "id": "RL-5",
+      "name": "limits-admin-route",
+      "title": "Add the limits admin route",
+      "dependsOn": ["RL-3"],
+      "context": "RL-3 returns an organization's effective limit.",
+      "task": "Add an admin route that lists each organization and its effective limit. Require administrator access.",
+      "acceptanceCriteria": "Administrators can list the limits. Other users cannot access the route."
+    },
+    {
+      "id": "RL-6",
+      "name": "rate-limit-middleware",
+      "title": "Add the rate limit middleware",
+      "dependsOn": ["RL-3", "RL-4"],
+      "context": "RL-3 adds `OrganizationLimitLookup`, which returns an organization's limit in requests per minute. RL-4 adds `rate_limit_response`, which builds the 429 response with a `Retry-After` header. `RequestCounter` from RL-2 counts each organization's requests per minute in Redis.",
+      "task": "Add `RateLimitMiddleware` in `service/middleware/rate_limit.py` and register it in `service/app.py`. For each request it finds the organization from the API key, adds the request to the organization's count for the current minute, and returns the 429 response when the count is over the organization's limit.",
+      "acceptanceCriteria": "- A request over the limit gets 429 with `Retry-After`.\n- Two organizations are counted separately."
+    },
+    {
+      "id": "RL-7",
+      "name": "console-limits",
+      "title": "Show the limits on the console",
+      "dependsOn": ["RL-5"],
+      "context": "RL-5 adds an admin route that lists the limits.",
+      "task": "Add a read-only limits page in virgo/console. Display each organization's effective limit.",
+      "acceptanceCriteria": "The page displays the limits from the admin route. Loading, empty, and error states are displayed."
+    },
+    {
+      "id": "RL-8",
+      "name": "rate-limit-tests",
+      "title": "Add the end-to-end limit test",
+      "dependsOn": ["RL-5", "RL-6"],
+      "context": "RL-5 lists organization limits and RL-6 enforces them.",
+      "task": "Test rate limiting through the service and the limits admin route. Verify organization isolation and the Retry-After header.",
+      "acceptanceCriteria": "A request over the limit gets 429. The admin route returns the effective limit for each organization."
+    }
+  ]
+}
