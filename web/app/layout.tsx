@@ -25,7 +25,11 @@ export const metadata: Metadata = {
   description: LABELS.appDescription,
 };
 
-const RootLayout = ({ children }: { children: ReactNode }) => (
+interface RootLayoutProps {
+  children: ReactNode;
+}
+
+const RootLayout = ({ children }: RootLayoutProps) => (
   <html
     lang="en"
     suppressHydrationWarning
